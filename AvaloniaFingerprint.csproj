@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <RootNamespace>AvaloniaFingerprint</RootNamespace>
+    <AssemblyName>AvaloniaFingerprint</AssemblyName>
+    <Platforms>AnyCPU;x86;x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.2.3">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!--
+    DPUruNet.dll ships with the DigitalPersona U.are.U RTE and is not redistributable,
+    so it is referenced only when the SDK (or a local copy under lib\) is present.
+    Without it the project still builds and runs; the reader service falls back to a
+    stub that reports "SDK tidak tersedia" instead of capturing.
+  -->
+  <PropertyGroup>
+    <DpUruNetSdkPath Condition="'$(DpUruNetSdkPath)' == ''">$(ProgramFiles)\DigitalPersona\U.are.U RTE\Windows\Lib\.NET\DPUruNet.dll</DpUruNetSdkPath>
+    <DpUruNetLocalPath>$(MSBuildProjectDirectory)\lib\DPUruNet.dll</DpUruNetLocalPath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(DpUruNetLocalPath)')">
+    <Reference Include="DPUruNet">
+      <HintPath>$(DpUruNetLocalPath)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="!Exists('$(DpUruNetLocalPath)') And Exists('$(DpUruNetSdkPath)')">
+    <Reference Include="DPUruNet">
+      <HintPath>$(DpUruNetSdkPath)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <PropertyGroup Condition="Exists('$(DpUruNetLocalPath)') Or Exists('$(DpUruNetSdkPath)')">
+    <DefineConstants>$(DefineConstants);HAS_DPURUNET</DefineConstants>
+  </PropertyGroup>
+
+</Project>

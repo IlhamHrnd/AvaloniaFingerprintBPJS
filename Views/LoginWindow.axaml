@@ -1,0 +1,46 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:AvaloniaFingerprint.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="330"
+        x:Class="AvaloniaFingerprint.Views.LoginWindow"
+        x:DataType="vm:LoginViewModel"
+        Width="380" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="White"
+        Title="Login Petugas">
+
+  <StackPanel Margin="24" Spacing="14">
+
+    <StackPanel Spacing="2">
+      <TextBlock Classes="h1" Text="Login Petugas" />
+      <TextBlock Classes="caption" Text="Gunakan akun petugas BPJS untuk membuka semua tab." />
+    </StackPanel>
+
+    <StackPanel Spacing="4">
+      <TextBlock Text="Username" FontWeight="SemiBold" FontSize="12" />
+      <TextBox Text="{Binding Username}" Watermark="0901R002_xxx" Height="36" />
+    </StackPanel>
+
+    <StackPanel Spacing="4">
+      <TextBlock Text="Password" FontWeight="SemiBold" FontSize="12" />
+      <TextBox Text="{Binding Password}" PasswordChar="•" Watermark="Password" Height="36" />
+    </StackPanel>
+
+    <Border IsVisible="{Binding HasMessage}" Background="#FDECEA" CornerRadius="6" Padding="10">
+      <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="#B3261E" FontSize="12" />
+    </Border>
+
+    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="4" />
+
+    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
+      <Button Grid.Column="1" Content="Batal" Command="{Binding CancelCommand}"
+              MinWidth="88" Height="36" Margin="0,0,8,0" HorizontalContentAlignment="Center" />
+      <Button Grid.Column="2" Content="Login" Command="{Binding LoginCommand}"
+              IsDefault="True" MinWidth="88" Height="36" HorizontalContentAlignment="Center"
+              Background="{StaticResource AccentBrush}" Foreground="White" />
+    </Grid>
+  </StackPanel>
+</Window>

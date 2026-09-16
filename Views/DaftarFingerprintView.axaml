@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:AvaloniaFingerprint.ViewModels"
+             xmlns:models="using:AvaloniaFingerprint.Models"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="520"
+             x:Class="AvaloniaFingerprint.Views.DaftarFingerprintView"
+             x:DataType="vm:DaftarFingerprintViewModel">
+
+  <Grid ColumnDefinitions="*,300" Margin="16">
+
+    <Border Grid.Column="0" Classes="card" Margin="0,0,16,0">
+      <DockPanel>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12">
+          <TextBox Grid.Column="0" Text="{Binding SearchText}"
+                   Watermark="Cari no. kartu, nama, atau petugas" Height="36" Margin="0,0,8,0" />
+          <Button Grid.Column="1" Content="Muat Ulang" Command="{Binding RefreshCommand}"
+                  Height="36" MinWidth="100" HorizontalContentAlignment="Center" Margin="0,0,8,0" />
+          <Button Grid.Column="2" Content="Hapus" Command="{Binding DeleteCommand}"
+                  Height="36" MinWidth="80" HorizontalContentAlignment="Center" />
+        </Grid>
+
+        <TextBlock DockPanel.Dock="Bottom" Classes="caption" Margin="0,10,0,0"
+                   Text="Daftar registrasi yang dikirim dari komputer ini." />
+
+        <Panel>
+          <DataGrid ItemsSource="{Binding Records}"
+                    SelectedItem="{Binding Selected}"
+                    IsReadOnly="True"
+                    GridLinesVisibility="Horizontal"
+                    HeadersVisibility="Column"
+                    CanUserResizeColumns="True">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Tanggal" Width="130"
+                                  Binding="{Binding Tanggal, StringFormat='{}{0:dd/MM/yy HH:mm}'}"
+                                  x:DataType="models:FingerprintRecord" />
+              <DataGridTextColumn Header="No. Kartu" Width="130"
+                                  Binding="{Binding NoKapst}" x:DataType="models:FingerprintRecord" />
+              <DataGridTextColumn Header="Nama" Width="*" MinWidth="90"
+                                  Binding="{Binding Nama}" x:DataType="models:FingerprintRecord" />
+              <DataGridTextColumn Header="Jari" Width="50"
+                                  Binding="{Binding JumlahJari}" x:DataType="models:FingerprintRecord" />
+              <DataGridTextColumn Header="Petugas" Width="110"
+                                  Binding="{Binding Petugas}" x:DataType="models:FingerprintRecord" />
+              <DataGridTextColumn Header="Status" Width="90"
+                                  Binding="{Binding Status}" x:DataType="models:FingerprintRecord" />
+            </DataGrid.Columns>
+          </DataGrid>
+
+          <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+            <TextBlock Text="Belum ada data" Classes="h2" HorizontalAlignment="Center" />
+            <TextBlock Classes="caption" HorizontalAlignment="Center"
+                       Text="Registrasi yang berhasil akan muncul di sini." />
+          </StackPanel>
+        </Panel>
+      </DockPanel>
+    </Border>
+
+    <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
+      <StackPanel Spacing="12">
+        <TextBlock Classes="h2" Text="Detail" />
+
+        <StackPanel IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}" Spacing="12">
+          <StackPanel Spacing="2">
+            <TextBlock Text="No. Kartu" Classes="caption" />
+            <TextBlock Text="{Binding Selected.NoKapst}" FontWeight="SemiBold" FontSize="15" />
+          </StackPanel>
+
+          <StackPanel Spacing="2">
+            <TextBlock Text="Petugas" Classes="caption" />
+            <TextBlock Text="{Binding Selected.Petugas}" />
+          </StackPanel>
+
+          <Grid ColumnDefinitions="*,*">
+            <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+              <TextBlock Text="Kiri" Classes="caption" />
+              <Border Height="120" CornerRadius="6" Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1">
+                <Image Source="{Binding Selected.ImgLeft, Converter={StaticResource Base64Image}}"
+                       Stretch="Uniform" Margin="4" />
+              </Border>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="4">
+              <TextBlock Text="Kanan" Classes="caption" />
+              <Border Height="120" CornerRadius="6" Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1">
+                <Image Source="{Binding Selected.ImgRight, Converter={StaticResource Base64Image}}"
+                       Stretch="Uniform" Margin="4" />
+              </Border>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+
+        <TextBlock IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNull}}"
+                   Classes="caption" TextWrapping="Wrap"
+                   Text="Pilih salah satu baris untuk melihat detail dan gambar sidik jari." />
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>
