@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿global using static AvaloniaFingerprint.Models.Master.Response;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using RestSharp;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,7 +12,8 @@ namespace AvaloniaFingerprint.Services
     public  class BaseService(IConfiguration config)
     {
         protected IConfiguration config { get; set; } = config;
-        protected string url = config["Link:DatinAPI"] ?? string.Empty;
+        protected string url = config["Apps:DatinAPI"] ?? string.Empty;
+        protected int timeout = int.Parse(config["Apps:Timeout"] ?? string.Empty);
 
         // Noted
         // 1. Unit -> untuk konversi timeout dalam detik, menit atau jam
@@ -75,6 +78,56 @@ namespace AvaloniaFingerprint.Services
             if (body != null && request.Method != Method.Get) request.AddJsonBody(body);
             var response = client.Execute(request);
             return response;
+        }
+
+        // Format untuk hasil scan finger agar bisa diolah
+        protected byte[] GrayscaleToJpeg(byte[] gray, int width, int height, int quality = 90)
+        {
+            if (gray is null || width <= 0 || height <= 0)
+                return Array.Empty<byte>();
+
+            var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque);
+            using var bitmap = new SKBitmap(info);
+
+            var pixels = new byte[width * height * 4];
+            var count = Math.Min(gray.Length, width * height);
+            for (var i = 0; i < count; i++)
+            {
+                var v = gray[i];
+                var o = i * 4;
+                pixels[o] = v;      // B
+                pixels[o + 1] = v;  // G
+                pixels[o + 2] = v;  // R
+                pixels[o + 3] = 255;
+            }
+
+            System.Runtime.InteropServices.Marshal.Copy(pixels, 0, bitmap.GetPixels(), pixels.Length);
+
+            using var image = SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Jpeg, quality);
+            return data.ToArray();
+        }
+
+        protected string GrayscaleToJpegBase64(byte[] gray, int width, int height)
+        {
+            var jpeg = GrayscaleToJpeg(gray, width, height);
+            return jpeg.Length == 0 ? string.Empty : Convert.ToBase64String(jpeg);
+        }
+
+        protected Avalonia.Media.Imaging.Bitmap? Base64ToBitmap(string? base64)
+        {
+            if (string.IsNullOrWhiteSpace(base64))
+                return null;
+
+            try
+            {
+                using var stream = new MemoryStream(Convert.FromBase64String(base64));
+                return new Avalonia.Media.Imaging.Bitmap(stream);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
     }
 }
