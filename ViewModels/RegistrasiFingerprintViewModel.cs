@@ -1,12 +1,12 @@
 using AvaloniaFingerprint.Exceptions;
-using AvaloniaFingerprint.Models;
+using AvaloniaFingerprint.Filters.Fingerprint;
 using AvaloniaFingerprint.Models.Fingerprint;
-using AvaloniaFingerprint.Models.Old;
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace AvaloniaFingerprint.ViewModels;
@@ -103,8 +103,7 @@ public sealed partial class RegistrasiFingerprintViewModel : ViewModelBase
     /// </summary>
     private async Task ScanHandAsync(bool isRight)
     {
-        var options = _services.Settings.Fingerprint;
-        var total = Math.Max(1, options.FingersPerHand);
+        var total = Math.Max(1, _services.Fingerprint.FingersPerHand);
         var hand = isRight ? "kanan" : "kiri";
         var fmds = isRight ? _rightFmds : _leftFmds;
 
@@ -122,7 +121,7 @@ public sealed partial class RegistrasiFingerprintViewModel : ViewModelBase
             {
                 ScanStatus = $"Pindai jari {hand} ke-{i} dari {total}";
 
-                var capture = await _services.Fingerprint.CaptureAsync(options.CaptureTimeoutMs);
+                var capture = await _services.Fingerprint.CaptureAsync(_services.Fingerprint.CaptureTimeoutMs);
 
                 if (capture.PreRegistrationFmd is not null)
                     fmds.Add(capture.PreRegistrationFmd);
@@ -182,8 +181,6 @@ public sealed partial class RegistrasiFingerprintViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanRegist))]
     private async Task RegistAsync()
     {
-        var options = _services.Settings.Fingerprint;
-
         IsBusy = true;
         SetStatus("Mengirim data ke BPJS...", false);
 
@@ -197,32 +194,22 @@ public sealed partial class RegistrasiFingerprintViewModel : ViewModelBase
                     new()
                     {
                         finger = _rightTemplate ?? string.Empty,
-                        index = options.RightHandIndex,
+                        index = _services.Fingerprint.RightHandIndex,
                         imgStr = RightImage ?? string.Empty
                     },
                     new()
                     {
                         finger = _leftTemplate ?? string.Empty,
-                        index = options.LeftHandIndex,
+                        index = _services.Fingerprint.LeftHandIndex,
                         imgStr = LeftImage ?? string.Empty
                     }
                 }
             };
 
-            var result = await _services.Api.AddPesertaAsync(payload, _services.Session.Token);
-
-            if (!result.Success)
+            var result = _services.Fingerprint.AddFinger(payload);
+            if (!result.succeeded || result.data == null)
             {
-                SetStatus($"Fingerprint gagal disimpan: {result.Error}", true);
-                return;
-            }
-
-            if (result.Data?.response != true)
-            {
-                var message = result.Data?.metaData?.message;
-                SetStatus(string.IsNullOrWhiteSpace(message)
-                    ? "Nomor peserta tidak valid (harus 13 karakter)."
-                    : $"Gagal: {message}", true);
+                SetStatus($"Fingerprint gagal disimpan: {result.message} - {result.data?.metaData?.message}", true);
                 return;
             }
 

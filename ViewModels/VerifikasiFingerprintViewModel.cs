@@ -1,6 +1,4 @@
 using AvaloniaFingerprint.Exceptions;
-using AvaloniaFingerprint.Models;
-using AvaloniaFingerprint.Models.Old;
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -90,17 +88,10 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
 
         try
         {
-            var capture = await _services.Fingerprint.CaptureAsync(5000);
+            var capture = await _services.Fingerprint.CaptureAsync(_services.Fingerprint.VerifyTimeoutMs);
 
             ScanStatus = "Memverifikasi ke BPJS...";
             FingerImage = capture.ImageBase64;
-
-            var body = new Verify
-            {
-                keyword = Number.Trim(),
-                jnsFilter = IsNoBpjs ? "psnoka" : "nik",
-                finger = capture.VerificationTemplate
-            };
 
             var result = _services.Fingerprint.Verify(new Filters.Fingerprint.Verify
             {

@@ -1,4 +1,3 @@
-using AvaloniaFingerprint.Services.Old;
 using System;
 
 namespace AvaloniaFingerprint.Services;
@@ -18,7 +17,6 @@ public sealed class AppServices : IDisposable
         Settings = AppSettings.Load();
         Session = new SessionService();
         AppUser = new AppUserServices(Settings.Configuration, Session);
-        Api = new BpjsApiClient(Settings.Bpjs, Settings.Configuration);
         Fingerprint = new FingerprintServices(Settings.Configuration, Session);
         Registrations = new RegistrationServices(Settings.Configuration, Session);
     }
@@ -26,14 +24,12 @@ public sealed class AppServices : IDisposable
     public AppSettings Settings { get; }
     public SessionService Session { get; }
     public AppUserServices AppUser { get; }
-    public BpjsApiClient Api { get; }
     public FingerprintServices Fingerprint { get; }
     public RegistrationServices Registrations { get; }
 
     public void Dispose()
     {
         Fingerprint.Dispose();
-        Api.Dispose();
         _current = null;
     }
 }

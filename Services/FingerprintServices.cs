@@ -25,7 +25,7 @@ namespace AvaloniaFingerprint.Services
         public Root<Models.Fingerprint.Verify.VerifyRoot> Verify(Filters.Fingerprint.Verify verify)
         {
             var result = new Root<Models.Fingerprint.Verify.VerifyRoot>();
-            var header = headers(Session.Username);
+            var header = headers(Session.UserId);
 
             var response = RestResponse(url, "Finger/Verify", timeout, header, 1, 2, verify);
             try
@@ -36,6 +36,27 @@ namespace AvaloniaFingerprint.Services
             catch (Exception e)
             {
                 return result = new Root<Models.Fingerprint.Verify.VerifyRoot>
+                {
+                    errors = [e.Message, e.InnerException?.Message ?? string.Empty]
+                };
+            }
+            return result;
+        }
+
+        public Root<Models.Fingerprint.RegistValidate.RegistValidateRoot> AddFinger(Filters.Fingerprint.AddPeserta add)
+        {
+            var result = new Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>();
+            var header = headers(Session.UserId);
+
+            var response = RestResponse(url, "Finger/AddPeserta", timeout, header, 1, 2, add);
+            try
+            {
+                if (response.IsSuccessStatusCode) result = JsonConvert.DeserializeObject<Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>>(response.Content ?? string.Empty) ?? new Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>();
+                else result = JsonConvert.DeserializeObject<Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>>(response.Content ?? string.Empty) ?? new Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>();
+            }
+            catch (Exception e)
+            {
+                return result = new Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>
                 {
                     errors = [e.Message, e.InnerException?.Message ?? string.Empty]
                 };
@@ -56,6 +77,21 @@ namespace AvaloniaFingerprint.Services
         public void Start() => watcher.Start();
 
         public Task RefreshDeviceAsync() => watcher.RefreshAsync();
+
+        /// <summary>Capture budget in ms, surfaced for the UI layer (mirrors <see cref="BaseService.captureTimeoutMs"/>).</summary>
+        public int CaptureTimeoutMs => captureTimeoutMs;
+
+        /// <summary>Verify budget in ms, surfaced for the UI layer (mirrors <see cref="BaseService.verifyTimeoutMs"/>).</summary>
+        public int VerifyTimeoutMs => verifyTimeoutMs;
+
+        /// <summary>Fingers captured per hand, surfaced for the UI layer.</summary>
+        public int FingersPerHand => fingersPerHand;
+
+        /// <summary>First index of the right hand, surfaced for the UI layer.</summary>
+        public int RightHandIndex => rightHandIndex;
+
+        /// <summary>First index of the left hand, surfaced for the UI layer.</summary>
+        public int LeftHandIndex => leftHandIndex;
 
         /// <summary>Scans one finger. Throws <see cref="FingerprintExceptions"/> on any reader problem.</summary>
         public Task<Models.Fingerprint.Capture> CaptureAsync(int? timeoutMs = null, CancellationToken ct = default)

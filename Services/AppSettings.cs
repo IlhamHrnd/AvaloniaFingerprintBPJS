@@ -4,46 +4,12 @@ using Microsoft.Extensions.Configuration;
 
 namespace AvaloniaFingerprint.Services;
 
-public class BpjsOptions
-{
-    public string LoginUrl { get; set; } = string.Empty;
-    public string VerifyUrl { get; set; } = string.Empty;
-    public string RegistUrl { get; set; } = string.Empty;
-    public int TimeoutSeconds { get; set; } = 20;
-}
-
-public class FingerprintOptions
-{
-    public int CaptureTimeoutMs { get; set; } = 7000;
-    public int VerifyTimeoutMs { get; set; } = 5000;
-    public int FingersPerHand { get; set; } = 4;
-    public int RightHandIndex { get; set; } = 1;
-    public int LeftHandIndex { get; set; } = 6;
-}
-
-public class DeviceOptions
-{
-    public int PollIntervalSeconds { get; set; } = 2;
-    public string[] MatchKeywords { get; set; } = { "U.are.U", "DigitalPersona", "Fingerprint", "Biometric" };
-}
-
-public class LinkOptions
-{
-    public string DatinAPI { get; set; } = string.Empty;
-}
-
 public class AppSettings
 {
-    public BpjsOptions Bpjs { get; } = new();
-    public FingerprintOptions Fingerprint { get; } = new();
-    public DeviceOptions Device { get; } = new();
-    public LinkOptions Link { get; } = new();
-
-
     /// <summary>
-    /// Configuration root yang dipakai untuk bind options di atas. Disimpan agar service
-    /// yang memerlukan IConfiguration (client turunan BaseService) memakai instance yang
-    /// sama, bukan membangun sendiri.
+    /// Configuration root shared with the services. Disimpan agar service yang memerlukan
+    /// IConfiguration (client turunan BaseService) memakai instance yang sama, bukan membangun
+    /// sendiri. Nilai konfigurasi dibaca langsung oleh <see cref="BaseService"/>.
     /// </summary>
     public IConfiguration Configuration { get; private set; } = new ConfigurationBuilder().Build();
 
