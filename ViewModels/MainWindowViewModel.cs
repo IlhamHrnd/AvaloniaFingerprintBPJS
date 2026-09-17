@@ -2,7 +2,6 @@ using System;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using AvaloniaFingerprint.Services;
-using AvaloniaFingerprint.Services.Old;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -24,7 +23,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         services.Fingerprint.DeviceStatusChanged += OnDeviceStatusChanged;
 
         if (!services.Fingerprint.IsSdkAvailable)
-            DeviceDetail = FingerprintService.SdkMissingMessage;
+            DeviceDetail = services.Fingerprint.SdkMissing;
 
         UpdateSessionState();
     }
@@ -107,7 +106,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 ? e.DeviceName ?? "Fingerprint reader"
                 : _services.Fingerprint.IsSdkAvailable
                     ? "Hubungkan USB fingerprint reader"
-                    : FingerprintService.SdkMissingMessage;
+                    : _services.Fingerprint.SdkMissing;
 
             Verifikasi.OnDeviceStatusChanged(e.Connected);
             Registrasi.OnDeviceStatusChanged(e.Connected);

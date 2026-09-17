@@ -25,6 +25,7 @@ namespace AvaloniaFingerprint.Services
         protected int leftHandIndex { get; set; } = 6;
         protected int pollIntervalSeconds { get; set; } = 2;
         protected string[] matchKeywords { get; set; } = { "U.are.U", "DigitalPersona", "Fingerprint", "Biometric" };
+        protected string registrationsFile { get; set; } = "registrations.json";
         #endregion
 
         protected List<Models.Master.Parameter> headers(string userId)

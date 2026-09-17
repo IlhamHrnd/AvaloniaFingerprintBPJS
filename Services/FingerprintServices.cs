@@ -10,9 +10,18 @@ using System.Threading.Tasks;
 
 namespace AvaloniaFingerprint.Services
 {
-    public class FingerprintServices(IConfiguration config, SessionService session) : BaseService(config, session), IDisposable
+    public class FingerprintServices : BaseService, IDisposable
     {
-        private readonly UsbDeviceWatcherServices watcher = new(config, session);
+        private readonly UsbDeviceWatcherServices watcher;
+
+        public FingerprintServices(IConfiguration config, SessionService session) : base(config, session)
+        {
+            // The SDK probe is a method group on this instance, so the watcher has to be wired in the
+            // constructor body: a field initializer cannot reference an instance member (CS0236).
+            watcher = new UsbDeviceWatcherServices(config, session, ProbeSdkReader);
+            watcher.StatusChanged += (_, e) => DeviceStatusChanged?.Invoke(this, e);
+        }
+
         public Root<Models.Fingerprint.Verify.VerifyRoot> Verify(Filters.Fingerprint.Verify verify)
         {
             var result = new Root<Models.Fingerprint.Verify.VerifyRoot>();
@@ -81,6 +90,16 @@ namespace AvaloniaFingerprint.Services
         #endif
         }
 
+        /// <summary>
+        /// Human-readable message shown when the DigitalPersona SDK is missing at build time.
+        /// Single source of truth is <see cref="BaseService"/>; exposed for the UI layer.
+        /// </summary>
+        public string SdkMissing => SdkMissingMessage;
+
+        /// <summary>
+        /// Asks the SDK for its reader list. The SDK only reports readers the DigitalPersona driver
+        /// has claimed, which makes it the authoritative presence check when it is available.
+        /// </summary>
         private (bool connected, string? name) ProbeSdkReader()
         {
         #if HAS_DPURUNET

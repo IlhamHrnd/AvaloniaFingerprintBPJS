@@ -19,7 +19,7 @@ public sealed class AppServices : IDisposable
         Session = new SessionService();
         AppUser = new AppUserServices(Settings.Configuration, Session);
         Api = new BpjsApiClient(Settings.Bpjs, Settings.Configuration);
-        Fingerprint = new FingerprintService(Settings.Fingerprint, Settings.Device);
+        Fingerprint = new FingerprintServices(Settings.Configuration, Session);
         Registrations = new RegistrationStore(Settings);
     }
 
@@ -27,7 +27,7 @@ public sealed class AppServices : IDisposable
     public SessionService Session { get; }
     public AppUserServices AppUser { get; }
     public BpjsApiClient Api { get; }
-    public FingerprintService Fingerprint { get; }
+    public FingerprintServices Fingerprint { get; }
     public RegistrationStore Registrations { get; }
 
     public void Dispose()
