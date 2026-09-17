@@ -32,12 +32,18 @@ public class StorageOptions
     public string RegistrationsFile { get; set; } = "registrations.json";
 }
 
+public class LinkOptions
+{
+    public string DatinAPI { get; set; } = string.Empty;
+}
+
 public class AppSettings
 {
     public BpjsOptions Bpjs { get; } = new();
     public FingerprintOptions Fingerprint { get; } = new();
     public DeviceOptions Device { get; } = new();
     public StorageOptions Storage { get; } = new();
+    public LinkOptions Link { get; } = new(); 
 
     public static AppSettings Load()
     {
@@ -56,12 +62,10 @@ public class AppSettings
         config.GetSection("Fingerprint").Bind(settings.Fingerprint);
         config.GetSection("Device").Bind(settings.Device);
         config.GetSection("Storage").Bind(settings.Storage);
+        config.GetSection("Link").Bind(settings.Link);
         return settings;
     }
 
     /// <summary>Absolute path of the local registration log.</summary>
-    public string RegistrationsPath =>
-        Path.IsPathRooted(Storage.RegistrationsFile)
-            ? Storage.RegistrationsFile
-            : Path.Combine(AppContext.BaseDirectory, Storage.RegistrationsFile);
+    public string RegistrationsPath => Path.IsPathRooted(Storage.RegistrationsFile) ? Storage.RegistrationsFile : Path.Combine(AppContext.BaseDirectory, Storage.RegistrationsFile);
 }
