@@ -1,6 +1,7 @@
+using AvaloniaFingerprint.Services.Old;
 using System;
 
-namespace AvaloniaFingerprint.Services.Old;
+namespace AvaloniaFingerprint.Services;
 
 /// <summary>
 /// Minimal composition root. The app has a handful of long-lived singletons, so a full
@@ -16,6 +17,7 @@ public sealed class AppServices : IDisposable
     {
         Settings = AppSettings.Load();
         Session = new SessionService();
+        AppUser = new AppUserServices(Settings.Configuration, Session);
         Api = new BpjsApiClient(Settings.Bpjs, Settings.Configuration);
         Fingerprint = new FingerprintService(Settings.Fingerprint, Settings.Device);
         Registrations = new RegistrationStore(Settings);
@@ -23,6 +25,7 @@ public sealed class AppServices : IDisposable
 
     public AppSettings Settings { get; }
     public SessionService Session { get; }
+    public AppUserServices AppUser { get; }
     public BpjsApiClient Api { get; }
     public FingerprintService Fingerprint { get; }
     public RegistrationStore Registrations { get; }

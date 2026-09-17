@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using AvaloniaFingerprint.Services.Old;
+using AvaloniaFingerprint.Services;
 using AvaloniaFingerprint.ViewModels;
 using AvaloniaFingerprint.Views;
 

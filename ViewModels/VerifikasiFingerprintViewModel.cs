@@ -1,7 +1,7 @@
 using AvaloniaFingerprint.Exceptions;
 using AvaloniaFingerprint.Models;
 using AvaloniaFingerprint.Models.Old;
-using AvaloniaFingerprint.Services.Old;
+using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;

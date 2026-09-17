@@ -11,12 +11,22 @@ namespace AvaloniaFingerprint.Services
 {
     public  class BaseService(IConfiguration config, SessionService session)
     {
+        #region Variabel
         protected IConfiguration config { get; set; } = config;
         protected string url = config["Apps:DatinAPI"] ?? string.Empty;
         protected int timeout = int.Parse(config["Apps:Timeout"] ?? string.Empty);
         protected SessionService Session { get; set; } = session;
         protected string SdkMissingMessage = "SDK DigitalPersona (DPUruNet.dll) tidak ditemukan saat build. " +
             "Install U.are.U RTE atau salin DPUruNet.dll ke folder lib\\, lalu build ulang.";
+        protected int captureTimeoutMs { get; set; } = 7000;
+        protected int verifyTimeoutMs { get; set; } = 5000;
+        protected int fingersPerHand { get; set; } = 4;
+        protected int rightHandIndex { get; set; } = 1;
+        protected int leftHandIndex { get; set; } = 6;
+        protected int pollIntervalSeconds { get; set; } = 2;
+        protected string[] matchKeywords { get; set; } = { "U.are.U", "DigitalPersona", "Fingerprint", "Biometric" };
+        #endregion
+
         protected List<Models.Master.Parameter> headers(string userId)
         {
             List<Models.Master.Parameter> headers =

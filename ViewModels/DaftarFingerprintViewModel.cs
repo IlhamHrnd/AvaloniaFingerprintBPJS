@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using AvaloniaFingerprint.Models.Old;
+using AvaloniaFingerprint.Services;
 using AvaloniaFingerprint.Services.Old;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;

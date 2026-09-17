@@ -9,15 +9,16 @@ namespace AvaloniaFingerprint.Services;
 public sealed partial class SessionService : ObservableObject
 {
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsLoggedIn))]
     private string? _token;
 
     [ObservableProperty] private string _username = string.Empty;
     [ObservableProperty] private string _nama = string.Empty;
-    [ObservableProperty] private string _userId = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLoggedIn))]
+    private string _userId = string.Empty;
     [ObservableProperty] private DateTime? _loginTime;
 
-    public bool IsLoggedIn => !string.IsNullOrEmpty(Token);
+    public bool IsLoggedIn => !string.IsNullOrEmpty(UserId);
 
     public event EventHandler? Changed;
 
