@@ -16,6 +16,20 @@ public sealed class FingerprintCapturedEventArgs : EventArgs
 }
 
 /// <summary>
+/// Raised when a finger was placed but the active BPJS/NIK field is still empty. No
+/// capture was performed and no dummy result was produced; the UI prompts the operator
+/// and the reader stays in standby.
+/// </summary>
+public sealed class InputRequiredEventArgs : EventArgs
+{
+    /// <summary>Label of the active field: "No. BPJS" or "NIK".</summary>
+    public string Label { get; init; } = string.Empty;
+
+    /// <summary>Prompt to display to the operator.</summary>
+    public string Message { get; init; } = string.Empty;
+}
+
+/// <summary>
 /// Thin wrapper over the DigitalPersona U.are.U SDK (<c>DPUruNet.dll</c>) that keeps the
 /// reader in standby and raises <see cref="FingerprintCaptured"/> whenever a finger is
 /// detected on its own.
@@ -63,6 +77,12 @@ public sealed class FingerprintReaderService : IDisposable
     /// <summary>Raised on the SDK thread whenever the human readable status changes.</summary>
     public event EventHandler<string>? StatusChanged;
 
+    /// <summary>
+    /// Raised on the SDK thread when a finger is placed while the active BPJS/NIK field is
+    /// still empty, so scanning cannot proceed.
+    /// </summary>
+    public event EventHandler<InputRequiredEventArgs>? InputRequired;
+
     /// <summary>True once a reader was found and opened successfully.</summary>
     public bool IsDeviceAvailable { get; private set; }
 
@@ -74,6 +94,18 @@ public sealed class FingerprintReaderService : IDisposable
     /// inside the dummy result; it is never sent anywhere.
     /// </summary>
     public string CurrentInput { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Label of the field selected in the UI ("No. BPJS" or "NIK"), so prompts match the
+    /// active search mode.
+    /// </summary>
+    public string CurrentInputLabel { get; set; } = "No. BPJS";
+
+    /// <summary>
+    /// True while no BPJS card number or NIK has been entered. Uses a trimmed check, so a
+    /// field holding only spaces counts as empty.
+    /// </summary>
+    private bool IsInputEmpty => string.IsNullOrWhiteSpace(CurrentInput);
 
     /// <summary>
     /// Enumerates readers, connects to the first one that can actually stream and leaves it
@@ -285,6 +317,19 @@ public sealed class FingerprintReaderService : IDisposable
             if (_disposed) return;
 
             Log("Finger event received");
+
+            // Validation runs before the capture result is inspected and before any result
+            // is built, so a finger placed with an empty field can never produce a scan.
+            if (IsInputEmpty)
+            {
+                Log("Finger detected but BPJS/NIK empty -> capture discarded");
+                InputRequired?.Invoke(this, new InputRequiredEventArgs
+                {
+                    Label = CurrentInputLabel,
+                    Message = $"Nomor {CurrentInputLabel} masih kosong. Silakan masukkan nomor terlebih dahulu."
+                });
+                return;
+            }
 
             var code = result?.ResultCode ?? Constants.ResultCode.DP_FAILURE;
 
