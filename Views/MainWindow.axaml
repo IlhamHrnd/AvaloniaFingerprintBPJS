@@ -1,0 +1,101 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="420"
+        x:Class="AvaloniaFingerprint.Views.MainWindow"
+        Width="550" Height="420"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="#FFFFFF"
+        Title="Menu Utama">
+
+  <Grid RowDefinitions="48,*">
+
+    <!-- ==================== header / app bar ==================== -->
+    <Border Grid.Row="0" Classes="appbar">
+      <Grid ColumnDefinitions="Auto,*,Auto" Margin="16,0,8,0">
+        <TextBlock Grid.Column="1" Classes="appbarTitle" Text="Menu Utama" />
+        <Button Grid.Column="2" Classes="appbarIcon" ToolTip.Tip="Menu" Click="OnMenuClick">
+          <StackPanel Spacing="3" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Ellipse Width="4" Height="4" Fill="White" />
+            <Ellipse Width="4" Height="4" Fill="White" />
+            <Ellipse Width="4" Height="4" Fill="White" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <!-- ==================== content ==================== -->
+    <Grid Grid.Row="1" Margin="16,10,16,10" RowDefinitions="Auto,Auto,Auto,*">
+
+      <!-- pencarian: No. BPJS (default) / NIK -->
+      <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="18">
+        <RadioButton Name="BpjsRadio" Classes="material" GroupName="pencarian"
+                     Content="No. BPJS" IsChecked="True" IsCheckedChanged="OnJenisChanged" />
+        <RadioButton Name="NikRadio" Classes="material" GroupName="pencarian"
+                     Content="NIK" IsCheckedChanged="OnJenisChanged" />
+      </StackPanel>
+
+      <!-- input besar bergaris bawah -->
+      <TextBox Grid.Row="1" Name="SearchBox" Classes="bigInput" Margin="0,8,0,0"
+               FontSize="28" HorizontalAlignment="Stretch" TextAlignment="Center"
+               PlaceholderText="Masukkan No. Kartu BPJS" />
+
+      <!-- foto + data peserta -->
+      <Grid Grid.Row="2" Margin="0,12,0,0" ColumnDefinitions="165,12,*">
+
+        <Border Grid.Column="0" Classes="card" Padding="8">
+          <Grid Height="155">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6">
+              <PathIcon Width="56" Height="56" Foreground="#C7C9D1"
+                        Data="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+              <TextBlock Text="FOTO PESERTA" FontSize="10" Foreground="#9AA0AA"
+                         HorizontalAlignment="Center" />
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="2" Classes="card" Padding="10,8">
+          <Grid ColumnDefinitions="92,*" RowDefinitions="*,*,*,*,*,*">
+            <TextBlock Grid.Row="0" Grid.Column="0" Classes="fieldLabel" Text="No. Kartu" />
+            <TextBlock Grid.Row="0" Grid.Column="1" Classes="fieldValue" Name="NoKartuValue" Text="-" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Classes="fieldLabel" Text="Nama" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Classes="fieldValue" Name="NamaValue" Text="-" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Classes="fieldLabel" Text="Hub. Keluarga" />
+            <TextBlock Grid.Row="2" Grid.Column="1" Classes="fieldValue" Name="HubKeluargaValue" Text="-" />
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Classes="fieldLabel" Text="Jenis Peserta" />
+            <TextBlock Grid.Row="3" Grid.Column="1" Classes="fieldValue" Name="JenisPesertaValue" Text="-" />
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Classes="fieldLabel" Text="FKTP" />
+            <TextBlock Grid.Row="4" Grid.Column="1" Classes="fieldValue" Name="FktpValue" Text="-" />
+
+            <TextBlock Grid.Row="5" Grid.Column="0" Classes="fieldLabel" Text="Status Aktif" />
+            <TextBlock Grid.Row="5" Grid.Column="1" Classes="fieldValue" Name="StatusAktifValue" Text="-" />
+          </Grid>
+        </Border>
+      </Grid>
+
+      <!-- aksi -->
+      <StackPanel Grid.Row="3" VerticalAlignment="Bottom" Spacing="8">
+        <TextBlock Name="StatusText" FontSize="11" Foreground="{StaticResource ErrorBrush}"
+                   HorizontalAlignment="Center" />
+
+        <Button Classes="actionPrimary" Name="VerifikasiButton" HorizontalAlignment="Stretch"
+                Content="Verifikasi &amp; Registrasi Sidik Jari" Click="OnVerifikasiClick" />
+
+        <Border Classes="footer" Padding="12,6">
+          <StackPanel Spacing="2">
+            <TextBlock Classes="footerTitle" Text="RSUD TARAKAN PROVINSI JAKARTA"
+                       HorizontalAlignment="Center" />
+            <TextBlock Classes="footerSub" Name="UsernameFooter"
+                       HorizontalAlignment="Center" Text="Username : -" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </Grid>
+  </Grid>
+</Window>

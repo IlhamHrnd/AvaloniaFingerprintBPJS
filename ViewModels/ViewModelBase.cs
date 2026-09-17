@@ -19,6 +19,14 @@ public abstract class ViewModelBase(IConfiguration config) : ObservableObject
     protected int timeOut = int.Parse(config["App:TimeoutSeconds"] ?? string.Empty);
     #endregion
 
+    #region State
+    /// <summary>
+    /// User id of the account that is currently signed in, shared app-wide so the
+    /// screens shown after login can display it without a new state service.
+    /// </summary>
+    public static string CurrentUserId { get; set; } = string.Empty;
+    #endregion
+
     #region Function
     protected RestResponse RestResponse(string url, string endpoint, int timeOut, List<MasterHeader> headers, int unit, int method, object? body = null, IFormFile? file = null, List<MasterHeader>? param = null)
     {
