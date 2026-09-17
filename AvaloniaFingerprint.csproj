@@ -39,16 +39,16 @@
 
   <ItemGroup>
     <Reference Include="DPCtlUruNet">
-      <HintPath>..\..\Program Files\DigitalPersona\U.are.U SDK\Windows\Lib\DotNET\DPCtlUruNet.dll</HintPath>
+      <HintPath>C:\Program Files\DigitalPersona\U.are.U SDK\Windows\Lib\DotNET\DPCtlUruNet.dll</HintPath>
     </Reference>
     <Reference Include="DPCtlXUru">
-      <HintPath>..\..\Program Files\DigitalPersona\U.are.U SDK\Windows\Lib\DotNET\DPCtlXUru.dll</HintPath>
+      <HintPath>C:\Program Files\DigitalPersona\U.are.U SDK\Windows\Lib\DotNET\DPCtlXUru.dll</HintPath>
     </Reference>
     <Reference Include="DPUruNet">
-      <HintPath>..\..\Program Files\DigitalPersona\U.are.U SDK\Windows\Lib\DotNET\DPUruNet.dll</HintPath>
+      <HintPath>C:\Program Files\DigitalPersona\U.are.U SDK\Windows\Lib\DotNET\DPUruNet.dll</HintPath>
     </Reference>
     <Reference Include="DPXUru">
-      <HintPath>..\..\Program Files\DigitalPersona\U.are.U SDK\Windows\Lib\DotNET\DPXUru.dll</HintPath>
+      <HintPath>C:\Program Files\DigitalPersona\U.are.U SDK\Windows\Lib\DotNET\DPXUru.dll</HintPath>
     </Reference>
   </ItemGroup>
 
