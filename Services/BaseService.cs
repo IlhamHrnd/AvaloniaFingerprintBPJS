@@ -114,7 +114,7 @@ namespace AvaloniaFingerprint.Services
             return jpeg.Length == 0 ? string.Empty : Convert.ToBase64String(jpeg);
         }
 
-        protected Avalonia.Media.Imaging.Bitmap? Base64ToBitmap(string? base64)
+        public static Avalonia.Media.Imaging.Bitmap? Base64ToBitmap(string? base64)
         {
             if (string.IsNullOrWhiteSpace(base64))
                 return null;

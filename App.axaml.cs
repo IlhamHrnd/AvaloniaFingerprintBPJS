@@ -1,7 +1,5 @@
-using System.Linq;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using AvaloniaFingerprint.Services;
 using AvaloniaFingerprint.ViewModels;
@@ -17,10 +15,6 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // CommunityToolkit.Mvvm already implements INotifyDataErrorInfo; the default
-            // Avalonia validator would report every error twice.
-            DisableDuplicateValidation();
-
             var services = AppServices.Current;
             var mainViewModel = new MainWindowViewModel(services);
 
@@ -31,14 +25,5 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
-    }
-
-    private static void DisableDuplicateValidation()
-    {
-        foreach (var plugin in BindingPlugins.DataValidators.ToArray())
-        {
-            if (plugin is DataAnnotationsValidationPlugin)
-                BindingPlugins.DataValidators.Remove(plugin);
-        }
     }
 }
