@@ -22,7 +22,7 @@ public sealed class DeviceStatusEventArgs : EventArgs
 ///  * a periodic re-scan as a safety net (device change events can be missed while the
 ///    machine is busy, and they carry no information about *which* device changed).
 /// </summary>
-public sealed class UsbDeviceWatcher : IDisposable
+public sealed class UsbDeviceWatcher(DeviceOptions options, Func<(bool connected, string? name)>? sdkProbe = null) : IDisposable
 {
     // Win32_PnPEntity is expensive to enumerate wholesale, so the WQL narrows to the
     // biometric device class plus DigitalPersona's USB vendor id (05BA) up front.
@@ -31,19 +31,13 @@ public sealed class UsbDeviceWatcher : IDisposable
         "WHERE PNPClass = 'Biometric' OR DeviceID LIKE '%VID_05BA%' " +
         "OR Name LIKE '%Fingerprint%' OR Name LIKE '%U.are.U%' OR Name LIKE '%Biometric%'";
 
-    private readonly DeviceOptions _options;
-    private readonly Func<(bool connected, string? name)>? _sdkProbe;
+    private readonly DeviceOptions _options = options;
+    private readonly Func<(bool connected, string? name)>? _sdkProbe = sdkProbe;
     private readonly CancellationTokenSource _cts = new();
     private ManagementEventWatcher? _arrivalWatcher;
     private Timer? _pollTimer;
     private int _scanning;
     private bool _disposed;
-
-    public UsbDeviceWatcher(DeviceOptions options, Func<(bool connected, string? name)>? sdkProbe = null)
-    {
-        _options = options;
-        _sdkProbe = sdkProbe;
-    }
 
     public bool IsConnected { get; private set; }
     public string? DeviceName { get; private set; }
