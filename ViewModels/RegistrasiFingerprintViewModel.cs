@@ -1,10 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using AvaloniaFingerprint.Exceptions;
 using AvaloniaFingerprint.Models;
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace AvaloniaFingerprint.ViewModels;
 
@@ -151,7 +152,7 @@ public sealed partial class RegistrasiFingerprintViewModel : ViewModelBase
             ScanStatus = "Scan berhasil";
             SetStatus($"Sidik jari tangan {hand} berhasil dipindai.", false);
         }
-        catch (FingerprintException ex)
+        catch (FingerprintExceptions ex)
         {
             fmds.Clear();
             if (isRight) RightDone = false; else LeftDone = false;

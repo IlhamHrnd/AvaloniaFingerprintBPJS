@@ -76,10 +76,8 @@
   </PropertyGroup>
 
   <Target Name="ReportFingerprintSdk" BeforeTargets="CoreCompile">
-    <Message Importance="high" Condition="'$(DpUruNetResolvedPath)' != ''"
-             Text="[Fingerprint] SDK resolved: $(DpUruNetResolvedPath) (HAS_DPURUNET defined)" />
-    <Warning Condition="'$(DpUruNetResolvedPath)' == ''"
-             Text="[Fingerprint] DPUruNet.dll not found. Expected at '$(DpUruNetSdkPath)' or '$(DpUruNetRtePath)' or '$(DpUruNetLocalPath)'. The app will build without fingerprint capture." />
+    <Message Importance="high" Condition="'$(DpUruNetResolvedPath)' != ''" Text="[Fingerprint] SDK resolved: $(DpUruNetResolvedPath) (HAS_DPURUNET defined)" />
+    <Warning Condition="'$(DpUruNetResolvedPath)' == ''" Text="[Fingerprint] DPUruNet.dll not found. Expected at '$(DpUruNetSdkPath)' or '$(DpUruNetRtePath)' or '$(DpUruNetLocalPath)'. The app will build without fingerprint capture." />
   </Target>
 
 </Project>

@@ -1,9 +1,10 @@
-using System;
-using System.Threading.Tasks;
+using AvaloniaFingerprint.Exceptions;
 using AvaloniaFingerprint.Models;
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System;
+using System.Threading.Tasks;
 
 namespace AvaloniaFingerprint.ViewModels;
 
@@ -127,7 +128,7 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
             HasResult = true;
             SetStatus("Verifikasi berhasil.", false);
         }
-        catch (FingerprintException ex)
+        catch (FingerprintExceptions ex)
         {
             SetStatus(ex.Message, true);
             await _services.Fingerprint.RefreshDeviceAsync();

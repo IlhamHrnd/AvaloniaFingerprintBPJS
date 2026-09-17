@@ -16,7 +16,7 @@ public sealed class AppServices : IDisposable
     {
         Settings = AppSettings.Load();
         Session = new SessionService();
-        Api = new BpjsApiClient(Settings.Bpjs);
+        Api = new BpjsApiClient(Settings.Bpjs, Settings.Configuration);
         Fingerprint = new FingerprintService(Settings.Fingerprint, Settings.Device);
         Registrations = new RegistrationStore(Settings);
     }

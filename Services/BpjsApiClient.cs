@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AvaloniaFingerprint.Models;
+using Microsoft.Extensions.Configuration;
 using static AvaloniaFingerprint.Models.LoginPetugas;
 using static AvaloniaFingerprint.Models.RegistValidate;
 using static AvaloniaFingerprint.Models.Verify;
@@ -34,7 +35,7 @@ public sealed class BpjsApiClient : IDisposable
     private readonly BpjsOptions _options;
     private readonly HttpClient _http;
 
-    public BpjsApiClient(BpjsOptions options)
+    public BpjsApiClient(BpjsOptions options, IConfiguration config)
     {
         _options = options;
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(Math.Max(5, options.TimeoutSeconds)) };

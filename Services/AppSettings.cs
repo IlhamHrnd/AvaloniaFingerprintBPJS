@@ -43,7 +43,14 @@ public class AppSettings
     public FingerprintOptions Fingerprint { get; } = new();
     public DeviceOptions Device { get; } = new();
     public StorageOptions Storage { get; } = new();
-    public LinkOptions Link { get; } = new(); 
+    public LinkOptions Link { get; } = new();
+
+    /// <summary>
+    /// Configuration root yang dipakai untuk bind options di atas. Disimpan agar service
+    /// yang memerlukan IConfiguration (client turunan BaseService) memakai instance yang
+    /// sama, bukan membangun sendiri.
+    /// </summary>
+    public IConfiguration Configuration { get; private set; } = new ConfigurationBuilder().Build();
 
     public static AppSettings Load()
     {
@@ -57,6 +64,8 @@ public class AppSettings
             .SetBasePath(basePath)
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
             .Build();
+
+        settings.Configuration = config;
 
         config.GetSection("Bpjs").Bind(settings.Bpjs);
         config.GetSection("Fingerprint").Bind(settings.Fingerprint);
