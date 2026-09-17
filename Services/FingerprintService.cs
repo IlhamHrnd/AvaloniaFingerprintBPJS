@@ -177,7 +177,7 @@ public sealed class FingerprintService : IDisposable
 
             return new FingerCapture
             {
-                ImageBase64 = raw is null ? string.Empty : ImageCodec.GrayscaleToJpegBase64(raw, width, height),
+                ImageBase64 = raw is null ? string.Empty : BaseService.GrayscaleToJpegBase64(raw, width, height),
                 VerificationTemplate = Convert.ToBase64String(verification.Data.Bytes),
                 PreRegistrationFmd = preRegistration.Data,
                 RawImage = raw,

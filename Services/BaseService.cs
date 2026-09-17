@@ -80,8 +80,9 @@ namespace AvaloniaFingerprint.Services
             return response;
         }
 
-        // Format untuk hasil scan finger agar bisa diolah
-        protected byte[] GrayscaleToJpeg(byte[] gray, int width, int height, int quality = 90)
+        // Format untuk hasil scan finger agar bisa diolah.
+        // Static + internal so non-derived services (e.g. FingerprintService) can reuse it.
+        protected internal static byte[] GrayscaleToJpeg(byte[] gray, int width, int height, int quality = 90)
         {
             if (gray is null || width <= 0 || height <= 0)
                 return Array.Empty<byte>();
@@ -108,7 +109,7 @@ namespace AvaloniaFingerprint.Services
             return data.ToArray();
         }
 
-        protected string GrayscaleToJpegBase64(byte[] gray, int width, int height)
+        protected internal static string GrayscaleToJpegBase64(byte[] gray, int width, int height)
         {
             var jpeg = GrayscaleToJpeg(gray, width, height);
             return jpeg.Length == 0 ? string.Empty : Convert.ToBase64String(jpeg);
