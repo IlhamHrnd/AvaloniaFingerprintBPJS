@@ -4,31 +4,19 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 
-namespace AvaloniaFingerprint.Services.Old
+namespace AvaloniaFingerprint.Services
 {
-    public class AppUserServices(IConfiguration config) : BaseService(config)
+    public class AppUserServices(IConfiguration config, SessionService session) : BaseService(config, session)
     {
         public Root<string> GetUserAuth(string userId, string password)
         {
             var result = new Root<string>();
-            List<Parameter> header =
-            [
-                new Parameter
-                {
-                    name = "accept",
-                    value = "application/json"
-                },
-                new Parameter
-                {
-                    name = "Content-Type",
-                    value = "application/json"
-                },
-                new Parameter
-                {
-                    name = "x-pass",
-                    value = password
-                }
-            ];
+            var header = headers(string.Empty);
+            header.Add(new Parameter
+            {
+                name = "x-pass",
+                value = password
+            });
 
             var response = RestResponse(url, $"AppUser/UserAuthentication/{userId}", timeout, header, 1, 1);
             try

@@ -7,13 +7,38 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace AvaloniaFingerprint.Services.Old
+namespace AvaloniaFingerprint.Services
 {
-    public  class BaseService(IConfiguration config)
+    public  class BaseService(IConfiguration config, SessionService session)
     {
         protected IConfiguration config { get; set; } = config;
         protected string url = config["Apps:DatinAPI"] ?? string.Empty;
         protected int timeout = int.Parse(config["Apps:Timeout"] ?? string.Empty);
+        protected SessionService Session { get; set; } = session;
+        protected List<Models.Master.Parameter> headers(string userId)
+        {
+            List<Models.Master.Parameter> headers =
+            [
+                new Models.Master.Parameter
+                {
+                    name = "accept",
+                    value = "application/json"
+                },
+                new Models.Master.Parameter
+                {
+                    name = "Content-Type",
+                    value = "application/json"
+                }
+            ];
+
+            if (!string.IsNullOrEmpty(userId)) headers.Add(new Models.Master.Parameter
+            {
+                name = "Authorization",
+                value = $"Bearer {userId}"
+            });
+
+            return headers;
+        }
 
         // Noted
         // 1. Unit -> untuk konversi timeout dalam detik, menit atau jam

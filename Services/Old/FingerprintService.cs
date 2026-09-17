@@ -3,12 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AvaloniaFingerprint.Exceptions;
-using Microsoft.Extensions.Configuration;
-
-
-
-
-
 
 #if HAS_DPURUNET
 using System.Linq;
