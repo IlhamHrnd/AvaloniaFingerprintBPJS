@@ -90,7 +90,7 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
 
         try
         {
-            var capture = await _services.Fingerprint.CaptureAsync(_services.Settings.Fingerprint.VerifyTimeoutMs);
+            var capture = await _services.Fingerprint.CaptureAsync(5000);
 
             ScanStatus = "Memverifikasi ke BPJS...";
             FingerImage = capture.ImageBase64;
@@ -102,16 +102,21 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
                 finger = capture.VerificationTemplate
             };
 
-            var result = await _services.Api.VerifyAsync(body, _services.Session.Token ?? string.Empty);
+            var result = _services.Fingerprint.Verify(new Filters.Fingerprint.Verify
+            {
+                finger = capture.VerificationTemplate,
+                keyword = Number.Trim(),
+                jnsFilter = IsNoBpjs ? "psnoka" : "nik"
+            });
 
-            if (!result.Success)
+            if (!result.succeeded)
             {
                 ClearResult();
-                SetStatus($"Verifikasi gagal: {result.Error}", true);
+                SetStatus($"Verifikasi gagal: {result.errors}", true);
                 return;
             }
 
-            var root = result.Data!;
+            var root = result.data!;
             if (root.response?.noKartu is null)
             {
                 ClearResult();

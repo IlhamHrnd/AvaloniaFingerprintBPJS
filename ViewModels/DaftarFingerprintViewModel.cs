@@ -4,9 +4,8 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
-using AvaloniaFingerprint.Models.Old;
+using AvaloniaFingerprint.Models.Fingerprint;
 using AvaloniaFingerprint.Services;
-using AvaloniaFingerprint.Services.Old;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -15,7 +14,7 @@ namespace AvaloniaFingerprint.ViewModels;
 /// <summary>
 /// The WinForms <c>DaftarFingerprint</c> form was an empty placeholder, so this tab is
 /// implemented as the list of registrations submitted from this workstation
-/// (see <see cref="RegistrationStore"/>), with search and a detail preview.
+/// (see <see cref="RegistrationServices"/>), with search and a detail preview.
 /// </summary>
 public sealed partial class DaftarFingerprintViewModel : ViewModelBase
 {

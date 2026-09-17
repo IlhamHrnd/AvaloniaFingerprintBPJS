@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using Microsoft.Extensions.Configuration;
 
-namespace AvaloniaFingerprint.Services.Old;
+namespace AvaloniaFingerprint.Services;
 
 public class BpjsOptions
 {
@@ -27,11 +27,6 @@ public class DeviceOptions
     public string[] MatchKeywords { get; set; } = { "U.are.U", "DigitalPersona", "Fingerprint", "Biometric" };
 }
 
-public class StorageOptions
-{
-    public string RegistrationsFile { get; set; } = "registrations.json";
-}
-
 public class LinkOptions
 {
     public string DatinAPI { get; set; } = string.Empty;
@@ -42,8 +37,8 @@ public class AppSettings
     public BpjsOptions Bpjs { get; } = new();
     public FingerprintOptions Fingerprint { get; } = new();
     public DeviceOptions Device { get; } = new();
-    public StorageOptions Storage { get; } = new();
     public LinkOptions Link { get; } = new();
+
 
     /// <summary>
     /// Configuration root yang dipakai untuk bind options di atas. Disimpan agar service
@@ -66,15 +61,6 @@ public class AppSettings
             .Build();
 
         settings.Configuration = config;
-
-        config.GetSection("Bpjs").Bind(settings.Bpjs);
-        config.GetSection("Fingerprint").Bind(settings.Fingerprint);
-        config.GetSection("Device").Bind(settings.Device);
-        config.GetSection("Storage").Bind(settings.Storage);
-        config.GetSection("Link").Bind(settings.Link);
         return settings;
     }
-
-    /// <summary>Absolute path of the local registration log.</summary>
-    public string RegistrationsPath => Path.IsPathRooted(Storage.RegistrationsFile) ? Storage.RegistrationsFile : Path.Combine(AppContext.BaseDirectory, Storage.RegistrationsFile);
 }

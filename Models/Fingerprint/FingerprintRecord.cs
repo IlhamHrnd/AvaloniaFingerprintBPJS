@@ -1,6 +1,6 @@
 using System;
 
-namespace AvaloniaFingerprint.Models.Old;
+namespace AvaloniaFingerprint.Models.Fingerprint;
 
 /// <summary>
 /// A row in the "Daftar Fingerprint" tab: one fingerprint registration that was

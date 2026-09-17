@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using AvaloniaFingerprint.Models.Fingerprint;
 using AvaloniaFingerprint.Models.Old;
 using Microsoft.Extensions.Configuration;
 using static AvaloniaFingerprint.Models.Old.LoginPetugas;
@@ -41,10 +42,7 @@ public sealed class BpjsApiClient : IDisposable
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(Math.Max(5, options.TimeoutSeconds)) };
     }
 
-    public Task<ApiResult<LoginPetugasRoot>> LoginAsync(string username, string password, CancellationToken ct = default)
-        => PostAsync<LoginPetugasRoot>(_options.LoginUrl, new LoginPetugas { username = username, password = password }, null, ct);
-
-    public Task<ApiResult<VerifyRoot>> VerifyAsync(Verify body, string token, CancellationToken ct = default)
+    public Task<ApiResult<VerifyRoot>> VerifyAsync(Models.Old.Verify body, string token, CancellationToken ct = default)
         => PostAsync<VerifyRoot>(_options.VerifyUrl, body, token, ct);
 
     public Task<ApiResult<RegistValidateRoot>> AddPesertaAsync(AddPeserta body, string? token = null, CancellationToken ct = default)
