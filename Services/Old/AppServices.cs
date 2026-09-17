@@ -1,6 +1,6 @@
 using System;
 
-namespace AvaloniaFingerprint.Services;
+namespace AvaloniaFingerprint.Services.Old;
 
 /// <summary>
 /// Minimal composition root. The app has a handful of long-lived singletons, so a full

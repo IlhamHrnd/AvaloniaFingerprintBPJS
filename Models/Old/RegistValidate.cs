@@ -1,4 +1,4 @@
-namespace AvaloniaFingerprint.Models;
+namespace AvaloniaFingerprint.Models.Old;
 
 public class RegistValidate
 {

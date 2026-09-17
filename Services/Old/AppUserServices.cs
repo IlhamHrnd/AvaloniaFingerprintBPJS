@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 
-namespace AvaloniaFingerprint.Services
+namespace AvaloniaFingerprint.Services.Old
 {
     public class AppUserServices(IConfiguration config) : BaseService(config)
     {

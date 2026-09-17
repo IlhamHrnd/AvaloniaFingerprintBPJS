@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace AvaloniaFingerprint.Models;
+namespace AvaloniaFingerprint.Models.Old;
 
 public class RightFingerModel
 {

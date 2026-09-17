@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace AvaloniaFingerprint.Services
+namespace AvaloniaFingerprint.Services.Old
 {
     public  class BaseService(IConfiguration config)
     {

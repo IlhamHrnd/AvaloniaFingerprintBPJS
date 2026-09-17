@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace AvaloniaFingerprint.Models;
+namespace AvaloniaFingerprint.Models.Old;
 
 public class AddPeserta
 {

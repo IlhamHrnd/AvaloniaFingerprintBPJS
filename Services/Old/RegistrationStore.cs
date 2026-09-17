@@ -4,9 +4,9 @@ using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using AvaloniaFingerprint.Models;
+using AvaloniaFingerprint.Models.Old;
 
-namespace AvaloniaFingerprint.Services;
+namespace AvaloniaFingerprint.Services.Old;
 
 /// <summary>
 /// Local log of the registrations made from this workstation, backing the

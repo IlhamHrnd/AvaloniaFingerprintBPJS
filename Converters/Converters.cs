@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
-using AvaloniaFingerprint.Services;
+using AvaloniaFingerprint.Services.Old;
 
 namespace AvaloniaFingerprint.Converters
 {

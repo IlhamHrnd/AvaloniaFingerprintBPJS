@@ -5,7 +5,7 @@ using System.Management;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace AvaloniaFingerprint.Services;
+namespace AvaloniaFingerprint.Services.Old;
 
 public sealed class DeviceStatusEventArgs : EventArgs
 {

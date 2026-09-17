@@ -4,13 +4,13 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using AvaloniaFingerprint.Models;
+using AvaloniaFingerprint.Models.Old;
 using Microsoft.Extensions.Configuration;
-using static AvaloniaFingerprint.Models.LoginPetugas;
-using static AvaloniaFingerprint.Models.RegistValidate;
-using static AvaloniaFingerprint.Models.Verify;
+using static AvaloniaFingerprint.Models.Old.LoginPetugas;
+using static AvaloniaFingerprint.Models.Old.RegistValidate;
+using static AvaloniaFingerprint.Models.Old.Verify;
 
-namespace AvaloniaFingerprint.Services;
+namespace AvaloniaFingerprint.Services.Old;
 
 public sealed class ApiResult<T>
 {

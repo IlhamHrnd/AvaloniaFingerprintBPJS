@@ -1,4 +1,4 @@
-namespace AvaloniaFingerprint.Models;
+namespace AvaloniaFingerprint.Models.Old;
 
 /// <summary>
 /// Request body for the petugas login endpoint. In the WinForms version the

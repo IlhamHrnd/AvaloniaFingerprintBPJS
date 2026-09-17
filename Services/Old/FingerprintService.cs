@@ -7,12 +7,15 @@ using Microsoft.Extensions.Configuration;
 
 
 
+
+
+
 #if HAS_DPURUNET
 using System.Linq;
 using DPUruNet;
 #endif
 
-namespace AvaloniaFingerprint.Services;
+namespace AvaloniaFingerprint.Services.Old;
 /// <summary>
 /// Wraps the DigitalPersona U.are.U SDK and the USB presence watcher.
 /// </summary>

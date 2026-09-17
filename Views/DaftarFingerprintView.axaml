@@ -3,7 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:AvaloniaFingerprint.ViewModels"
-             xmlns:models="using:AvaloniaFingerprint.Models"
+             xmlns:models="using:AvaloniaFingerprint.Models.Old"
              mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="520"
              x:Class="AvaloniaFingerprint.Views.DaftarFingerprintView"
              x:DataType="vm:DaftarFingerprintViewModel">
