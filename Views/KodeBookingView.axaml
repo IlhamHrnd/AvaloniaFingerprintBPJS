@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:AvaloniaFingerprint.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="520"
+             x:Class="AvaloniaFingerprint.Views.KodeBookingView"
+             x:DataType="vm:KodeBookingViewModel">
+
+  <Grid Margin="16">
+    <Border Classes="card" VerticalAlignment="Top" HorizontalAlignment="Left" Width="440">
+      <StackPanel Spacing="14">
+        <TextBlock Classes="h2" Text="Kode Booking" />
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Kode Booking" FontWeight="SemiBold" FontSize="12" />
+          <TextBox Text="{Binding KodeBooking}"
+                   PlaceholderText="Masukkan kode booking"
+                   Height="38" FontSize="15" />
+          <TextBlock Classes="caption" Text="Masukkan kode booking untuk persetujuan BPJS" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Submit" Command="{Binding SubmitCommand}"
+                  IsEnabled="{Binding !IsBusy}"
+                  Height="38" MinWidth="120" HorizontalContentAlignment="Center"
+                  Background="{StaticResource AccentBrush}" Foreground="White" />
+          <Button Content="Reset" Command="{Binding ResetCommand}"
+                  IsEnabled="{Binding !IsBusy}"
+                  Height="38" MinWidth="90" HorizontalContentAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding IsBusy}" Spacing="6">
+          <TextBlock Text="Memproses kode booking..." FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+          <ProgressBar IsIndeterminate="True" Height="4" />
+        </StackPanel>
+
+        <Border IsVisible="{Binding HasStatus}" CornerRadius="6" Padding="10" Background="#F3F4F6">
+          <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12"
+                     Foreground="{Binding !StatusIsError, Converter={StaticResource StatusBrush}}" />
+        </Border>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

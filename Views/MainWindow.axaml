@@ -21,7 +21,7 @@
 
         <StackPanel Grid.Column="0" Spacing="2">
           <TextBlock Classes="h1" Text="Fingerprint BPJS" />
-          <TextBlock Classes="caption" Text="Daftar · Verifikasi · Registrasi" />
+          <TextBlock Classes="caption" Text="Daftar · Verifikasi · Registrasi · Kode Booking" />
         </StackPanel>
 
         <!-- USB device indicator -->
@@ -75,6 +75,9 @@
         <TabItem Header="Registrasi Fingerprint" IsEnabled="{Binding IsLoggedIn}">
           <views:RegistrasiFingerprintView DataContext="{Binding Registrasi}" />
         </TabItem>
+        <TabItem Header="Kode Booking" IsEnabled="{Binding IsLoggedIn}">
+          <views:KodeBookingView DataContext="{Binding KodeBooking}" />
+        </TabItem>
       </TabControl>
 
       <!-- overlay shown while logged out -->
@@ -85,7 +88,7 @@
           <TextBlock Text="🔒" FontSize="40" HorizontalAlignment="Center" />
           <TextBlock Classes="h2" HorizontalAlignment="Center" Text="Semua tab terkunci" />
           <TextBlock TextWrapping="Wrap" TextAlignment="Center" Classes="caption"
-                     Text="Login petugas terlebih dahulu melalui tombol Login di kanan atas untuk mengaktifkan tab Daftar, Verifikasi, dan Registrasi." />
+                     Text="Login petugas terlebih dahulu melalui tombol Login di kanan atas untuk mengaktifkan tab Daftar, Verifikasi, Registrasi, dan Kode Booking." />
           <Button Content="Login sekarang" Command="{Binding ToggleLoginCommand}"
                   HorizontalAlignment="Center" Margin="0,8,0,0" Height="36" MinWidth="140"
                   HorizontalContentAlignment="Center"

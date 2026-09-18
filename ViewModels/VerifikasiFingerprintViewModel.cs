@@ -93,18 +93,17 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
 
             ScanStatus = "Memverifikasi ke BPJS...";
             FingerImage = capture.ImageBase64;
-
-            var result = _services.Fingerprint.Verify(new Filters.Fingerprint.Verify
+            var result = await Task.Run(() => _services.Fingerprint.Verify(new Filters.Fingerprint.Verify
             {
                 finger = capture.VerificationTemplate,
                 keyword = Number.Trim(),
                 jnsFilter = IsNoBpjs ? "psnoka" : "nik"
-            });
+            }));
 
             if (!result.succeeded)
             {
                 ClearResult();
-                SetStatus($"Verifikasi gagal: {result.errors}", true);
+                SetStatus($"Verifikasi gagal: {string.Join(' ', result.errors)}", true);
                 return;
             }
 

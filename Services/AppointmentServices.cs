@@ -27,5 +27,26 @@ namespace AvaloniaFingerprint.Services
             }
             return result;
         }
+
+        public Root<string> GenerateRegistration(string kdBooking)
+        {
+            var result = new Root<string>();
+            var header = headers(Session.Username);
+
+            var response = RestResponse(url, $"Appointment/GenerateRegistration?kdBooking={kdBooking}", timeout, header, 1, 2);
+            try
+            {
+                if (response.IsSuccessStatusCode) result = JsonConvert.DeserializeObject<Root<string>>(response.Content ?? string.Empty) ?? new Root<string>();
+                else result = JsonConvert.DeserializeObject<Root<string>>(response.Content ?? string.Empty) ?? new Root<string>();
+            }
+            catch (Exception e)
+            {
+                return result = new Root<string>
+                {
+                    errors = [e.Message, e.InnerException?.Message ?? string.Empty]
+                };
+            }
+            return result;
+        }
     }
 }
