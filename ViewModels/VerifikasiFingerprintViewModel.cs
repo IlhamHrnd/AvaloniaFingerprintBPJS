@@ -3,6 +3,7 @@ using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AvaloniaFingerprint.ViewModels;
@@ -115,6 +116,22 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
                 SetStatus(message == "Request failed with status code InternalServerError"
                     ? "Server sedang sibuk, coba lagi."
                     : "Fingerprint belum terdaftar. Silakan daftar pada tab Registrasi Fingerprint.", true);
+                return;
+            }
+
+            var validateApt = _services.Appointment.AppointmentNoFromFinger(new Filters.Appointment.AppointmentNoFromFinger
+            {
+                dateTime = DateTime.Now,
+                nik = result.data?.response.nik ?? string.Empty,
+                noKartu = result.data?.response.noKartu ?? string.Empty,
+                patientName = result.data?.response.nama ?? string.Empty
+            });
+
+            if (!validateApt.succeeded || validateApt.errors.Length > 0)
+            {
+                ClearResult();
+                string message = validateApt.errors.Length > 0 ? string.Join(", ", validateApt.errors) : validateApt.message;
+                SetStatus(message, true);
                 return;
             }
 
