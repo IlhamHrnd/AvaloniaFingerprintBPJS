@@ -10,7 +10,7 @@
         Background="#FFFFFF"
         Title="Menu Utama">
 
-  <Grid RowDefinitions="44,*">
+  <Grid RowDefinitions="48,*">
 
     <!-- ==================== header / app bar ==================== -->
     <Border Grid.Row="0" Classes="appbar">
@@ -27,10 +27,7 @@
     </Border>
 
     <!-- ==================== content ==================== -->
-    <!-- Rows are all Auto: the action block (status + button + footer) is fixed-height
-         content, so a trailing '*' row would collapse to 0 when the rows above already
-         fill the client area, clipping the footer off the bottom edge. -->
-    <Grid Grid.Row="1" Margin="16,8,16,8" RowDefinitions="Auto,Auto,Auto,Auto">
+    <Grid Grid.Row="1" Margin="16,10,16,10" RowDefinitions="Auto,Auto,Auto,*">
 
       <!-- pencarian: No. BPJS (default) / NIK -->
       <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="18">
@@ -41,15 +38,15 @@
       </StackPanel>
 
       <!-- input besar bergaris bawah -->
-      <TextBox Grid.Row="1" Name="SearchBox" Classes="bigInput" Margin="0,6,0,0"
+      <TextBox Grid.Row="1" Name="SearchBox" Classes="bigInput" Margin="0,8,0,0"
                FontSize="28" HorizontalAlignment="Stretch" TextAlignment="Center"
                PlaceholderText="Masukkan No. Kartu BPJS" />
 
       <!-- foto + data peserta -->
-      <Grid Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Top" ColumnDefinitions="165,12,*">
+      <Grid Grid.Row="2" Margin="0,12,0,0" ColumnDefinitions="165,12,*">
 
         <Border Grid.Column="0" Classes="card" Padding="8">
-          <Grid Height="130">
+          <Grid Height="155">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6">
               <PathIcon Width="56" Height="56" Foreground="#C7C9D1"
                         Data="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
@@ -60,7 +57,7 @@
         </Border>
 
         <Border Grid.Column="2" Classes="card" Padding="10,8">
-          <Grid ColumnDefinitions="92,*" RowDefinitions="*,*,*,*,*,*" Height="130">
+          <Grid ColumnDefinitions="92,*" RowDefinitions="*,*,*,*,*,*">
             <TextBlock Grid.Row="0" Grid.Column="0" Classes="fieldLabel" Text="No. Kartu" />
             <TextBlock Grid.Row="0" Grid.Column="1" Classes="fieldValue" Name="NoKartuValue" Text="-" />
 

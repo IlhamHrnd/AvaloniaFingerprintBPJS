@@ -21,8 +21,7 @@
       <Setter Property="CornerRadius" Value="0" />
       <Setter Property="Padding" Value="0,4" />
       <Setter Property="MinHeight" Value="30" />
-      <Setter Property="Width" Value="195" />
-      <Setter Property="FontSize" Value="16" />
+      <Setter Property="FontSize" Value="14" />
       <Setter Property="Foreground" Value="#333333" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
@@ -55,9 +54,9 @@
 
     <!-- Circular lime floating action button -->
     <Style Selector="Button.fab">
-      <Setter Property="Width" Value="30" />
-      <Setter Property="Height" Value="30" />
-      <Setter Property="CornerRadius" Value="15" />
+      <Setter Property="Width" Value="44" />
+      <Setter Property="Height" Value="44" />
+      <Setter Property="CornerRadius" Value="22" />
       <Setter Property="Padding" Value="0" />
       <Setter Property="Background" Value="#CDDC39" />
       <Setter Property="BorderThickness" Value="0" />
@@ -67,7 +66,7 @@
     <Style Selector="Button.fab /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="#CDDC39" />
       <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="CornerRadius" Value="15" />
+      <Setter Property="CornerRadius" Value="22" />
       <Setter Property="BoxShadow" Value="0 3 8 0 #40000000" />
     </Style>
     <Style Selector="Button.fab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
@@ -78,11 +77,11 @@
     </Style>
   </Window.Styles>
 
-  <Grid RowDefinitions="44,*">
+  <Grid RowDefinitions="48,*">
 
     <!-- ==================== header / app bar ==================== -->
     <Border Grid.Row="0" Classes="appbar">
-      <Grid ColumnDefinitions="Auto,*,Auto" Margin="46,0,8,0">
+      <Grid ColumnDefinitions="Auto,*,Auto" Margin="16,0,8,0">
         <TextBlock Grid.Column="1" Classes="appbarTitle"
                    Text="Aplikasi Verifikasi dan Registrasi Sidik Jari" />
         <Button Grid.Column="2" Classes="appbarIcon" ToolTip.Tip="Menu">
@@ -103,8 +102,7 @@
         <!-- login card -->
         <Border Grid.Row="0"
                 Width="350" Height="200"
-                Margin="0,60,0,0"
-                HorizontalAlignment="Center" VerticalAlignment="Top"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
                 Background="#FFFFFF"
                 CornerRadius="6"
                 BoxShadow="0 4 16 0 #26000000"
@@ -162,12 +160,12 @@
       <Button Name="FabAdd"
               Classes="fab"
               HorizontalAlignment="Right" VerticalAlignment="Bottom"
-              Margin="0,0,12,12"
+              Margin="0,0,18,18"
               ToolTip.Tip="Tambah"
               Click="OnFabClick">
-        <Grid Width="12" Height="12">
-          <Rectangle Width="12" Height="2" Fill="Black" RadiusX="1" RadiusY="1" />
-          <Rectangle Width="2" Height="12" Fill="Black" RadiusX="1" RadiusY="1" />
+        <Grid Width="16" Height="16">
+          <Rectangle Width="16" Height="2" Fill="Black" RadiusX="1" RadiusY="1" />
+          <Rectangle Width="2" Height="16" Fill="Black" RadiusX="1" RadiusY="1" />
         </Grid>
       </Button>
     </Grid>
