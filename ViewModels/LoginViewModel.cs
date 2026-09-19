@@ -34,16 +34,12 @@ public sealed partial class LoginViewModel(IConfiguration config) : ViewModelBas
     [ObservableProperty] private bool _hasMessage;
 
     /// <summary>True once <see cref="AppUserViewModels.GetUserAuth"/> accepted the credentials.</summary>
-    public bool Succeeded
-    {
-        get => _succeeded;
-        private set => SetProperty(ref _succeeded, value);
-    }
-    private bool _succeeded;
+    public bool Succeeded { get; private set; }
 
     /// <summary>
-    /// The username that authenticated successfully; the main menu reads it from
-    /// <see cref="ViewModelBase.CurrentUserId"/> through the shared app state.
+    /// The username that authenticated successfully. Downstream code should read this
+    /// instead of a literal; the session service that used to hold it is not present
+    /// in the current working tree.
     /// </summary>
     public string AuthenticatedUsername { get; private set; } = string.Empty;
 
@@ -67,9 +63,8 @@ public sealed partial class LoginViewModel(IConfiguration config) : ViewModelBas
 
             if (response is not null && response.succeeded)
             {
-                // The main menu that follows this screen reads the id from the shared state.
+                // Only the login page exists so far; the post-login flow is not built yet.
                 AuthenticatedUsername = username;
-                CurrentUserId = username;
                 Succeeded = true;
                 SetMessage("Login berhasil.");
                 return;
