@@ -1,0 +1,98 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:AvaloniaFingerprint.ViewModels"
+        xmlns:views="using:AvaloniaFingerprint.Views"
+        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+        x:Class="AvaloniaFingerprint.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="1040" Height="720"
+        MinWidth="880" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Background="#F9FAFB"
+        Title="Avalonia Fingerprint">
+
+  <DockPanel>
+
+    <!-- ============ header: title, device status, login button (top right) ============ -->
+    <Border DockPanel.Dock="Top" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="20,12">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+
+        <StackPanel Grid.Column="0" Spacing="2">
+          <TextBlock Classes="h1" Text="Fingerprint BPJS" />
+          <TextBlock Classes="caption" Text="Daftar · Verifikasi · Registrasi" />
+        </StackPanel>
+
+        <!-- USB device indicator -->
+        <Border Grid.Column="2" Margin="0,0,16,0" Padding="12,6" CornerRadius="16" Background="#F3F4F6"
+                ToolTip.Tip="{Binding DeviceDetail}">
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                     Fill="{Binding DeviceConnected, Converter={StaticResource StatusBrush}}" />
+            <StackPanel>
+              <TextBlock Text="{Binding DeviceStatus}" FontSize="12" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding DeviceDetail}" Classes="caption" MaxWidth="260"
+                         TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- petugas + login/logout -->
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <StackPanel HorizontalAlignment="Right">
+            <TextBlock Text="{Binding PetugasName}" FontWeight="SemiBold" HorizontalAlignment="Right" />
+            <TextBlock Text="{Binding PetugasDetail}" Classes="caption" HorizontalAlignment="Right" />
+          </StackPanel>
+          <Button Content="{Binding LoginButtonText}"
+                  Command="{Binding ToggleLoginCommand}"
+                  IsEnabled="{Binding !IsLoginBusy}"
+                  MinWidth="96" Height="36"
+                  HorizontalContentAlignment="Center"
+                  Background="{StaticResource AccentBrush}" Foreground="White" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ============ status bar ============ -->
+    <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="20,8">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Classes="caption"
+                   Text="{Binding DeviceDetail}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="1" Classes="caption" Text="AvaloniaFingerprint" />
+      </Grid>
+    </Border>
+
+    <!-- ============ tabs (disabled until login) ============ -->
+    <Grid Margin="20">
+      <TabControl>
+        <TabItem Header="Daftar Fingerprint" IsEnabled="{Binding IsLoggedIn}">
+          <views:DaftarFingerprintView DataContext="{Binding Daftar}" />
+        </TabItem>
+        <TabItem Header="Verifikasi Fingerprint" IsEnabled="{Binding IsLoggedIn}">
+          <views:VerifikasiFingerprintView DataContext="{Binding Verifikasi}" />
+        </TabItem>
+        <TabItem Header="Registrasi Fingerprint" IsEnabled="{Binding IsLoggedIn}">
+          <views:RegistrasiFingerprintView DataContext="{Binding Registrasi}" />
+        </TabItem>
+      </TabControl>
+
+      <!-- overlay shown while logged out -->
+      <Border IsVisible="{Binding !IsLoggedIn}"
+              Background="#F9FAFB" CornerRadius="8"
+              Margin="0,44,0,0">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="420">
+          <TextBlock Text="🔒" FontSize="40" HorizontalAlignment="Center" />
+          <TextBlock Classes="h2" HorizontalAlignment="Center" Text="Semua tab terkunci" />
+          <TextBlock TextWrapping="Wrap" TextAlignment="Center" Classes="caption"
+                     Text="Login petugas terlebih dahulu melalui tombol Login di kanan atas untuk mengaktifkan tab Daftar, Verifikasi, dan Registrasi." />
+          <Button Content="Login sekarang" Command="{Binding ToggleLoginCommand}"
+                  HorizontalAlignment="Center" Margin="0,8,0,0" Height="36" MinWidth="140"
+                  HorizontalContentAlignment="Center"
+                  Background="{StaticResource AccentBrush}" Foreground="White" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+  </DockPanel>
+</Window>

@@ -1,10 +1,11 @@
-using System;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using AvaloniaFingerprint.Services;
 using AvaloniaFingerprint.ViewModels;
 using AvaloniaFingerprint.Views;
-using Microsoft.Extensions.Configuration;
 
 namespace AvaloniaFingerprint;
 
@@ -16,20 +17,28 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Only the login page is wired up for now; the main page is not built yet.
-            desktop.MainWindow = new LoginWindow { DataContext = new LoginViewModel(BuildConfiguration()) };
+            // CommunityToolkit.Mvvm already implements INotifyDataErrorInfo; the default
+            // Avalonia validator would report every error twice.
+            DisableDuplicateValidation();
+
+            var services = AppServices.Current;
+            var mainViewModel = new MainWindowViewModel(services);
+
+            desktop.MainWindow = new MainWindow { DataContext = mainViewModel };
+            desktop.ShutdownRequested += (_, _) => services.Dispose();
+
+            services.Fingerprint.Start();
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    /// <summary>
-    /// Builds the configuration the view models read (App:Url, App:TimeoutSeconds) from
-    /// appsettings.json, which is copied next to the executable.
-    /// </summary>
-    private static IConfiguration BuildConfiguration() =>
-        new ConfigurationBuilder()
-            .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
-            .Build();
+    private static void DisableDuplicateValidation()
+    {
+        foreach (var plugin in BindingPlugins.DataValidators.ToArray())
+        {
+            if (plugin is DataAnnotationsValidationPlugin)
+                BindingPlugins.DataValidators.Remove(plugin);
+        }
+    }
 }

@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:AvaloniaFingerprint.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="520"
+             x:Class="AvaloniaFingerprint.Views.RegistrasiFingerprintView"
+             x:DataType="vm:RegistrasiFingerprintViewModel">
+
+  <Grid ColumnDefinitions="360,*" Margin="16">
+
+    <!-- ===== input ===== -->
+    <Border Grid.Column="0" Classes="card" VerticalAlignment="Top" Margin="0,0,16,0">
+      <StackPanel Spacing="14">
+        <TextBlock Classes="h2" Text="Registrasi Peserta" />
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="No. Kartu Peserta" FontWeight="SemiBold" FontSize="12" />
+          <TextBox Text="{Binding NoKapst}"
+                   MaxLength="{Binding NoKapstMaxLength}"
+                   Watermark="13 digit"
+                   Height="38" FontSize="15" />
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Text="Pemindaian" FontWeight="SemiBold" FontSize="12" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Scan Jari Kiri" Command="{Binding ScanLeftCommand}"
+                    Height="38" MinWidth="140" HorizontalContentAlignment="Center" />
+            <Button Content="Scan Jari Kanan" Command="{Binding ScanRightCommand}"
+                    Height="38" MinWidth="140" HorizontalContentAlignment="Center" />
+          </StackPanel>
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="Setiap tangan dipindai 4 kali lalu digabung menjadi satu template." />
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding IsScanning}" Spacing="6">
+          <TextBlock Text="{Binding ScanStatus}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+          <ProgressBar Value="{Binding ScanProgress}" Minimum="0" Maximum="100" Height="6" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Registrasi" Command="{Binding RegistCommand}"
+                  Height="38" MinWidth="120" HorizontalContentAlignment="Center"
+                  Background="{StaticResource AccentBrush}" Foreground="White" />
+          <Button Content="Reset" Command="{Binding ResetCommand}"
+                  Height="38" MinWidth="90" HorizontalContentAlignment="Center" />
+        </StackPanel>
+
+        <Border IsVisible="{Binding HasStatus}" CornerRadius="6" Padding="10" Background="#F3F4F6">
+          <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12"
+                     Foreground="{Binding !StatusIsError, Converter={StaticResource StatusBrush}}" />
+        </Border>
+
+        <Border IsVisible="{Binding !DeviceConnected}" CornerRadius="6" Padding="10" Background="#FEF3C7">
+          <TextBlock Text="Perangkat fingerprint tidak terhubung. Tombol scan dinonaktifkan."
+                     TextWrapping="Wrap" FontSize="12" Foreground="#92400E" />
+        </Border>
+      </StackPanel>
+    </Border>
+
+    <!-- ===== previews ===== -->
+    <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
+      <StackPanel Spacing="14">
+        <TextBlock Classes="h2" Text="Hasil Pindai" />
+
+        <Grid ColumnDefinitions="*,*">
+
+          <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,16,0">
+            <Border Height="220" CornerRadius="6" Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1">
+              <Panel>
+                <TextBlock Text="Belum dipindai" Classes="caption"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding LeftImage, Converter={x:Static ObjectConverters.IsNull}}" />
+                <Image Source="{Binding LeftImage, Converter={StaticResource Base64Image}}"
+                       Stretch="Uniform" Margin="8" />
+              </Panel>
+            </Border>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                       Fill="{Binding LeftDone, Converter={StaticResource StatusBrush}}" />
+              <TextBlock Text="Tangan Kiri" FontWeight="SemiBold" />
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Spacing="8">
+            <Border Height="220" CornerRadius="6" Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1">
+              <Panel>
+                <TextBlock Text="Belum dipindai" Classes="caption"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding RightImage, Converter={x:Static ObjectConverters.IsNull}}" />
+                <Image Source="{Binding RightImage, Converter={StaticResource Base64Image}}"
+                       Stretch="Uniform" Margin="8" />
+              </Panel>
+            </Border>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                       Fill="{Binding RightDone, Converter={StaticResource StatusBrush}}" />
+              <TextBlock Text="Tangan Kanan" FontWeight="SemiBold" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

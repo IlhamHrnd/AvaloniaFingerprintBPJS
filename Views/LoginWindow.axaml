@@ -3,171 +3,44 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:AvaloniaFingerprint.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="420"
+        mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="330"
         x:Class="AvaloniaFingerprint.Views.LoginWindow"
         x:DataType="vm:LoginViewModel"
-        Width="550" Height="420"
+        Width="380" SizeToContent="Height"
         CanResize="False"
-        WindowStartupLocation="CenterScreen"
-        Background="#FFFFFF"
-        Title="Aplikasi Verifikasi dan Registrasi Sidik Jari">
+        WindowStartupLocation="CenterOwner"
+        Background="White"
+        Title="Login Petugas">
 
-  <Window.Styles>
-    <!-- Underline-only text box (no full box border) -->
-    <Style Selector="TextBox.underline">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="0,0,0,1" />
-      <Setter Property="BorderBrush" Value="#777777" />
-      <Setter Property="CornerRadius" Value="0" />
-      <Setter Property="Padding" Value="0,4" />
-      <Setter Property="MinHeight" Value="30" />
-      <Setter Property="FontSize" Value="14" />
-      <Setter Property="Foreground" Value="#333333" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-    </Style>
-    <Style Selector="TextBox.underline /template/ Border#PART_BorderElement">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="0,0,0,1" />
-      <Setter Property="BorderBrush" Value="#777777" />
-      <Setter Property="CornerRadius" Value="0" />
-    </Style>
-    <Style Selector="TextBox.underline:pointerover /template/ Border#PART_BorderElement">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="#777777" />
-    </Style>
-    <Style Selector="TextBox.underline:focus /template/ Border#PART_BorderElement">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="#673AB7" />
-      <Setter Property="BorderThickness" Value="0,0,0,2" />
-    </Style>
-    <Style Selector="TextBox.underline /template/ TextBlock#PART_Watermark">
-      <Setter Property="Foreground" Value="#888888" />
-    </Style>
+  <StackPanel Margin="24" Spacing="14">
 
-    <!-- Purple login button with a light elevation -->
-    <Style Selector="Button.login">
-      <Setter Property="Width" Value="100" />
-      <Setter Property="Height" Value="35" />
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="HorizontalAlignment" Value="Center" />
-    </Style>
+    <StackPanel Spacing="2">
+      <TextBlock Classes="h1" Text="Login Petugas" />
+      <TextBlock Classes="caption" Text="Gunakan akun petugas BPJS untuk membuka semua tab." />
+    </StackPanel>
 
-    <!-- Circular lime floating action button -->
-    <Style Selector="Button.fab">
-      <Setter Property="Width" Value="44" />
-      <Setter Property="Height" Value="44" />
-      <Setter Property="CornerRadius" Value="22" />
-      <Setter Property="Padding" Value="0" />
-      <Setter Property="Background" Value="#CDDC39" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-    </Style>
-    <Style Selector="Button.fab /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#CDDC39" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="CornerRadius" Value="22" />
-      <Setter Property="BoxShadow" Value="0 3 8 0 #40000000" />
-    </Style>
-    <Style Selector="Button.fab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#D4E157" />
-    </Style>
-    <Style Selector="Button.fab:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#C0CA33" />
-    </Style>
-  </Window.Styles>
+    <StackPanel Spacing="4">
+      <TextBlock Text="Username" FontWeight="SemiBold" FontSize="12" />
+      <TextBox Text="{Binding Username}" Watermark="0901R002_xxx" Height="36" />
+    </StackPanel>
 
-  <Grid RowDefinitions="48,*">
+    <StackPanel Spacing="4">
+      <TextBlock Text="Password" FontWeight="SemiBold" FontSize="12" />
+      <TextBox Text="{Binding Password}" PasswordChar="•" Watermark="Password" Height="36" />
+    </StackPanel>
 
-    <!-- ==================== header / app bar ==================== -->
-    <Border Grid.Row="0" Classes="appbar">
-      <Grid ColumnDefinitions="Auto,*,Auto" Margin="16,0,8,0">
-        <TextBlock Grid.Column="1" Classes="appbarTitle"
-                   Text="Aplikasi Verifikasi dan Registrasi Sidik Jari" />
-        <Button Grid.Column="2" Classes="appbarIcon" ToolTip.Tip="Menu">
-          <StackPanel Spacing="3" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <Ellipse Width="4" Height="4" Fill="White" />
-            <Ellipse Width="4" Height="4" Fill="White" />
-            <Ellipse Width="4" Height="4" Fill="White" />
-          </StackPanel>
-        </Button>
-      </Grid>
+    <Border IsVisible="{Binding HasMessage}" Background="#FDECEA" CornerRadius="6" Padding="10">
+      <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="#B3261E" FontSize="12" />
     </Border>
 
-    <!-- ==================== main area ==================== -->
-    <Grid Grid.Row="1" Background="#FFFFFF">
+    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="4" />
 
-      <Grid RowDefinitions="*,Auto" Margin="0,0,0,14">
-
-        <!-- login card -->
-        <Border Grid.Row="0"
-                Width="350" Height="200"
-                HorizontalAlignment="Center" VerticalAlignment="Center"
-                Background="#FFFFFF"
-                CornerRadius="6"
-                BoxShadow="0 4 16 0 #26000000"
-                Padding="20">
-          <Grid RowDefinitions="Auto,Auto,Auto">
-
-            <!-- username -->
-            <Grid Grid.Row="0" Margin="0,0,0,10" ColumnDefinitions="Auto,*">
-              <PathIcon Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center"
-                        Margin="0,0,10,0"
-                        Foreground="#673AB7"
-                        Data="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-              <TextBox Grid.Column="1" Classes="underline"
-                       Text="{Binding Username}"
-                       Watermark="username" />
-            </Grid>
-
-            <!-- password -->
-            <Grid Grid.Row="1" Margin="0,0,0,10" ColumnDefinitions="Auto,*">
-              <PathIcon Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center"
-                        Margin="0,0,10,0"
-                        Foreground="#673AB7"
-                        Data="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
-              <TextBox Grid.Column="1" Classes="underline"
-                       Text="{Binding Password}"
-                       PasswordChar="&#x2022;"
-                       Watermark="password" />
-            </Grid>
-
-            <!-- login button -->
-            <Button Grid.Row="2" Classes="primary login"
-                    Content="Login"
-                    IsDefault="True"
-                    Command="{Binding LoginCommand}" />
-          </Grid>
-        </Border>
-
-        <!-- validation / status message + busy indicator -->
-        <StackPanel Grid.Row="1" HorizontalAlignment="Center" Spacing="8">
-          <Border IsVisible="{Binding HasMessage}"
-                  Background="#FDECEA"
-                  CornerRadius="6"
-                  Padding="10,8">
-            <TextBlock Text="{Binding Message}"
-                       TextWrapping="Wrap"
-                       MaxWidth="330"
-                       Foreground="#B3261E"
-                       FontSize="12" />
-          </Border>
-          <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="4" />
-        </StackPanel>
-      </Grid>
-
-      <!-- floating action button -->
-      <Button Name="FabAdd"
-              Classes="fab"
-              HorizontalAlignment="Right" VerticalAlignment="Bottom"
-              Margin="0,0,18,18"
-              ToolTip.Tip="Tambah"
-              Click="OnFabClick">
-        <Grid Width="16" Height="16">
-          <Rectangle Width="16" Height="2" Fill="Black" RadiusX="1" RadiusY="1" />
-          <Rectangle Width="2" Height="16" Fill="Black" RadiusX="1" RadiusY="1" />
-        </Grid>
-      </Button>
+    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
+      <Button Grid.Column="1" Content="Batal" Command="{Binding CancelCommand}"
+              MinWidth="88" Height="36" Margin="0,0,8,0" HorizontalContentAlignment="Center" />
+      <Button Grid.Column="2" Content="Login" Command="{Binding LoginCommand}"
+              IsDefault="True" MinWidth="88" Height="36" HorizontalContentAlignment="Center"
+              Background="{StaticResource AccentBrush}" Foreground="White" />
     </Grid>
-  </Grid>
+  </StackPanel>
 </Window>

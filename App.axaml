@@ -1,20 +1,16 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:AvaloniaFingerprint"
+             xmlns:conv="using:AvaloniaFingerprint.Converters"
              x:Class="AvaloniaFingerprint.App"
              RequestedThemeVariant="Light">
 
   <Application.Resources>
-    <!-- Material-ish palette from the desktop reference design -->
-    <SolidColorBrush x:Key="AccentBrush" Color="#673AB7" />
-    <SolidColorBrush x:Key="AccentDarkBrush" Color="#5E35B1" />
-    <SolidColorBrush x:Key="AppBarBrush" Color="#673AB7" />
-    <SolidColorBrush x:Key="ActionBrush" Color="#FFA000" />
-    <SolidColorBrush x:Key="ActionHoverBrush" Color="#FFB300" />
-    <SolidColorBrush x:Key="TextBrush" Color="#333333" />
-    <SolidColorBrush x:Key="PlaceholderBrush" Color="#888888" />
-    <SolidColorBrush x:Key="LineBrush" Color="#DDDDDD" />
-    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
+    <conv:Base64ImageConverter x:Key="Base64Image" />
+    <conv:BoolToBrushConverter x:Key="StatusBrush" />
+    <conv:InverseBoolConverter x:Key="InverseBool" />
+
+    <SolidColorBrush x:Key="AccentBrush" Color="#0F6CBD" />
     <SolidColorBrush x:Key="OkBrush" Color="#107C10" />
     <SolidColorBrush x:Key="ErrorBrush" Color="#C42B1C" />
     <SolidColorBrush x:Key="MutedBrush" Color="#6B7280" />
@@ -28,328 +24,22 @@
     <Style Selector="TextBlock.h1">
       <Setter Property="FontSize" Value="20" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
     </Style>
     <Style Selector="TextBlock.h2">
-      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontSize" Value="15" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
       <Setter Property="Margin" Value="0,0,0,8" />
     </Style>
     <Style Selector="TextBlock.caption">
       <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
       <Setter Property="FontSize" Value="12" />
     </Style>
-
-    <!-- ==================== header / app bar ==================== -->
-
-    <Style Selector="Border.appbar">
-      <Setter Property="Background" Value="{StaticResource AppBarBrush}" />
-      <Setter Property="BoxShadow" Value="0 1 4 0 #33000000" />
-    </Style>
-
-    <Style Selector="TextBlock.appbarTitle">
-      <Setter Property="FontSize" Value="22" />
-      <Setter Property="FontWeight" Value="Medium" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-    </Style>
-
-    <Style Selector="Button.appbarIcon">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="Padding" Value="0" />
-      <Setter Property="Width" Value="34" />
-      <Setter Property="Height" Value="34" />
-      <Setter Property="CornerRadius" Value="17" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-    </Style>
-    <Style Selector="Button.appbarIcon /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="0" />
-    </Style>
-    <Style Selector="Button.appbarIcon:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#33FFFFFF" />
-      <Setter Property="BorderBrush" Value="Transparent" />
-    </Style>
-    <Style Selector="Button.appbarIcon:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#55FFFFFF" />
-      <Setter Property="BorderBrush" Value="Transparent" />
-    </Style>
-    <Style Selector="Button.appbarIcon PathIcon">
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="Width" Value="18" />
-      <Setter Property="Height" Value="18" />
-    </Style>
-
-    <!-- small outlined button used inside the purple app bar (device status / login) -->
-    <Style Selector="Button.appbarOutline">
-      <Setter Property="Background" Value="#26FFFFFF" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="#66FFFFFF" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="FontSize" Value="12" />
-      <Setter Property="Height" Value="30" />
-      <Setter Property="Padding" Value="12,0" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-    </Style>
-    <Style Selector="Button.appbarOutline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#40FFFFFF" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="#99FFFFFF" />
-    </Style>
-    <Style Selector="Button.appbarOutline:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#59FFFFFF" />
-      <Setter Property="Foreground" Value="White" />
-    </Style>
-
-    <Style Selector="TextBlock.appbarMeta">
-      <Setter Property="FontSize" Value="11" />
-      <Setter Property="Foreground" Value="#E3D7F7" />
-      <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-    </Style>
-
-    <!-- ==================== cards ==================== -->
-
     <Style Selector="Border.card">
-      <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
-      <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="#E5E7EB" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="12" />
-      <Setter Property="BoxShadow" Value="0 1 3 0 #14000000" />
-    </Style>
-
-    <Style Selector="TextBlock.fieldLabel">
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="Foreground" Value="#555555" />
-      <Setter Property="VerticalAlignment" Value="Center" />
-    </Style>
-
-    <Style Selector="TextBlock.fieldValue">
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-      <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-    </Style>
-
-    <!-- ==================== footer / user panel ==================== -->
-
-    <Style Selector="Border.footer">
-      <Setter Property="Background" Value="{StaticResource AppBarBrush}" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="BoxShadow" Value="0 1 4 0 #26000000" />
-    </Style>
-
-    <Style Selector="TextBlock.footerTitle">
-      <Setter Property="FontSize" Value="12.5" />
-      <Setter Property="FontWeight" Value="Bold" />
-      <Setter Property="Foreground" Value="White" />
-    </Style>
-
-    <Style Selector="TextBlock.footerSub">
-      <Setter Property="FontSize" Value="12" />
-      <Setter Property="Foreground" Value="#EFE7FA" />
-    </Style>
-
-    <Style Selector="Border.footerLine">
-      <Setter Property="Height" Value="1" />
-      <Setter Property="Background" Value="#3DFFFFFF" />
-    </Style>
-
-    <!-- ==================== big underline input ==================== -->
-
-    <Style Selector="TextBox.bigInput">
-      <Setter Property="FontSize" Value="26" />
-      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
-      <Setter Property="BorderThickness" Value="0,0,0,2" />
-      <Setter Property="CornerRadius" Value="0" />
-      <Setter Property="Padding" Value="0,0,0,6" />
-      <Setter Property="MinHeight" Value="0" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="HorizontalContentAlignment" Value="Left" />
-    </Style>
-
-    <!-- The Fluent theme re-applies background/border on the template part for the
-         pointerover/focus states, so the underline is pinned in every state. -->
-    <Style Selector="TextBox.bigInput /template/ Border#PART_BorderElement">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
-      <Setter Property="BorderThickness" Value="0,0,0,2" />
-      <Setter Property="CornerRadius" Value="0" />
-    </Style>
-    <Style Selector="TextBox.bigInput:pointerover /template/ Border#PART_BorderElement">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-      <Setter Property="BorderThickness" Value="0,0,0,2" />
-    </Style>
-    <Style Selector="TextBox.bigInput:focus /template/ Border#PART_BorderElement">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-      <Setter Property="BorderThickness" Value="0,0,0,2" />
-    </Style>
-
-    <!-- Watermark: the template renders it at 50% opacity, so it is pinned to full
-         opacity to keep the placeholder readable at #888888. -->
-    <Style Selector="TextBox.bigInput /template/ TextBlock#PART_Watermark">
-      <Setter Property="Opacity" Value="1" />
-      <Setter Property="Foreground" Value="{StaticResource PlaceholderBrush}" />
-      <Setter Property="FontSize" Value="26" />
-    </Style>
-    <Style Selector="TextBox.bigInput:pointerover /template/ TextBlock#PART_Watermark">
-      <Setter Property="Opacity" Value="1" />
-      <Setter Property="Foreground" Value="{StaticResource PlaceholderBrush}" />
-    </Style>
-    <Style Selector="TextBox.bigInput:focus /template/ TextBlock#PART_Watermark">
-      <Setter Property="Opacity" Value="1" />
-      <Setter Property="Foreground" Value="{StaticResource PlaceholderBrush}" />
-    </Style>
-
-    <!-- compact single-line input used by the dialog / list views -->
-    <Style Selector="TextBox.compact">
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="MinHeight" Value="0" />
-      <Setter Property="Height" Value="32" />
-      <Setter Property="Padding" Value="8,0" />
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-      <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
-    </Style>
-    <Style Selector="TextBox.compact /template/ TextBlock#PART_Watermark">
-      <Setter Property="Opacity" Value="1" />
-      <Setter Property="Foreground" Value="{StaticResource PlaceholderBrush}" />
-    </Style>
-    <Style Selector="TextBox.compact:pointerover /template/ TextBlock#PART_Watermark">
-      <Setter Property="Opacity" Value="1" />
-      <Setter Property="Foreground" Value="{StaticResource PlaceholderBrush}" />
-    </Style>
-    <Style Selector="TextBox.compact:focus /template/ TextBlock#PART_Watermark">
-      <Setter Property="Opacity" Value="1" />
-      <Setter Property="Foreground" Value="{StaticResource PlaceholderBrush}" />
-    </Style>
-
-    <!-- ==================== radio buttons (Material look) ==================== -->
-
-    <Style Selector="RadioButton.material">
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-      <Setter Property="Padding" Value="4,0,0,0" />
-      <Setter Property="MinHeight" Value="0" />
-    </Style>
-    <Style Selector="RadioButton.material /template/ Ellipse#OuterEllipse">
-      <Setter Property="Stroke" Value="#9E9E9E" />
-      <Setter Property="StrokeThickness" Value="1.6" />
-    </Style>
-    <Style Selector="RadioButton.material:pointerover /template/ Ellipse#OuterEllipse">
-      <Setter Property="Stroke" Value="{StaticResource AccentBrush}" />
-    </Style>
-    <Style Selector="RadioButton.material /template/ Ellipse#CheckOuterEllipse">
-      <Setter Property="Stroke" Value="{StaticResource AccentBrush}" />
-      <Setter Property="StrokeThickness" Value="1.6" />
-      <Setter Property="Fill" Value="Transparent" />
-    </Style>
-    <Style Selector="RadioButton.material /template/ Ellipse#CheckGlyph">
-      <Setter Property="Fill" Value="{StaticResource AccentBrush}" />
-      <Setter Property="Stroke" Value="{StaticResource AccentBrush}" />
-    </Style>
-    <Style Selector="RadioButton.material /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-    </Style>
-    <Style Selector="RadioButton.material:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
-    </Style>
-    <Style Selector="RadioButton.material:disabled /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Foreground" Value="#9E9E9E" />
-    </Style>
-
-    <!-- ==================== buttons ==================== -->
-
-    <Style Selector="Button.actionPrimary">
-      <Setter Property="Background" Value="{StaticResource ActionBrush}" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Height" Value="32" />
-      <Setter Property="Padding" Value="16,0" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-    </Style>
-    <Style Selector="Button.actionPrimary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="{StaticResource ActionHoverBrush}" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="Transparent" />
-    </Style>
-    <Style Selector="Button.actionPrimary:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#F57C00" />
-      <Setter Property="Foreground" Value="White" />
-    </Style>
-    <Style Selector="Button.actionPrimary:disabled /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#FFE0B2" />
-      <Setter Property="Foreground" Value="#FFFFFF" />
-      <Setter Property="BorderBrush" Value="Transparent" />
-    </Style>
-
-    <Style Selector="Button.primary">
-      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Height" Value="32" />
-      <Setter Property="Padding" Value="16,0" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-    </Style>
-    <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="{StaticResource AccentDarkBrush}" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="Transparent" />
-    </Style>
-    <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#4527A0" />
-      <Setter Property="Foreground" Value="White" />
-    </Style>
-    <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#D1C4E9" />
-      <Setter Property="Foreground" Value="#FFFFFF" />
-      <Setter Property="BorderBrush" Value="Transparent" />
-    </Style>
-
-    <Style Selector="Button.ghost">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
-      <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="Height" Value="32" />
-      <Setter Property="Padding" Value="12,0" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-    </Style>
-    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#F3EEFB" />
-      <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}" />
-      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-    </Style>
-    <Style Selector="Button.ghost:pressed /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#E7DDF7" />
-      <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}" />
-    </Style>
-    <Style Selector="Button.ghost:disabled /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Foreground" Value="#B0B0B0" />
-      <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="16" />
     </Style>
   </Application.Styles>
 </Application>

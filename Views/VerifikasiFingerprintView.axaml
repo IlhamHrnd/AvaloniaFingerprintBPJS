@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:AvaloniaFingerprint.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="520"
+             x:Class="AvaloniaFingerprint.Views.VerifikasiFingerprintView"
+             x:DataType="vm:VerifikasiFingerprintViewModel">
+
+  <Grid ColumnDefinitions="360,*" Margin="16">
+
+    <!-- ===== input ===== -->
+    <Border Grid.Column="0" Classes="card" VerticalAlignment="Top" Margin="0,0,16,0">
+      <StackPanel Spacing="14">
+        <TextBlock Classes="h2" Text="Data Peserta" />
+
+        <StackPanel Spacing="6">
+          <TextBlock Text="Jenis Nomor" FontWeight="SemiBold" FontSize="12" />
+          <StackPanel Orientation="Horizontal" Spacing="16">
+            <RadioButton GroupName="jenis" Content="NIK" IsChecked="{Binding IsNik}" />
+            <RadioButton GroupName="jenis" Content="No. BPJS" IsChecked="{Binding IsNoBpjs}" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Nomor" FontWeight="SemiBold" FontSize="12" />
+          <TextBox Text="{Binding Number}"
+                   MaxLength="{Binding NumberMaxLength}"
+                   Watermark="Minimal 13 digit"
+                   Height="38" FontSize="15" />
+          <TextBlock Classes="caption" Text="NIK 16 digit / No. BPJS 13 digit" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Verifikasi" Command="{Binding VerifyCommand}"
+                  Height="38" MinWidth="120" HorizontalContentAlignment="Center"
+                  Background="{StaticResource AccentBrush}" Foreground="White" />
+          <Button Content="Bersihkan" Command="{Binding ClearCommand}"
+                  Height="38" MinWidth="100" HorizontalContentAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding IsScanning}" Spacing="6">
+          <TextBlock Text="{Binding ScanStatus}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+          <ProgressBar IsIndeterminate="True" Height="4" />
+        </StackPanel>
+
+        <Border IsVisible="{Binding HasStatus}" CornerRadius="6" Padding="10"
+                Background="#F3F4F6">
+          <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12"
+                     Foreground="{Binding !StatusIsError, Converter={StaticResource StatusBrush}}" />
+        </Border>
+
+        <Border IsVisible="{Binding !DeviceConnected}" CornerRadius="6" Padding="10" Background="#FEF3C7">
+          <TextBlock Text="Perangkat fingerprint tidak terhubung. Verifikasi dinonaktifkan."
+                     TextWrapping="Wrap" FontSize="12" Foreground="#92400E" />
+        </Border>
+      </StackPanel>
+    </Border>
+
+    <!-- ===== result ===== -->
+    <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
+      <StackPanel Spacing="14">
+        <TextBlock Classes="h2" Text="Hasil Verifikasi" />
+
+        <Grid ColumnDefinitions="Auto,*">
+          <Border Grid.Column="0" Width="140" Height="180" CornerRadius="6" Margin="0,0,20,0"
+                  Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1">
+            <Panel>
+              <TextBlock Text="Sidik jari" Classes="caption"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                         IsVisible="{Binding FingerImage, Converter={x:Static ObjectConverters.IsNull}}" />
+              <Image Source="{Binding FingerImage, Converter={StaticResource Base64Image}}"
+                     Stretch="Uniform" Margin="6" />
+            </Panel>
+          </Border>
+
+          <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="130,*">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Nama" Classes="caption" Margin="0,0,0,12" />
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ResultNama}" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,12" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="No. Kartu" Classes="caption" Margin="0,0,0,12" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ResultNoKartu}" FontSize="15" Margin="0,0,0,12" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Usia" Classes="caption" Margin="0,0,0,12" />
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ResultUsia}" FontSize="15" Margin="0,0,0,12" />
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Keterangan" Classes="caption" />
+            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ResultMeta}" TextWrapping="Wrap" FontSize="12" />
+          </Grid>
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>
