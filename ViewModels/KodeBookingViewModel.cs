@@ -85,6 +85,19 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void CetakUlangBarcode()
+    {
+        var kdBooking = KodeBooking?.Trim();
+        if (string.IsNullOrWhiteSpace(kdBooking))
+        {
+            SetStatus("Kode booking tidak boleh kosong.", true);
+            return;
+        }
+
+        SetStatus("Kode booking valid. Proses cetak ulang barcode siap diproses.", false);
+    }
+
+    [RelayCommand]
     private void Reset()
     {
         KodeBooking = string.Empty;

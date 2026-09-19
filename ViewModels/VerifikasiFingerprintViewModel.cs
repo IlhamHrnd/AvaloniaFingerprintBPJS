@@ -3,7 +3,6 @@ using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AvaloniaFingerprint.ViewModels;
@@ -107,26 +106,23 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
                 return;
             }
 
-            var root = result.data!;
-            if (root.response?.noKartu is null)
+            if (!result.succeeded || (result.errors != null && result.errors.Length > 0))
             {
                 ClearResult();
-                var message = root.metaData?.message;
-                SetStatus(message == "Request failed with status code InternalServerError"
-                    ? "Server sedang sibuk, coba lagi."
-                    : "Fingerprint belum terdaftar. Silakan daftar pada tab Registrasi Fingerprint.", true);
+                string message = result.errors.Length > 0 ? string.Join(", ", result.errors) : result.message;
+                SetStatus(message, true);
                 return;
             }
 
-            var validateApt = _services.Appointment.AppointmentNoFromFinger(new Filters.Appointment.AppointmentNoFromFinger
+            var validateApt = await Task.Run(() => _services.Appointment.AppointmentNoFromFinger(new Filters.Appointment.AppointmentNoFromFinger
             {
                 dateTime = DateTime.Now,
                 nik = result.data?.response.nik ?? string.Empty,
                 noKartu = result.data?.response.noKartu ?? string.Empty,
                 patientName = result.data?.response.nama ?? string.Empty
-            });
+            }));
 
-            if (!validateApt.succeeded || validateApt.errors.Length > 0)
+            if (!validateApt.succeeded || (validateApt.errors != null && validateApt.errors.Length > 0))
             {
                 ClearResult();
                 string message = validateApt.errors.Length > 0 ? string.Join(", ", validateApt.errors) : validateApt.message;
@@ -134,10 +130,20 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
                 return;
             }
 
-            ResultNama = root.response.nama ?? "-";
-            ResultNoKartu = root.response.noKartu ?? "-";
-            ResultUsia = $"{root.response.usia} Tahun";
-            ResultMeta = $"Code {root.metaData?.code} · {root.metaData?.message}";
+            //Proses Generate Nomor Registrasi
+            var generateReg = await Task.Run(() => _services.Appointment.GenerateRegistration(validateApt.data ?? string.Empty));
+            if (!generateReg.succeeded || (generateReg.errors != null && generateReg.errors.Length > 0))
+            {
+                ClearResult();
+                string message = generateReg.errors.Length > 0 ? string.Join(", ", generateReg.errors) : generateReg.message;
+                SetStatus(message, true);
+                return;
+            }
+
+            ResultNama = result.data?.response.nama ?? "-";
+            ResultNoKartu = result.data?.response.noKartu ?? "-";
+            ResultUsia = $"{result.data?.response.usia} Tahun";
+            ResultMeta = $"Code {result.data?.metaData?.code} · {result.data?.metaData?.message}";
             HasResult = true;
             SetStatus("Verifikasi berhasil.", false);
         }
