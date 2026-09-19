@@ -42,7 +42,6 @@
 
       <!-- input besar bergaris bawah -->
       <TextBox Grid.Row="1" Name="SearchBox" Classes="bigInput" Margin="0,6,0,0"
-               TextChanged="OnSearchTextChanged"
                FontSize="28" HorizontalAlignment="Stretch" TextAlignment="Center"
                PlaceholderText="Masukkan No. Kartu BPJS" />
 
