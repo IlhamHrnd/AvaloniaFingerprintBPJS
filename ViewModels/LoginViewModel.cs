@@ -43,30 +43,29 @@ public sealed partial class LoginViewModel : ViewModelBase
 
         try
         {
-            var result = await _services.Api.LoginAsync(Username.Trim(), Password);
+            var userId = Username.Trim();
 
-            if (!result.Success)
-            {
-                SetMessage($"Login gagal: {result.Error}");
-                return;
-            }
+            // GetUserAuth() is synchronous, so run it off the UI thread to keep the dialog responsive.
+            var result = await Task.Run(() => _services.AppUser.GetUserAuth(userId, Password));
 
-            var response = result.Data?.response;
-            if (response is null || string.IsNullOrEmpty(response.tokenLogin))
+            if (!result.succeeded || string.IsNullOrEmpty(result.data))
             {
-                var apiMessage = result.Data?.metaData?.message;
+                var apiMessage = result.errors?.Length > 0 ? result.errors[0] : string.Empty;
+                if (string.IsNullOrWhiteSpace(apiMessage)) apiMessage = result.message;
                 SetMessage(string.IsNullOrWhiteSpace(apiMessage)
                     ? "Login gagal: username atau password salah."
                     : $"Login gagal: {apiMessage}");
                 return;
             }
 
+            // SSO login returns no token; result.data is the authenticated UserId.
             _services.Session.SignIn(
-                response.tokenLogin!,
-                response.username ?? Username.Trim(),
-                response.nama ?? string.Empty,
-                response.userID ?? string.Empty);
+                string.Empty,
+                userId,
+                string.Empty,
+                result.data!);
 
+            Password = string.Empty;
             Succeeded = true;
             RequestClose?.Invoke();
         }

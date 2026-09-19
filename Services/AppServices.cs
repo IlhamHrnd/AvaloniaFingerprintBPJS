@@ -16,21 +16,22 @@ public sealed class AppServices : IDisposable
     {
         Settings = AppSettings.Load();
         Session = new SessionService();
-        Api = new BpjsApiClient(Settings.Bpjs);
-        Fingerprint = new FingerprintService(Settings.Fingerprint, Settings.Device);
-        Registrations = new RegistrationStore(Settings);
+        AppUser = new AppUserServices(Settings.Configuration, Session);
+        Fingerprint = new FingerprintServices(Settings.Configuration, Session);
+        Registrations = new RegistrationServices(Settings.Configuration, Session);
+        Appointment = new AppointmentServices(Settings.Configuration, Session);
     }
 
     public AppSettings Settings { get; }
     public SessionService Session { get; }
-    public BpjsApiClient Api { get; }
-    public FingerprintService Fingerprint { get; }
-    public RegistrationStore Registrations { get; }
+    public AppUserServices AppUser { get; }
+    public FingerprintServices Fingerprint { get; }
+    public RegistrationServices Registrations { get; }
+    public AppointmentServices Appointment { get; }
 
     public void Dispose()
     {
         Fingerprint.Dispose();
-        Api.Dispose();
         _current = null;
     }
 }

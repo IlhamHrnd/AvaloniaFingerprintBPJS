@@ -18,12 +18,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Daftar = new DaftarFingerprintViewModel(services);
         Verifikasi = new VerifikasiFingerprintViewModel(services);
         Registrasi = new RegistrasiFingerprintViewModel(services, Daftar);
+        KodeBooking = new KodeBookingViewModel(services);
 
         services.Session.Changed += OnSessionChanged;
         services.Fingerprint.DeviceStatusChanged += OnDeviceStatusChanged;
 
         if (!services.Fingerprint.IsSdkAvailable)
-            DeviceDetail = FingerprintService.SdkMissingMessage;
+            DeviceDetail = services.Fingerprint.SdkMissing;
 
         UpdateSessionState();
     }
@@ -31,6 +32,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public DaftarFingerprintViewModel Daftar { get; }
     public VerifikasiFingerprintViewModel Verifikasi { get; }
     public RegistrasiFingerprintViewModel Registrasi { get; }
+    public KodeBookingViewModel KodeBooking { get; }
 
     // ---- login state ---------------------------------------------------------
 
@@ -89,6 +91,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Daftar.OnSessionChanged(session.IsLoggedIn);
         Verifikasi.OnSessionChanged(session.IsLoggedIn);
         Registrasi.OnSessionChanged(session.IsLoggedIn);
+        KodeBooking.OnSessionChanged(session.IsLoggedIn);
     }
 
     // ---- device state --------------------------------------------------------
@@ -106,7 +109,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 ? e.DeviceName ?? "Fingerprint reader"
                 : _services.Fingerprint.IsSdkAvailable
                     ? "Hubungkan USB fingerprint reader"
-                    : FingerprintService.SdkMissingMessage;
+                    : _services.Fingerprint.SdkMissing;
 
             Verifikasi.OnDeviceStatusChanged(e.Connected);
             Registrasi.OnDeviceStatusChanged(e.Connected);

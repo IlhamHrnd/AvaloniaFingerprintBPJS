@@ -1,4 +1,4 @@
-namespace AvaloniaFingerprint.Models;
+namespace AvaloniaFingerprint.Models.Fingerprint;
 
 public class RegistValidate
 {
@@ -6,6 +6,7 @@ public class RegistValidate
     {
         public string? message { get; set; }
         public int code { get; set; }
+        public bool isValid { get; set; }
     }
 
     public class RegistValidateRoot

@@ -1,9 +1,9 @@
-using System;
-using System.Threading.Tasks;
-using AvaloniaFingerprint.Models;
+using AvaloniaFingerprint.Exceptions;
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System;
+using System.Threading.Tasks;
 
 namespace AvaloniaFingerprint.ViewModels;
 
@@ -88,46 +88,66 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
 
         try
         {
-            var capture = await _services.Fingerprint.CaptureAsync(_services.Settings.Fingerprint.VerifyTimeoutMs);
+            var capture = await _services.Fingerprint.CaptureAsync(_services.Fingerprint.VerifyTimeoutMs);
 
             ScanStatus = "Memverifikasi ke BPJS...";
             FingerImage = capture.ImageBase64;
-
-            var body = new Verify
+            var result = await Task.Run(() => _services.Fingerprint.Verify(new Filters.Fingerprint.Verify
             {
+                finger = capture.VerificationTemplate,
                 keyword = Number.Trim(),
-                jnsFilter = IsNoBpjs ? "psnoka" : "nik",
-                finger = capture.VerificationTemplate
-            };
+                jnsFilter = IsNoBpjs ? "psnoka" : "nik"
+            }));
 
-            var result = await _services.Api.VerifyAsync(body, _services.Session.Token ?? string.Empty);
-
-            if (!result.Success)
+            if (!result.succeeded)
             {
                 ClearResult();
-                SetStatus($"Verifikasi gagal: {result.Error}", true);
+                SetStatus($"Verifikasi gagal: {string.Join(' ', result.errors)}", true);
                 return;
             }
 
-            var root = result.Data!;
-            if (root.response?.noKartu is null)
+            if (!result.succeeded || (result.errors != null && result.errors.Length > 0))
             {
                 ClearResult();
-                var message = root.metaData?.message;
-                SetStatus(message == "Request failed with status code InternalServerError"
-                    ? "Server sedang sibuk, coba lagi."
-                    : "Fingerprint belum terdaftar. Silakan daftar pada tab Registrasi Fingerprint.", true);
+                string message = result.errors.Length > 0 ? string.Join(", ", result.errors) : result.message;
+                SetStatus(message, true);
                 return;
             }
 
-            ResultNama = root.response.nama ?? "-";
-            ResultNoKartu = root.response.noKartu ?? "-";
-            ResultUsia = $"{root.response.usia} Tahun";
-            ResultMeta = $"Code {root.metaData?.code} · {root.metaData?.message}";
+            var validateApt = await Task.Run(() => _services.Appointment.AppointmentNoFromFinger(new Filters.Appointment.AppointmentNoFromFinger
+            {
+                dateTime = DateTime.Now,
+                nik = result.data?.response.nik ?? string.Empty,
+                noKartu = result.data?.response.noKartu ?? string.Empty,
+                patientName = result.data?.response.nama ?? string.Empty
+            }));
+
+            if (!validateApt.succeeded || (validateApt.errors != null && validateApt.errors.Length > 0))
+            {
+                ClearResult();
+                string message = validateApt.errors.Length > 0 ? string.Join(", ", validateApt.errors) : validateApt.message;
+                SetStatus(message, true);
+                return;
+            }
+
+            //Proses Generate Nomor Registrasi
+            var generateReg = await Task.Run(() => _services.Appointment.GenerateRegistration(validateApt.data ?? string.Empty));
+            if (!generateReg.succeeded || (generateReg.errors != null && generateReg.errors.Length > 0))
+            {
+                ClearResult();
+                string message = generateReg.errors.Length > 0 ? string.Join(", ", generateReg.errors) : generateReg.message;
+                SetStatus(message, true);
+                return;
+            }
+
+            ResultNama = result.data?.response.nama ?? "-";
+            ResultNoKartu = result.data?.response.noKartu ?? "-";
+            ResultUsia = $"{result.data?.response.usia} Tahun";
+            ResultMeta = $"Code {result.data?.metaData?.code} · {result.data?.metaData?.message}";
             HasResult = true;
             SetStatus("Verifikasi berhasil.", false);
         }
-        catch (FingerprintException ex)
+        catch (FingerprintExceptions ex)
         {
             SetStatus(ex.Message, true);
             await _services.Fingerprint.RefreshDeviceAsync();
