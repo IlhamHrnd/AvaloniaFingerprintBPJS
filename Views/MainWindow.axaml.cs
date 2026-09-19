@@ -75,7 +75,6 @@ public partial class MainWindow : Window
             // through the dispatcher.
             _fingerprint.StatusChanged += (_, status) => RunOnUi(() => SetStatus(status));
             _fingerprint.FingerprintCaptured += (_, result) => RunOnUi(() => ShowFingerprintAlert(result));
-            _fingerprint.InputRequired += (_, required) => RunOnUi(() => ShowInputRequiredAlert(required.Message));
 
             _fingerprint.Start();
 
@@ -121,11 +120,6 @@ public partial class MainWindow : Window
         if (_fingerprint is null) return;
 
         var text = this.FindControl<TextBox>("SearchBox")?.Text?.Trim() ?? string.Empty;
-
-        // The prompt must name the field that is actually active, so the selected radio
-        // drives the label used by the input validation message.
-        var isBpjs = this.FindControl<RadioButton>("BpjsRadio")?.IsChecked == true;
-        _fingerprint.CurrentInputLabel = isBpjs ? "No. BPJS" : "NIK";
         _fingerprint.CurrentInput = text;
 
         try
@@ -182,42 +176,6 @@ public partial class MainWindow : Window
                 new TextBlock { Text = "Fingerprint terdeteksi!", FontSize = 18, FontWeight = Avalonia.Media.FontWeight.Bold },
                 new TextBlock { Text = $"{label}:\n{number}" },
                 new TextBlock { Text = $"Status:\n{result.Message}" },
-                okButton
-            }
-        };
-
-        dialog.ShowDialog(this);
-    }
-
-    /// <summary>
-    /// Prompt shown when a finger is placed before a BPJS card number or NIK has been
-    /// entered. No capture is performed. Closing the dialog leaves the operator on the main
-    /// menu with the reader still able to scan once a number is typed.
-    /// </summary>
-    private void ShowInputRequiredAlert(string message)
-    {
-        SetStatus(message);
-
-        var dialog = new Window
-        {
-            Title = "Fingerprint",
-            Width = 380,
-            Height = 190,
-            CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = Avalonia.Media.Brushes.White
-        };
-
-        var okButton = new Button { Content = "OK", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center };
-        okButton.Click += (_, _) => dialog.Close();
-
-        dialog.Content = new StackPanel
-        {
-            Margin = new Thickness(20),
-            Spacing = 10,
-            Children =
-            {
-                new TextBlock { Text = message, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
                 okButton
             }
         };
