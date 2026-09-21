@@ -1,9 +1,12 @@
+using AvaloniaFingerprint.Converters;
 using AvaloniaFingerprint.Exceptions;
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Telerik.Reporting;
 
 namespace AvaloniaFingerprint.ViewModels;
 
@@ -140,6 +143,213 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
                 string message = generateReg.errors.Length > 0 ? string.Join(", ", generateReg.errors) : generateReg.message;
                 SetStatus(message, true);
                 return;
+            }
+
+            var dateTime = DateTime.Now;
+            var printerName = _services.Settings.Configuration["Apps:PrinterNormal"] ?? string.Empty;
+            var printerLaser = _services.Settings.Configuration["Apps:PrinterLaser"] ?? string.Empty;
+
+            // Proses cetak SEP
+            var sep = await Task.Run(() => _services.Printout.Sep(validateApt.data ?? string.Empty, true, dateTime));
+            if (sep.succeeded && sep.errors == null && sep.data != null)
+            {
+                try
+                {
+                    var data = sep.data;
+                    List<InstanceReportSource> rptSource = [];
+                    List<Models.Master.Parameter> parameters = [];
+
+                    rptSource.Add(new InstanceReportSource
+                    {
+                        ReportDocument = new ReportLibrary.Sep()
+                    });
+
+                    parameters =
+                    [
+                        new()
+                    {
+                        name = "sep",
+                        value = data.sep
+                    },
+                    new()
+                    {
+                        name = "tglsep",
+                        value = data.tglsep
+                    },
+                    new()
+                    {
+                        name = "nokartu",
+                        value = data.nokartu
+                    },
+                    new()
+                    {
+                        name = "nama",
+                        value = data.nama
+                    },
+                    new()
+                    {
+                        name = "tgllahir",
+                        value = data.tgllahir
+                    },
+                    new()
+                    {
+                        name = "sex",
+                        value = data.sex
+                    },
+                    new()
+                    {
+                        name = "politujuan",
+                        value = data.politujuan
+                    },
+                    new()
+                    {
+                        name = "polirujukan",
+                        value = data.polirujukan
+                    },
+                    new()
+                    {
+                        name = "dokterpemeriksa",
+                        value = data.dokterpemeriksa
+                    },
+                    new()
+                    {
+                        name = "dpjp",
+                        value = data.dpjp
+                    },
+                    new()
+                    {
+                        name = "asalfaskes",
+                        value = data.asalfaskes
+                    },
+                    new()
+                    {
+                        name = "diagnosa",
+                        value = data.diagnosa
+                    },
+                    new()
+                    {
+                        name = "antrian",
+                        value = Converter.IntToString(data.antrian)
+                    },
+                    new()
+                    {
+                        name = "jenispeserta",
+                        value = data.jenispeserta
+                    },
+                    new()
+                    {
+                        name = "rm",
+                        value = data.rm
+                    },
+                    new()
+                    {
+                        name = "jenisrawat",
+                        value = data.jenisrawat
+                    },
+                    new()
+                    {
+                        name = "kelasrawat",
+                        value = data.kelasrawat
+                    },
+                    new()
+                    {
+                        name = "cetakby",
+                        value = data.cetakby
+                    },
+                    new()
+                    {
+                        name = "notlp",
+                        value = data.notlp
+                    },
+                    new()
+                    {
+                        name = "urlqrcode",
+                        value = data.linkqrcode
+                    },
+                    new()
+                    {
+                        name = "queueqr",
+                        value = data.queueqr
+                    }
+                    ];
+
+                    printProcess(rptSource, parameters, printerName, 1, 1, 3);
+                }
+                catch (Exception e)
+                {
+                    ClearResult();
+                    SetStatus(e.Message, true);
+                    return;
+                }
+            }
+
+            // Proses cetak Label
+            string aptNo = $"APT/{Converter.DateFormat(dateTime, DateFormat.Shortyearpattern)}-{validateApt.data}";
+            var regNo = await Task.Run(() => _services.Appointment.AppointmentToRegistrationNumber(aptNo));
+            if (!regNo.succeeded && regNo.errors != null)
+            {
+                ClearResult();
+                string message = regNo.errors.Length > 0 ? string.Join(", ", regNo.errors) : regNo.message;
+                SetStatus(message, true);
+                return;
+            }
+
+            var label = await Task.Run(() => _services.Printout.Label(regNo.data ?? string.Empty, dateTime));
+            if (label.succeeded && label.errors == null && label.data != null)
+            {
+                try
+                {
+                    var data = label.data;
+                    List<InstanceReportSource> rptSource = [];
+                    List<Models.Master.Parameter> parameters = [];
+
+                    rptSource.Add(new InstanceReportSource
+                    {
+                        ReportDocument = new ReportLibrary.Barcode()
+                    });
+
+                    parameters =
+                    [
+                        new()
+                    {
+                        name = "nama",
+                        value = data.nama
+                    },
+                    new()
+                    {
+                        name = "tgllahir",
+                        value = data.tgllhr
+                    },
+                    new()
+                    {
+                        name = "sex",
+                        value = data.lahirjk.Equals("m", StringComparison.CurrentCultureIgnoreCase) ? "Laki - Laki" : "Perempuan"
+                    },
+                    new()
+                    {
+                        name = "rm",
+                        value = data.mr
+                    },
+                    new()
+                    {
+                        name = "noreg",
+                        value = $"{data.mr} / {data.noreg}"
+                    },
+                    new()
+                    {
+                        name = "noantrian",
+                        value = Converter.IntToString(data.noantrian)
+                    }
+                    ];
+
+                    printProcess(rptSource, parameters, printerLaser, 1, 1, 1);
+                }
+                catch (Exception e)
+                {
+                    ClearResult();
+                    SetStatus(e.Message, true);
+                    return;
+                }
             }
 
             ResultNama = result.data?.response.nama ?? "-";
