@@ -1,12 +1,14 @@
 ﻿global using static AvaloniaFingerprint.Models.Master.Response;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json;
 using RestSharp;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Drawing.Printing;
 using System.IO;
+using Telerik.Reporting;
+using Telerik.Reporting.Processing;
 
 namespace AvaloniaFingerprint.Services
 {
@@ -19,14 +21,16 @@ namespace AvaloniaFingerprint.Services
         protected SessionService Session { get; set; } = session;
         protected string SdkMissingMessage = "SDK DigitalPersona (DPUruNet.dll) tidak ditemukan saat build. " +
             "Install U.are.U RTE atau salin DPUruNet.dll ke folder lib\\, lalu build ulang.";
-        protected int captureTimeoutMs { get; set; } = 7000;
-        protected int verifyTimeoutMs { get; set; } = 5000;
+        protected int captureTimeoutMs { get; set; } = int.Parse(config["Apps:CaptureTimeOut"] ?? "7000");
+        protected int verifyTimeoutMs { get; set; } = int.Parse(config["Apps:VerifyTimeoutMs"] ?? "5000");
         protected int fingersPerHand { get; set; } = 4;
         protected int rightHandIndex { get; set; } = 1;
         protected int leftHandIndex { get; set; } = 6;
         protected int pollIntervalSeconds { get; set; } = 2;
         protected string[] matchKeywords { get; set; } = { "U.are.U", "DigitalPersona", "Fingerprint", "Biometric" };
         protected string registrationsFile { get; set; } = config["Storage:RegistrationsFile"] ?? "registrations.json";
+        protected string printerName = config["Apps:PrinterNormal"] ?? string.Empty;
+        protected string printerLaser = config["Apps:PrinterLaser"] ?? string.Empty;
         #endregion
 
         protected List<Models.Master.Parameter> headers(string userId)
@@ -154,20 +158,48 @@ namespace AvaloniaFingerprint.Services
             return jpeg.Length == 0 ? string.Empty : Convert.ToBase64String(jpeg);
         }
 
-        public static Avalonia.Media.Imaging.Bitmap? Base64ToBitmap(string? base64)
+        protected void reportProcessor(List<InstanceReportSource> rptSource, List<Models.Master.Parameter> parameters, string printerName, int fromPage, int toPage)
         {
-            if (string.IsNullOrWhiteSpace(base64))
-                return null;
+            if (string.IsNullOrEmpty(printerName)) return;
+            else if (rptSource.Count == 0) return;
 
             try
             {
-                using var stream = new MemoryStream(Convert.FromBase64String(base64));
-                return new Avalonia.Media.Imaging.Bitmap(stream);
+                var rbs = new ReportBook();
+                foreach (var item in rptSource)
+                {
+                    rbs.ReportSources.Add(item);
+                }
+
+                var irs = new InstanceReportSource
+                {
+                    ReportDocument = rbs
+                };
+
+                foreach (var item in parameters)
+                {
+                    irs.Parameters.Add(new Telerik.Reporting.Parameter(item.name, item.value));
+                }
+
+                var ps = new PrinterSettings
+                {
+                    PrinterName = printerName,
+                    FromPage = fromPage,
+                    ToPage = toPage
+                };
+                var spc = new StandardPrintController();
+                var rp = new ReportProcessor
+                {
+                    PrintController = spc
+                };
+                rp.PrintReport(irs, ps);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                return null;
+                Console.WriteLine($"Error : {e.Message} - {e.InnerException?.Message}");
             }
+
+            return;
         }
     }
 }

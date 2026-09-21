@@ -114,6 +114,7 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
                 return;
             }
 
+            ScanStatus = "Memverifikasi kode booking pasien...";
             var validateApt = await Task.Run(() => _services.Appointment.AppointmentNoFromFinger(new Filters.Appointment.AppointmentNoFromFinger
             {
                 dateTime = DateTime.Now,
@@ -131,6 +132,7 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
             }
 
             //Proses Generate Nomor Registrasi
+            ScanStatus = "Memproses SEP ke BPJS...";
             var generateReg = await Task.Run(() => _services.Appointment.GenerateRegistration(validateApt.data ?? string.Empty));
             if (!generateReg.succeeded || (generateReg.errors != null && generateReg.errors.Length > 0))
             {

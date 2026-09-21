@@ -381,10 +381,26 @@ namespace AvaloniaFingerprint.Converters
     public sealed class Base64ImageConverter : IValueConverter
     {
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-            => BaseService.Base64ToBitmap(value as string);
+            => Base64ToBitmap(value as string);
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotSupportedException();
+
+        private Avalonia.Media.Imaging.Bitmap? Base64ToBitmap(string? base64)
+        {
+            if (string.IsNullOrWhiteSpace(base64))
+                return null;
+
+            try
+            {
+                using var stream = new MemoryStream(System.Convert.FromBase64String(base64));
+                return new Avalonia.Media.Imaging.Bitmap(stream);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
     }
 
     /// <summary>Green when true, red when false — used for the device / login indicators.</summary>
