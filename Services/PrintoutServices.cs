@@ -33,7 +33,7 @@ namespace AvaloniaFingerprint.Services
             var result = new Root<Models.Printout.Label>();
             var header = headers(Session.Username);
 
-            var response = RestResponse(url, $"PrintOut/Label?kdBooking={kdBooking}&dateTime={Converter.DateFormat(dateTime, DateFormat.Yearmonthdate)}&type=2", timeout, header, 1, 1);
+            var response = RestResponse(url, $"PrintOut/Label?kdBooking={kdBooking}&dateTime={Converter.DateFormat(dateTime, DateFormat.Yearmonthdate)}&type=1", timeout, header, 1, 1);
             try
             {
                 if (response.IsSuccessStatusCode) result = JsonConvert.DeserializeObject<Root<Models.Printout.Label>>(response.Content ?? string.Empty) ?? new Root<Models.Printout.Label>();

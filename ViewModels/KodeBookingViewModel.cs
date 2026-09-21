@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Telerik.Reporting;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AvaloniaFingerprint.ViewModels;
 
@@ -99,6 +98,9 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
         }
 
         var dateTime = DateTime.Now;
+        var printerName = _services.Settings.Configuration["Apps:PrinterNormal"] ?? string.Empty;
+        var printerLaser = _services.Settings.Configuration["Apps:PrinterLaser"] ?? string.Empty;
+
         // Proses cetak SEP
         var sep = await Task.Run(() => _services.Printout.Sep(kdBooking, true, dateTime));
         if (sep.succeeded && sep.errors == null && sep.data != null)
@@ -223,7 +225,7 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
                     }
                 ];
 
-                printProcess(rptSource, parameters, "HP Laser 103 107 108", 1, 1, 3);
+                printProcess(rptSource, parameters, printerName, 1, 1, 3);
             }
             catch (Exception e)
             {
@@ -232,7 +234,15 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
         }
 
         // Proses cetak Label
-        var label = await Task.Run(() => _services.Printout.Label(kdBooking, dateTime));
+        string aptNo = $"APT/{Converter.DateFormat(dateTime, DateFormat.Shortyearpattern)}-{kdBooking}";
+        var regNo = await Task.Run(() => _services.Appointment.AppointmentToRegistrationNumber(aptNo));
+        if (!regNo.succeeded && regNo.errors != null)
+        {
+            SetStatus($"Verifikasi gagal: {string.Join(' ', regNo.errors)}", true);
+            return;
+        }
+
+        var label = await Task.Run(() => _services.Printout.Label(regNo.data ?? string.Empty, dateTime));
         if (label.succeeded && label.errors == null && label.data != null)
         {
             try
@@ -261,7 +271,7 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
                     new()
                     {
                         name = "sex",
-                        value = data.lahirjk
+                        value = data.lahirjk.Equals("m", StringComparison.CurrentCultureIgnoreCase) ? "Laki - Laki" : "Perempuan"
                     },
                     new()
                     {
@@ -280,7 +290,7 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
                     }
                 ];
 
-                printProcess(rptSource, parameters, "EPSONF832AA2 (L5290 Series)", 1, 1, 1);
+                printProcess(rptSource, parameters, printerLaser, 1, 1, 1);
             }
             catch (Exception e)
             {
