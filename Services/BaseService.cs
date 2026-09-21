@@ -5,10 +5,7 @@ using RestSharp;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Drawing.Printing;
 using System.IO;
-using Telerik.Reporting;
-using Telerik.Reporting.Processing;
 
 namespace AvaloniaFingerprint.Services
 {
@@ -156,50 +153,6 @@ namespace AvaloniaFingerprint.Services
         {
             var jpeg = GrayscaleToJpeg(gray, width, height);
             return jpeg.Length == 0 ? string.Empty : Convert.ToBase64String(jpeg);
-        }
-
-        protected void reportProcessor(List<InstanceReportSource> rptSource, List<Models.Master.Parameter> parameters, string printerName, int fromPage, int toPage)
-        {
-            if (string.IsNullOrEmpty(printerName)) return;
-            else if (rptSource.Count == 0) return;
-
-            try
-            {
-                var rbs = new ReportBook();
-                foreach (var item in rptSource)
-                {
-                    rbs.ReportSources.Add(item);
-                }
-
-                var irs = new InstanceReportSource
-                {
-                    ReportDocument = rbs
-                };
-
-                foreach (var item in parameters)
-                {
-                    irs.Parameters.Add(new Telerik.Reporting.Parameter(item.name, item.value));
-                }
-
-                var ps = new PrinterSettings
-                {
-                    PrinterName = printerName,
-                    FromPage = fromPage,
-                    ToPage = toPage
-                };
-                var spc = new StandardPrintController();
-                var rp = new ReportProcessor
-                {
-                    PrintController = spc
-                };
-                rp.PrintReport(irs, ps);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"Error : {e.Message} - {e.InnerException?.Message}");
-            }
-
-            return;
         }
     }
 }

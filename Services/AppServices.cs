@@ -20,6 +20,7 @@ public sealed class AppServices : IDisposable
         Fingerprint = new FingerprintServices(Settings.Configuration, Session);
         Registrations = new RegistrationServices(Settings.Configuration, Session);
         Appointment = new AppointmentServices(Settings.Configuration, Session);
+        Printout = new PrintoutServices(Settings.Configuration, Session);
     }
 
     public AppSettings Settings { get; }
@@ -28,6 +29,7 @@ public sealed class AppServices : IDisposable
     public FingerprintServices Fingerprint { get; }
     public RegistrationServices Registrations { get; }
     public AppointmentServices Appointment { get; }
+    public PrintoutServices Printout { get; }
 
     public void Dispose()
     {
