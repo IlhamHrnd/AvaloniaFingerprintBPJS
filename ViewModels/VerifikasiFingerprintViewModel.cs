@@ -150,6 +150,7 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
             var printerLaser = _services.Settings.Configuration["Apps:PrinterLaser"] ?? string.Empty;
 
             // Proses cetak SEP
+            ScanStatus = "Memproses cetak SEP...";
             var sep = await Task.Run(() => _services.Printout.Sep(validateApt.data ?? string.Empty, true, dateTime));
             if (sep.succeeded && sep.errors == null && sep.data != null)
             {
@@ -284,6 +285,7 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
             }
 
             // Proses cetak Label
+            ScanStatus = "Memproses cetak Label...";
             string aptNo = $"APT/{Converter.DateFormat(dateTime, DateFormat.Shortyearpattern)}-{validateApt.data}";
             var regNo = await Task.Run(() => _services.Appointment.AppointmentToRegistrationNumber(aptNo));
             if (!regNo.succeeded && regNo.errors != null)
