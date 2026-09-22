@@ -146,7 +146,7 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
             }
 
             var dateTime = DateTime.Now;
-            var printerName = _services.Settings.Configuration["Apps:PrinterNormal"] ?? string.Empty;
+            var printerNormal = _services.Settings.Configuration["Apps:PrinterNormal"] ?? string.Empty;
             var printerLaser = _services.Settings.Configuration["Apps:PrinterLaser"] ?? string.Empty;
 
             // Proses cetak SEP
@@ -274,7 +274,13 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
                     }
                     ];
 
-                    printProcess(rptSource, parameters, printerName, 1, 1, 3);
+                    printProcess(new Filters.Printout.Print
+                    {
+                        rptSource = rptSource,
+                        parameters = parameters,
+                        printerName = printerNormal,
+                        copies = 3
+                    });
                 }
                 catch (Exception e)
                 {
@@ -313,38 +319,43 @@ public sealed partial class VerifikasiFingerprintViewModel : ViewModelBase
                     parameters =
                     [
                         new()
-                    {
-                        name = "nama",
-                        value = data.nama
-                    },
-                    new()
-                    {
-                        name = "tgllahir",
-                        value = data.tgllhr
-                    },
-                    new()
-                    {
-                        name = "sex",
-                        value = data.lahirjk.Equals("m", StringComparison.CurrentCultureIgnoreCase) ? "Laki - Laki" : "Perempuan"
-                    },
-                    new()
-                    {
-                        name = "rm",
-                        value = data.mr
-                    },
-                    new()
-                    {
-                        name = "noreg",
-                        value = $"{data.mr} / {data.noreg}"
-                    },
-                    new()
-                    {
-                        name = "noantrian",
-                        value = Converter.IntToString(data.noantrian)
-                    }
+                        {
+                            name = "nama",
+                            value = data.nama
+                        },
+                        new()
+                        {
+                            name = "tgllahir",
+                            value = data.tgllhr
+                        },
+                        new()
+                        {
+                            name = "sex",
+                            value = data.lahirjk.Equals("m", StringComparison.CurrentCultureIgnoreCase) ? "Laki - Laki" : "Perempuan"
+                        },
+                        new()
+                        {
+                            name = "rm",
+                            value = data.mr
+                        },
+                        new()
+                        {
+                            name = "noreg",
+                            value = $"{data.mr} / {data.noreg}"
+                        },
+                        new()
+                        {
+                            name = "noantrian",
+                            value = Converter.IntToString(data.noantrian)
+                        }
                     ];
 
-                    printProcess(rptSource, parameters, printerLaser, 1, 1, 1);
+                    printProcess(new Filters.Printout.Print
+                    {
+                        rptSource = rptSource,
+                        parameters = parameters,
+                        printerName = printerLaser
+                    });
                 }
                 catch (Exception e)
                 {

@@ -1,6 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using System;
-using System.Collections.Generic;
 using System.Drawing.Printing;
 using Telerik.Reporting;
 using Telerik.Reporting.Processing;
@@ -9,15 +8,15 @@ namespace AvaloniaFingerprint.ViewModels;
 
 public abstract class ViewModelBase : ObservableObject
 {
-    protected void printProcess(List<InstanceReportSource> rptSource, List<Models.Master.Parameter> parameters, string printerName, int fromPage, int toPage, int copies = 1)
+    protected void printProcess(Filters.Printout.Print print)
     {
-        if (string.IsNullOrEmpty(printerName)) return;
-        else if (rptSource.Count == 0) return;
+        if (string.IsNullOrEmpty(print.printerName)) return;
+        else if (print.rptSource.Count == 0) return;
 
         try
         {
             var rbs = new ReportBook();
-            foreach (var item in rptSource)
+            foreach (var item in print.rptSource)
             {
                 rbs.ReportSources.Add(item);
             }
@@ -27,17 +26,17 @@ public abstract class ViewModelBase : ObservableObject
                 ReportDocument = rbs
             };
 
-            foreach (var item in parameters)
+            foreach (var item in print.parameters)
             {
                 irs.Parameters.Add(new Telerik.Reporting.Parameter(item.name, item.value));
             }
 
-            var printCopies = copies <= 0 ? (short)1 : (copies > short.MaxValue ? short.MaxValue : (short)copies);
+            var printCopies = print.copies <= 0 ? (short)1 : (print.copies > short.MaxValue ? short.MaxValue : (short)print.copies);
             var ps = new PrinterSettings
             {
-                PrinterName = printerName,
-                FromPage = fromPage,
-                ToPage = toPage,
+                PrinterName = print.printerName,
+                FromPage = print.fromPage,
+                ToPage = print.toPage,
                 Copies = printCopies
             };
             var spc = new StandardPrintController();

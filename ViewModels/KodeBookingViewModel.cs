@@ -98,7 +98,7 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
         }
 
         var dateTime = DateTime.Now;
-        var printerName = _services.Settings.Configuration["Apps:PrinterNormal"] ?? string.Empty;
+        var printerNormal = _services.Settings.Configuration["Apps:PrinterNormal"] ?? string.Empty;
         var printerLaser = _services.Settings.Configuration["Apps:PrinterLaser"] ?? string.Empty;
 
         // Proses cetak SEP
@@ -225,7 +225,13 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
                     }
                 ];
 
-                printProcess(rptSource, parameters, printerName, 1, 1, 3);
+                printProcess(new Filters.Printout.Print
+                {
+                    rptSource = rptSource,
+                    parameters = parameters,
+                    printerName = printerNormal,
+                    copies = 3
+                });
             }
             catch (Exception e)
             {
@@ -290,7 +296,12 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
                     }
                 ];
 
-                printProcess(rptSource, parameters, printerLaser, 1, 1, 1);
+                printProcess(new Filters.Printout.Print
+                {
+                    rptSource = rptSource,
+                    parameters = parameters,
+                    printerName = printerLaser
+                });
             }
             catch (Exception e)
             {
