@@ -3,44 +3,131 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:AvaloniaFingerprint.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="330"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="380"
         x:Class="AvaloniaFingerprint.Views.LoginWindow"
         x:DataType="vm:LoginViewModel"
-        Width="380" SizeToContent="Height"
+        Width="440" Height="380"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="White"
-        Title="Login Petugas">
+        Background="#F4F5F7"
+        Title="Aplikasi Verifikasi dan Registrasi Sidik Jari">
 
-  <StackPanel Margin="24" Spacing="14">
+  <Window.Styles>
+    <Style Selector="ToolTip">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="TextBox.underline">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="BorderBrush" Value="#CCCCCC" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Padding" Value="4,6,4,6" />
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox.underline /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="BorderBrush" Value="#CCCCCC" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector="TextBox.underline:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0,0,0,2" />
+      <Setter Property="BorderBrush" Value="#5C2D91" />
+    </Style>
 
-    <StackPanel Spacing="2">
-      <TextBlock Classes="h1" Text="Login Petugas" />
-      <TextBlock Classes="caption" Text="Gunakan akun petugas BPJS untuk membuka semua tab." />
-    </StackPanel>
+    <Style Selector="Button.btn-purple">
+      <Setter Property="Background" Value="#5C2D91" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.btn-purple:hover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#4A2377" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.btn-floating">
+      <Setter Property="Background" Value="#8BC34A" />
+    </Style>
+    <Style Selector="Button.btn-floating:hover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#7CB342" />
+    </Style>
+  </Window.Styles>
 
-    <StackPanel Spacing="4">
-      <TextBlock Text="Username" FontWeight="SemiBold" FontSize="12" />
-      <TextBox Text="{Binding Username}" Watermark="0901R002_xxx" Height="36" />
-    </StackPanel>
+  <Grid RowDefinitions="Auto,*">
+    <!-- Header -->
+    <Border Grid.Row="0" Background="#5C2D91" Height="50" Padding="16,0">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0"
+                   Text="Aplikasi Verifikasi dan Registrasi Sidik Jari"
+                   Foreground="White" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
 
-    <StackPanel Spacing="4">
-      <TextBlock Text="Password" FontWeight="SemiBold" FontSize="12" />
-      <TextBox Text="{Binding Password}" PasswordChar="•" Watermark="Password" Height="36" />
-    </StackPanel>
-
-    <Border IsVisible="{Binding HasMessage}" Background="#FDECEA" CornerRadius="6" Padding="10">
-      <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="#B3261E" FontSize="12" />
+        <Button Grid.Column="1" Background="Transparent" BorderThickness="0" Padding="6,4" VerticalAlignment="Center">
+          <Button.Flyout>
+            <MenuFlyout Placement="BottomEdgeAlignedRight">
+              <MenuItem Header="Setting Koneksi" Command="{Binding OpenSettingKoneksiCommand}" />
+            </MenuFlyout>
+          </Button.Flyout>
+          <PathIcon Data="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z"
+                    Foreground="White" Width="18" Height="18" />
+        </Button>
+      </Grid>
     </Border>
 
-    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="4" />
+    <!-- Body -->
+    <Grid Grid.Row="1">
+      <Border HorizontalAlignment="Center" VerticalAlignment="Center" Width="310" Background="White" CornerRadius="8"
+              BorderBrush="#E2E8F0" BorderThickness="1" BoxShadow="0 4 16 0 #1E000000" Padding="24,20">
+        <StackPanel Spacing="16">
+          <Grid ColumnDefinitions="Auto,*">
+            <PathIcon Grid.Column="0" Data="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                      Foreground="#757575" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center" />
+            <TextBox Grid.Column="1" Classes="underline" Text="{Binding Username}" PlaceholderText="username" />
+          </Grid>
 
-    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
-      <Button Grid.Column="1" Content="Batal" Command="{Binding CancelCommand}"
-              MinWidth="88" Height="36" Margin="0,0,8,0" HorizontalContentAlignment="Center" />
-      <Button Grid.Column="2" Content="Login" Command="{Binding LoginCommand}"
-              IsDefault="True" MinWidth="88" Height="36" HorizontalContentAlignment="Center"
-              Background="{StaticResource AccentBrush}" Foreground="White" />
+          <Grid ColumnDefinitions="Auto,*">
+            <PathIcon Grid.Column="0" Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+                      Foreground="#757575" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center" />
+            <TextBox Grid.Column="1" Classes="underline" Text="{Binding Password}" PasswordChar="•" PlaceholderText="password" />
+          </Grid>
+
+          <Border IsVisible="{Binding HasMessage}" Background="#FDECEA" CornerRadius="4" Padding="8,6">
+            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="#B3261E" FontSize="11" />
+          </Border>
+
+          <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="3" Foreground="#5C2D91" />
+
+          <Button Content="Login" Command="{Binding LoginCommand}" IsDefault="True" Classes="btn-purple"
+                  Height="36" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" CornerRadius="4" FontWeight="SemiBold" />
+        </StackPanel>
+      </Border>
+
+      <Button Command="{Binding AddActionCommand}" Classes="btn-floating" Width="44" Height="44" CornerRadius="22"
+              HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,16,16" Padding="0"
+              ToolTip.Placement="TopEdgeAlignedRight" ToolTip.ShowDelay="0">
+        <ToolTip.Tip>
+          <Border Background="#5C2D91" CornerRadius="8" BoxShadow="0 4 16 0 #40000000" Padding="14,12" Width="230">
+            <StackPanel Spacing="8">
+              <TextBlock Text="ChangeLog" Foreground="White" FontWeight="SemiBold" FontSize="13" />
+              <StackPanel Spacing="6" Margin="0,2,0,4">
+                <Grid ColumnDefinitions="Auto,*">
+                  <TextBlock Grid.Column="0" Text="✓ " Foreground="#A3E635" FontWeight="Bold" FontSize="11" Margin="0,1,4,0" VerticalAlignment="Top" />
+                  <TextBlock Grid.Column="1" Text="Penambahan Kategori Pada Saat Hapus Data Sidik Jari" Foreground="White" FontSize="11" TextWrapping="Wrap" />
+                </Grid>
+                <Grid ColumnDefinitions="Auto,*">
+                  <TextBlock Grid.Column="0" Text="✓ " Foreground="#A3E635" FontWeight="Bold" FontSize="11" Margin="0,1,4,0" VerticalAlignment="Top" />
+                  <TextBlock Grid.Column="1" Text="Perbaikan Bug" Foreground="White" FontSize="11" TextWrapping="Wrap" />
+                </Grid>
+              </StackPanel>
+              <Border Height="1" Background="#40FFFFFF" Margin="0,2" />
+              <TextBlock Text="Versi 2.2" Foreground="#E0E0E0" FontSize="10" HorizontalAlignment="Right" />
+            </StackPanel>
+          </Border>
+        </ToolTip.Tip>
+        <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Foreground="White" Width="18" Height="18"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Button>
     </Grid>
-  </StackPanel>
+  </Grid>
 </Window>

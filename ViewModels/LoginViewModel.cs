@@ -82,6 +82,18 @@ public sealed partial class LoginViewModel : ViewModelBase
     [RelayCommand]
     private void Cancel() => RequestClose?.Invoke();
 
+    [RelayCommand]
+    private void OpenSettingKoneksi()
+    {
+        // Placeholder or action for Setting Koneksi if needed
+    }
+
+    [RelayCommand]
+    private void AddAction()
+    {
+        // Placeholder or action for floating plus button
+    }
+
     private void SetMessage(string text)
     {
         Message = text;
