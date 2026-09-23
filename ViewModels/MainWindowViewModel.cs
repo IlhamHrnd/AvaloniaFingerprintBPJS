@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using AvaloniaFingerprint.Services;
@@ -23,10 +24,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         services.Session.Changed += OnSessionChanged;
         services.Fingerprint.DeviceStatusChanged += OnDeviceStatusChanged;
 
-        if (!services.Fingerprint.IsSdkAvailable)
-            DeviceDetail = services.Fingerprint.SdkMissing;
+        Trace.WriteLine($"[MainWindowViewModel] Initialized. IsDeviceConnected={_services.Fingerprint.IsDeviceConnected}, DeviceName={_services.Fingerprint.DeviceName}");
 
         UpdateSessionState();
+        UpdateDeviceState();
     }
 
     public DaftarFingerprintViewModel Daftar { get; }
@@ -101,17 +102,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string _deviceDetail = string.Empty;
 
     private void OnDeviceStatusChanged(object? sender, DeviceStatusEventArgs e) =>
-        Dispatcher.UIThread.Post(() =>
-        {
-            DeviceConnected = e.Connected;
-            DeviceStatus = e.Connected ? "Perangkat terhubung" : "Perangkat terputus";
-            DeviceDetail = e.Connected
-                ? e.DeviceName ?? "Fingerprint reader"
-                : _services.Fingerprint.IsSdkAvailable
-                    ? "Hubungkan USB fingerprint reader"
-                    : _services.Fingerprint.SdkMissing;
+        Dispatcher.UIThread.Post(UpdateDeviceState);
 
-            Verifikasi.OnDeviceStatusChanged(e.Connected);
-            Registrasi.OnDeviceStatusChanged(e.Connected);
-        });
+    private void UpdateDeviceState()
+    {
+        var isConnected = _services.Fingerprint.IsDeviceConnected;
+        var deviceName = _services.Fingerprint.DeviceName;
+
+        Trace.WriteLine($"[MainWindowViewModel] UpdateDeviceState. Connected={isConnected}, Name={deviceName}");
+
+        DeviceConnected = isConnected;
+        DeviceStatus = isConnected ? "Perangkat terhubung" : "Perangkat terputus";
+        DeviceDetail = isConnected
+            ? deviceName ?? "Fingerprint reader"
+            : _services.Fingerprint.IsSdkAvailable
+                ? "Hubungkan USB fingerprint reader"
+                : _services.Fingerprint.SdkMissing;
+
+        Verifikasi.OnDeviceStatusChanged(isConnected);
+        Registrasi.OnDeviceStatusChanged(isConnected);
+    }
 }
+

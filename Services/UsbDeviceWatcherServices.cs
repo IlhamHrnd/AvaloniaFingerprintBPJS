@@ -73,6 +73,7 @@ namespace AvaloniaFingerprint.Services
 
                 if (changed)
                 {
+                    System.Diagnostics.Trace.WriteLine($"[UsbDeviceWatcher] StatusChanged raised: connected={result.connected}, name={result.name}");
                     StatusChanged?.Invoke(this, new DeviceStatusEventArgs
                     {
                         Connected = result.connected,
