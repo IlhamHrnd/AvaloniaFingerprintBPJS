@@ -8,7 +8,7 @@
         x:DataType="vm:LoginViewModel"
         Width="440" Height="380"
         CanResize="False"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         Background="#F4F5F7"
         Title="Aplikasi Verifikasi dan Registrasi Sidik Jari">
 

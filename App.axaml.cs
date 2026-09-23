@@ -16,12 +16,37 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var services = AppServices.Current;
-            var mainViewModel = new MainWindowViewModel(services);
-
-            desktop.MainWindow = new MainWindow { DataContext = mainViewModel };
             desktop.ShutdownRequested += (_, _) => services.Dispose();
-
             services.Fingerprint.Start();
+
+            if (!services.Session.IsLoggedIn)
+            {
+                var loginViewModel = new LoginViewModel(services);
+                var loginWindow = new LoginWindow
+                {
+                    DataContext = loginViewModel,
+                    WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterScreen
+                };
+
+                loginViewModel.RequestClose = () =>
+                {
+                    if (loginViewModel.Succeeded)
+                    {
+                        var mainViewModel = new MainWindowViewModel(services);
+                        var mainWindow = new MainWindow { DataContext = mainViewModel };
+                        desktop.MainWindow = mainWindow;
+                        mainWindow.Show();
+                        loginWindow.Close();
+                    }
+                };
+
+                desktop.MainWindow = loginWindow;
+            }
+            else
+            {
+                var mainViewModel = new MainWindowViewModel(services);
+                desktop.MainWindow = new MainWindow { DataContext = mainViewModel };
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
