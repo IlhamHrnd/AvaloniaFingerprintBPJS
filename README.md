@@ -27,13 +27,23 @@ project WinForms `KonfirmasiPendaftaranOnline`:
   Status tampil di header dan tombol scan/verifikasi otomatis nonaktif saat terputus.
 * **Deteksi kamera.** `CameraDeviceWatcher` memakai mekanisme yang sama dengan watcher USB:
   event WMI `Win32_DeviceChangeEvent` + pemindaian ulang berkala, dengan tipe event yang sama
-  (`DeviceStatusEventArgs`). Pencocokan memakai `Win32_PnPEntity` pada kelas `Camera`
-  (Windows 10+), driver `usbvideo` (UVC), atau nama perangkat yang mengandung kata kunci kamera
-  di `BaseService.cameraKeywords`. Kelas `Image` dipakai bersama scanner/printer, jadi nama
-  perangkat wajib cocok agar scanner tidak dianggap kamera. Tahap ini hanya mendeteksi
-  keberadaan device — stream, capture, dan pemrosesan wajah belum ada.
+  (`DeviceStatusEventArgs`). Pemilihan kamera aktif memakai dua tahap:
+  1. **Prioritas `cameraKeywords`** — keyword diuji berurutan sesuai urutan array
+     (`Webcam` → `Facecam` → `Integrated Camera` → `USB Video Device` → `UVC`), pencocokan
+     tidak case-sensitive dan substring, sehingga `Integrated Camera`, `Integrated Camera HD`,
+     dan `Integrated CAMERA` sama-sama cocok.
+  2. **Fallback** — bila tidak ada keyword yang cocok, kamera valid lain tetap dipakai
+     (PNPClass `Camera` atau driver UVC `usbvideo`) supaya aplikasi tidak langsung menampilkan
+     "Kamera terputus" selama masih ada camera device yang bisa digunakan.
+
+  Cara pemilihan ini disimpan di `CameraServices.MatchType`/`IsFallback`, dan detail status
+  berasal dari satu fungsi `CameraServices.ResolveDetail()`: kamera keyword menampilkan
+  "Kamera siap digunakan", kamera fallback menampilkan nama device-nya. Device non-kamera
+  disaring: scanner/printer (`usbscan`, nama mengandung Scan/Print), barcode, dan virtual
+  camera — class `Image` dipakai bersama scanner, jadi nama device wajib cocok.
   Status tampil di header sebagai indikator kedua (di sebelah indikator fingerprint) dan
   menjadi sumber status yang sama untuk area kamera di halaman **Verifikasi Wajah**.
+  Tahap ini hanya mendeteksi dan memilih device — stream, capture, dan pemrosesan wajah belum ada.
 
 ## Konfigurasi
 

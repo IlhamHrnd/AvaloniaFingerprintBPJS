@@ -76,12 +76,12 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     /// sehingga halaman ini tidak pernah menyimpang dari status Header. Area preview tetap
     /// placeholder: stream kamera belum dibuka pada tahap ini.
     /// </summary>
-    public void OnCameraStatusChanged(bool connected, string? deviceName)
+    public void OnCameraStatusChanged(bool connected, string? cameraDetail)
     {
         IsCameraActive = connected;
         CameraTitle = connected ? "Live Camera View" : "Kamera tidak tersedia";
         CameraStatus = connected
-            ? deviceName ?? CameraServices.ConnectedDetail
+            ? cameraDetail ?? CameraServices.ConnectedDetail
             : CameraServices.DisconnectedDetail;
     }
 

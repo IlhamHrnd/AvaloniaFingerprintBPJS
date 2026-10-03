@@ -31,6 +31,27 @@ namespace AvaloniaFingerprint.Services
         public bool IsDeviceConnected => watcher.IsConnected;
         public string? DeviceName => watcher.DeviceName;
 
+        /// <summary>Cara kamera aktif dipilih (keyword atau fallback) — dipakai Header untuk detail.</summary>
+        public CameraMatchType MatchType => watcher.MatchType;
+
+        /// <summary>True jika kamera aktif dipakai sebagai cadangan, bukan hasil pencocokan keyword.</summary>
+        public bool IsFallback => watcher.MatchType == CameraMatchType.Fallback;
+
+        /// <summary>
+        /// Detail status yang dipakai indikator Header sekaligus halaman Verifikasi Wajah, sehingga
+        /// keduanya selalu menampilkan teks yang sama. Kamera hasil keyword menampilkan pesan umum,
+        /// sedangkan kamera fallback menampilkan nama device-nya (mis. "Logitech C920").
+        /// </summary>
+        public string ResolveDetail()
+        {
+            if (!IsDeviceConnected)
+                return DisconnectedDetail;
+
+            return IsFallback && !string.IsNullOrWhiteSpace(DeviceName)
+                ? DeviceName!
+                : ConnectedDetail;
+        }
+
         public void Start() => watcher.Start();
 
         public Task RefreshDeviceAsync() => watcher.RefreshAsync();

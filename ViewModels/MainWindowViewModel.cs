@@ -127,13 +127,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         CameraConnected = isConnected;
         CameraStatus = isConnected ? CameraServices.ConnectedStatus : CameraServices.DisconnectedStatus;
-        CameraDetail = isConnected
-            ? cameraName ?? CameraServices.ConnectedDetail
-            : CameraServices.DisconnectedDetail;
+
+        // Detail (termasuk nama device saat kamera fallback) diambil dari CameraServices supaya
+        // Header dan halaman Verifikasi Wajah memakai teks yang persis sama.
+        var detail = _services.Camera.ResolveDetail();
+        CameraDetail = detail;
 
         // Satu sumber status untuk Header dan halaman Verifikasi Wajah, supaya keduanya
         // tidak pernah menampilkan kondisi kamera yang berbeda.
-        VerifikasiWajah.OnCameraStatusChanged(isConnected, cameraName);
+        VerifikasiWajah.OnCameraStatusChanged(isConnected, detail);
     }
 
     private void UpdateDeviceState()
