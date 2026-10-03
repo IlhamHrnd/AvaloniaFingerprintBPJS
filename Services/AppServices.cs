@@ -18,6 +18,7 @@ public sealed class AppServices : IDisposable
         Session = new SessionService();
         AppUser = new AppUserServices(Settings.Configuration, Session);
         Fingerprint = new FingerprintServices(Settings.Configuration, Session);
+        Camera = new CameraServices(Settings.Configuration, Session);
         Registrations = new RegistrationServices(Settings.Configuration, Session);
         Appointment = new AppointmentServices(Settings.Configuration, Session);
         Printout = new PrintoutServices(Settings.Configuration, Session);
@@ -27,6 +28,7 @@ public sealed class AppServices : IDisposable
     public SessionService Session { get; }
     public AppUserServices AppUser { get; }
     public FingerprintServices Fingerprint { get; }
+    public CameraServices Camera { get; }
     public RegistrationServices Registrations { get; }
     public AppointmentServices Appointment { get; }
     public PrintoutServices Printout { get; }
@@ -34,6 +36,7 @@ public sealed class AppServices : IDisposable
     public void Dispose()
     {
         Fingerprint.Dispose();
+        Camera.Dispose();
         _current = null;
     }
 }

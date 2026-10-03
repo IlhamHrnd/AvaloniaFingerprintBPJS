@@ -18,6 +18,7 @@ public partial class App : Application
             var services = AppServices.Current;
             desktop.ShutdownRequested += (_, _) => services.Dispose();
             services.Fingerprint.Start();
+            services.Camera.Start();
 
             if (!services.Session.IsLoggedIn)
             {

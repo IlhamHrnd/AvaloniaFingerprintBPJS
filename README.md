@@ -25,6 +25,15 @@ project WinForms `KonfirmasiPendaftaranOnline`:
   SDK dipakai lebih dulu; jika tidak, pencocokan dilakukan lewat `Win32_PnPEntity`
   (kelas `Biometric`, vendor id `VID_05BA`, atau kata kunci di `appsettings.json`).
   Status tampil di header dan tombol scan/verifikasi otomatis nonaktif saat terputus.
+* **Deteksi kamera.** `CameraDeviceWatcher` memakai mekanisme yang sama dengan watcher USB:
+  event WMI `Win32_DeviceChangeEvent` + pemindaian ulang berkala, dengan tipe event yang sama
+  (`DeviceStatusEventArgs`). Pencocokan memakai `Win32_PnPEntity` pada kelas `Camera`
+  (Windows 10+), driver `usbvideo` (UVC), atau nama perangkat yang mengandung kata kunci kamera
+  di `BaseService.cameraKeywords`. Kelas `Image` dipakai bersama scanner/printer, jadi nama
+  perangkat wajib cocok agar scanner tidak dianggap kamera. Tahap ini hanya mendeteksi
+  keberadaan device — stream, capture, dan pemrosesan wajah belum ada.
+  Status tampil di header sebagai indikator kedua (di sebelah indikator fingerprint) dan
+  menjadi sumber status yang sama untuk area kamera di halaman **Verifikasi Wajah**.
 
 ## Konfigurasi
 

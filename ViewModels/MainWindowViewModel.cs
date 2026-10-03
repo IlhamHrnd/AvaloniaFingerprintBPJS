@@ -24,11 +24,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         services.Session.Changed += OnSessionChanged;
         services.Fingerprint.DeviceStatusChanged += OnDeviceStatusChanged;
+        services.Camera.DeviceStatusChanged += OnCameraStatusChanged;
 
         Trace.WriteLine($"[MainWindowViewModel] Initialized. IsDeviceConnected={_services.Fingerprint.IsDeviceConnected}, DeviceName={_services.Fingerprint.DeviceName}");
+        Trace.WriteLine($"[MainWindowViewModel] Initialized. IsCameraConnected={_services.Camera.IsDeviceConnected}, CameraName={_services.Camera.DeviceName}");
 
         UpdateSessionState();
         UpdateDeviceState();
+        UpdateCameraState();
     }
 
     public DaftarFingerprintViewModel Daftar { get; }
@@ -104,8 +107,34 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string _deviceStatus = "Mencari perangkat...";
     [ObservableProperty] private string _deviceDetail = string.Empty;
 
+    // ---- camera state --------------------------------------------------------
+    [ObservableProperty] private bool _cameraConnected;
+    [ObservableProperty] private string _cameraStatus = CameraServices.SearchingStatus;
+    [ObservableProperty] private string _cameraDetail = string.Empty;
+
     private void OnDeviceStatusChanged(object? sender, DeviceStatusEventArgs e) =>
         Dispatcher.UIThread.Post(UpdateDeviceState);
+
+    private void OnCameraStatusChanged(object? sender, DeviceStatusEventArgs e) =>
+        Dispatcher.UIThread.Post(UpdateCameraState);
+
+    private void UpdateCameraState()
+    {
+        var isConnected = _services.Camera.IsDeviceConnected;
+        var cameraName = _services.Camera.DeviceName;
+
+        Trace.WriteLine($"[MainWindowViewModel] UpdateCameraState. Connected={isConnected}, Name={cameraName}");
+
+        CameraConnected = isConnected;
+        CameraStatus = isConnected ? CameraServices.ConnectedStatus : CameraServices.DisconnectedStatus;
+        CameraDetail = isConnected
+            ? cameraName ?? CameraServices.ConnectedDetail
+            : CameraServices.DisconnectedDetail;
+
+        // Satu sumber status untuk Header dan halaman Verifikasi Wajah, supaya keduanya
+        // tidak pernah menampilkan kondisi kamera yang berbeda.
+        VerifikasiWajah.OnCameraStatusChanged(isConnected, cameraName);
+    }
 
     private void UpdateDeviceState()
     {

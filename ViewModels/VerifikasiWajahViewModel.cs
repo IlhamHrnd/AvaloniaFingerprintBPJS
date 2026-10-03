@@ -71,6 +71,21 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Dipanggil dari <see cref="MainWindowViewModel"/> memakai status dari
+    /// <see cref="Services.CameraServices"/> — sumber yang sama dengan indikator di Header,
+    /// sehingga halaman ini tidak pernah menyimpang dari status Header. Area preview tetap
+    /// placeholder: stream kamera belum dibuka pada tahap ini.
+    /// </summary>
+    public void OnCameraStatusChanged(bool connected, string? deviceName)
+    {
+        IsCameraActive = connected;
+        CameraTitle = connected ? "Live Camera View" : "Kamera tidak tersedia";
+        CameraStatus = connected
+            ? deviceName ?? CameraServices.ConnectedDetail
+            : CameraServices.DisconnectedDetail;
+    }
+
+    /// <summary>
     /// Sementara hanya logic UI. Proses verifikasi wajah (kamera, encoding, API)
     /// akan diimplementasikan pada tahap berikutnya.
     /// </summary>

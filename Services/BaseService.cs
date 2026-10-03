@@ -25,6 +25,7 @@ namespace AvaloniaFingerprint.Services
         protected int leftHandIndex { get; set; } = 6;
         protected int pollIntervalSeconds { get; set; } = 2;
         protected string[] matchKeywords { get; set; } = { "U.are.U", "DigitalPersona", "Fingerprint", "Biometric" };
+        protected string[] cameraKeywords { get; set; } = { "Webcam", "Facecam", "Integrated Camera", "USB Video Device", "UVC" };
         protected string registrationsFile { get; set; } = config["Storage:RegistrationsFile"] ?? "registrations.json";
         protected string printerName = config["Apps:PrinterNormal"] ?? string.Empty;
         protected string printerLaser = config["Apps:PrinterLaser"] ?? string.Empty;
