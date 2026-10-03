@@ -28,10 +28,26 @@
           </Panel>
         </Border>
 
+        <!-- Tombol utama: cari & pilih kamera aktif (keyword berprioritas, lalu fallback),
+             memakai mekanisme deteksi yang sama dengan status kamera di Header. -->
+        <Button Content="Hubungkan Kamera" Command="{Binding ConnectCameraCommand}"
+                Height="38" HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                IsEnabled="{Binding !IsConnecting}"
+                Background="{StaticResource AccentBrush}" Foreground="White" />
+
         <Button Content="Verifikasi Wajah" Command="{Binding VerifyFaceCommand}"
                 Height="38" HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Center"
                 Background="{StaticResource AccentBrush}" Foreground="White" />
+
+        <!-- Daftar kamera yang dikenali Windows pada scan terakhir (memudahkan pengecekan device,
+             termasuk kamera HP lewat Link to Windows / Phone Link dan kamera virtual lain). -->
+        <Border IsVisible="{Binding HasCameraDeviceList}" CornerRadius="6" Padding="10" Background="#F9FAFB"
+                BorderBrush="#E5E7EB" BorderThickness="1">
+          <TextBlock Text="{Binding CameraDeviceList}" TextWrapping="Wrap" FontSize="12"
+                     Foreground="#374151" />
+        </Border>
 
         <Border IsVisible="{Binding HasStatus}" CornerRadius="6" Padding="10" Background="#F3F4F6">
           <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12"

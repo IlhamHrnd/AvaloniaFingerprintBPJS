@@ -27,23 +27,40 @@ project WinForms `KonfirmasiPendaftaranOnline`:
   Status tampil di header dan tombol scan/verifikasi otomatis nonaktif saat terputus.
 * **Deteksi kamera.** `CameraDeviceWatcher` memakai mekanisme yang sama dengan watcher USB:
   event WMI `Win32_DeviceChangeEvent` + pemindaian ulang berkala, dengan tipe event yang sama
-  (`DeviceStatusEventArgs`). Pemilihan kamera aktif memakai dua tahap:
-  1. **Prioritas `cameraKeywords`** — keyword diuji berurutan sesuai urutan array
+  (`DeviceStatusEventArgs`). Device yang lolos bukti positif sebagai video capture device
+  dipilih memakai dua tahap:
+  1. **Prioritas `cameraKeywords`** — keyword hanya menentukan prioritas, bukan filter.
+     Keyword diuji berurutan sesuai urutan array
      (`Webcam` → `Facecam` → `Integrated Camera` → `USB Video Device` → `UVC`), pencocokan
      tidak case-sensitive dan substring, sehingga `Integrated Camera`, `Integrated Camera HD`,
      dan `Integrated CAMERA` sama-sama cocok.
-  2. **Fallback** — bila tidak ada keyword yang cocok, kamera valid lain tetap dipakai
-     (PNPClass `Camera` atau driver UVC `usbvideo`) supaya aplikasi tidak langsung menampilkan
-     "Kamera terputus" selama masih ada camera device yang bisa digunakan.
+  2. **Fallback** — bila tidak ada keyword yang cocok, kamera valid pertama tetap dipakai
+     apa pun nama/class-nya, supaya aplikasi tidak langsung menampilkan "Kamera terputus"
+     selama masih ada camera device yang bisa digunakan.
+
+  Kamera dianggap **valid berdasarkan bukti positif**, bukan nama device — karena kamera HP
+  yang diekspos Windows lewat **Link to Windows / Phone Link** tampil sebagai *software device*
+  bernama `Windows Virtual Camera Device` yang namanya tidak mengandung kata "camera".
+  Pemeriksaannya hanya berbasis class/service/instance id: PNPClass `Camera`, driver UVC
+  `usbvideo`, instance id `SWD\VCAMDEVAPI\...` (Windows Virtual Camera API — jalur yang dipakai
+  Phone Link), atau device yang terdaftar pada device-class DirectShow video capture
+  (`HKLM\SYSTEM\CurrentControlSet\Control\DeviceClasses`, GUID `{e5323777-...}`/`{65e8773d-...}`)
+  sehingga kamera virtual pihak ketiga seperti OBS ikut terbaca. Tidak ada gating nama seperti
+  `Contains("USB")`/`Contains("Webcam")`, jadi kamera HP/kamera virtual tetap terdeteksi.
+  Satu-satunya pengecualian class-based adalah `usbscan` (scanner/printer yang memakai class
+  `Image`); device dengan status error/tidak hadir juga tidak dipakai.
 
   Cara pemilihan ini disimpan di `CameraServices.MatchType`/`IsFallback`, dan detail status
-  berasal dari satu fungsi `CameraServices.ResolveDetail()`: kamera keyword menampilkan
-  "Kamera siap digunakan", kamera fallback menampilkan nama device-nya. Device non-kamera
-  disaring: scanner/printer (`usbscan`, nama mengandung Scan/Print), barcode, dan virtual
-  camera — class `Image` dipakai bersama scanner, jadi nama device wajib cocok.
+  berasal dari satu fungsi `CameraServices.ResolveDetail()`: saat terhubung, **nama device
+  selalu ditampilkan** supaya bisa dipastikan kamera mana yang dikenali Windows.
+  Halaman Verifikasi Wajah juga menampilkan daftar kamera hasil scan
+  (`CameraServices.AvailableCameras`) untuk memudahkan pengecekan, dan membedakan pesan
+  "kamera tidak ditemukan" dari "kamera ditemukan, tetapi tidak dapat digunakan".
   Status tampil di header sebagai indikator kedua (di sebelah indikator fingerprint) dan
   menjadi sumber status yang sama untuk area kamera di halaman **Verifikasi Wajah**.
   Tahap ini hanya mendeteksi dan memilih device — stream, capture, dan pemrosesan wajah belum ada.
+  Aplikasi **tidak** terhubung langsung ke HP (tanpa socket/IP camera/HTTP/Android API/Bluetooth):
+  yang dibaca hanya device yang memang sudah diekspos Windows.
 
 ## Konfigurasi
 

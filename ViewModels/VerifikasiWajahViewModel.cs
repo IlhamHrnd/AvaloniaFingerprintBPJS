@@ -1,6 +1,9 @@
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace AvaloniaFingerprint.ViewModels;
 
@@ -17,6 +20,10 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     {
         _services = services;
         IsLoggedIn = _services.Session.IsLoggedIn;
+
+        // Kamera yang sudah tersedia saat halaman dibuat langsung ditampilkan sebagai siap,
+        // memakai sumber status yang sama dengan Header (CameraServices).
+        OnCameraStatusChanged(_services.Camera.IsDeviceConnected, _services.Camera.ResolveDetail());
     }
 
     [ObservableProperty]
@@ -36,6 +43,14 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isCameraActive;
 
+    /// <summary>
+    /// True selama proses pencarian/pemilihan kamera berjalan, supaya tombol "Hubungkan Kamera"
+    /// tidak memicu scan bertumpuk saat ditekan berulang.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConnectCameraCommand))]
+    private bool _isConnecting;
+
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
@@ -44,6 +59,17 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _statusIsError;
+
+    /// <summary>
+    /// Daftar nama kamera yang terdeteksi (debugging). Ditampilkan di halaman Verifikasi Wajah
+    /// supaya bisa dilihat langsung device mana yang dikenali Windows — termasuk kamera HP yang
+    /// datang lewat Link to Windows / Phone Link maupun kamera virtual lain.
+    /// </summary>
+    [ObservableProperty]
+    private string _cameraDeviceList = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasCameraDeviceList;
 
     // ---- hasil verifikasi ----------------------------------------------------
     // Nilai default "-" (belum ada data). Pengambilan data peserta akan
@@ -83,7 +109,65 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
         CameraStatus = connected
             ? cameraDetail ?? CameraServices.ConnectedDetail
             : CameraServices.DisconnectedDetail;
+
+        RefreshCameraDeviceList();
     }
+
+    /// <summary>
+    /// Menampilkan daftar kamera yang dikenali Windows pada scan terakhir. Sumbernya tetap
+    /// <see cref="Services.CameraServices"/> — sama dengan Header — jadi tidak ada state kedua.
+    /// </summary>
+    private void RefreshCameraDeviceList()
+    {
+        var cameras = _services.Camera.AvailableCameras;
+        HasCameraDeviceList = cameras.Count > 0;
+        CameraDeviceList = cameras.Count > 0
+            ? "Kamera terdeteksi:" + Environment.NewLine +
+              string.Join(Environment.NewLine, cameras.Select(n => $"- {n}"))
+            : string.Empty;
+    }
+
+    /// <summary>
+    /// Mencari dan memilih kamera aktif memakai mekanisme deteksi yang sudah ada
+    /// (<see cref="CameraServices.ReconnectAsync"/>): keyword berprioritas
+    /// (<c>cameraKeywords</c>), lalu fallback ke kamera lain yang valid. Tidak membuat
+    /// mekanisme deteksi kedua. Aman dipakai ulang untuk reconnect tanpa restart aplikasi.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanConnectCamera))]
+    private async Task ConnectCameraAsync()
+    {
+        IsConnecting = true;
+        SetStatus(string.Empty, false);
+
+        try
+        {
+            var result = await _services.Camera.ReconnectAsync();
+
+            // Area kamera memakai status yang sama dengan Header (satu sumber state).
+            OnCameraStatusChanged(result.Connected, result.Detail);
+
+            if (result.Connected)
+            {
+                SetStatus($"Kamera berhasil terhubung: {result.Detail}", false);
+            }
+            else
+            {
+                // Bedakan "tidak ada kamera" dari "ada kamera tetapi tidak dapat dipakai", supaya
+                // pesan yang muncul benar-benar menggambarkan kondisi yang terjadi.
+                var message = _services.Camera.DetectedDevices.Count > 0
+                    ? "Kamera ditemukan, tetapi tidak dapat digunakan."
+                    : "Kamera tidak ditemukan. Pastikan kamera HP sudah terhubung ke Windows melalui Link to Windows.";
+
+                SetStatus(message, true);
+            }
+        }
+        finally
+        {
+            IsConnecting = false;
+        }
+    }
+
+    private bool CanConnectCamera() => !IsConnecting;
 
     /// <summary>
     /// Sementara hanya logic UI. Proses verifikasi wajah (kamera, encoding, API)
