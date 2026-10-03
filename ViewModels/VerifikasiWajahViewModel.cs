@@ -129,9 +129,9 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
 
     /// <summary>
     /// Mencari dan memilih kamera aktif memakai mekanisme deteksi yang sudah ada
-    /// (<see cref="CameraServices.ReconnectAsync"/>): keyword berprioritas
-    /// (<c>cameraKeywords</c>), lalu fallback ke kamera lain yang valid. Tidak membuat
-    /// mekanisme deteksi kedua. Aman dipakai ulang untuk reconnect tanpa restart aplikasi.
+    /// (<see cref="CameraServices.ReconnectAsync"/>): pencocokan <c>cameraKeywords</c>.
+    /// Tidak membuat mekanisme deteksi kedua. Aman dipakai ulang untuk reconnect
+    /// tanpa restart aplikasi.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanConnectCamera))]
     private async Task ConnectCameraAsync()
@@ -152,13 +152,7 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
             }
             else
             {
-                // Bedakan "tidak ada kamera" dari "ada kamera tetapi tidak dapat dipakai", supaya
-                // pesan yang muncul benar-benar menggambarkan kondisi yang terjadi.
-                var message = _services.Camera.DetectedDevices.Count > 0
-                    ? "Kamera ditemukan, tetapi tidak dapat digunakan."
-                    : "Kamera tidak ditemukan. Pastikan kamera HP sudah terhubung ke Windows melalui Link to Windows.";
-
-                SetStatus(message, true);
+                SetStatus("Kamera tidak ditemukan. Pastikan kamera HP sudah terhubung ke Windows melalui Link to Windows.", true);
             }
         }
         finally

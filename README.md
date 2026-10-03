@@ -27,35 +27,27 @@ project WinForms `KonfirmasiPendaftaranOnline`:
   Status tampil di header dan tombol scan/verifikasi otomatis nonaktif saat terputus.
 * **Deteksi kamera.** `CameraDeviceWatcher` memakai mekanisme yang sama dengan watcher USB:
   event WMI `Win32_DeviceChangeEvent` + pemindaian ulang berkala, dengan tipe event yang sama
-  (`DeviceStatusEventArgs`). Device yang lolos bukti positif sebagai video capture device
-  dipilih memakai dua tahap:
-  1. **Prioritas `cameraKeywords`** — keyword hanya menentukan prioritas, bukan filter.
-     Keyword diuji berurutan sesuai urutan array
-     (`Webcam` → `Facecam` → `Integrated Camera` → `USB Video Device` → `UVC`), pencocokan
-     tidak case-sensitive dan substring, sehingga `Integrated Camera`, `Integrated Camera HD`,
-     dan `Integrated CAMERA` sama-sama cocok.
-  2. **Fallback** — bila tidak ada keyword yang cocok, kamera valid pertama tetap dipakai
-     apa pun nama/class-nya, supaya aplikasi tidak langsung menampilkan "Kamera terputus"
-     selama masih ada camera device yang bisa digunakan.
+  (`DeviceStatusEventArgs`). Kamera dipilih **murni lewat pencocokan `cameraKeywords`**:
+  device dianggap kamera hanya bila namanya mengandung salah satu keyword, yaitu
+  `Webcam` → `Facecam` → `Integrated Camera` → `USB Video Device` → `UVC` →
+  `Windows Virtual Camera` (urutan array = prioritas). Pencocokan tidak case-sensitive dan
+  substring, sehingga `Integrated Camera`, `Integrated Camera HD`, dan `Integrated CAMERA`
+  sama-sama cocok.
 
-  Kamera dianggap **valid berdasarkan bukti positif**, bukan nama device — karena kamera HP
-  yang diekspos Windows lewat **Link to Windows / Phone Link** tampil sebagai *software device*
-  bernama `Windows Virtual Camera Device` yang namanya tidak mengandung kata "camera".
-  Pemeriksaannya hanya berbasis class/service/instance id: PNPClass `Camera`, driver UVC
-  `usbvideo`, instance id `SWD\VCAMDEVAPI\...` (Windows Virtual Camera API — jalur yang dipakai
-  Phone Link), atau device yang terdaftar pada device-class DirectShow video capture
-  (`HKLM\SYSTEM\CurrentControlSet\Control\DeviceClasses`, GUID `{e5323777-...}`/`{65e8773d-...}`)
-  sehingga kamera virtual pihak ketiga seperti OBS ikut terbaca. Tidak ada gating nama seperti
-  `Contains("USB")`/`Contains("Webcam")`, jadi kamera HP/kamera virtual tetap terdeteksi.
-  Satu-satunya pengecualian class-based adalah `usbscan` (scanner/printer yang memakai class
-  `Image`); device dengan status error/tidak hadir juga tidak dipakai.
+  Keyword terakhir, `Windows Virtual Camera`, adalah jalur untuk kamera HP yang diekspos Windows
+  lewat **Link to Windows / Phone Link**: Windows menampilkannya sebagai *software device*
+  bernama `Windows Virtual Camera Device`. Karena pencocokan bersifat substring, keyword tersebut
+  mengenai device itu tanpa kode khusus. Menambah/mengubah kamera cukup dengan mengedit daftar
+  keyword — itulah satu-satunya titik ekstensi deteksi kamera.
 
-  Cara pemilihan ini disimpan di `CameraServices.MatchType`/`IsFallback`, dan detail status
-  berasal dari satu fungsi `CameraServices.ResolveDetail()`: saat terhubung, **nama device
-  selalu ditampilkan** supaya bisa dipastikan kamera mana yang dikenali Windows.
+  **Tidak ada fallback.** Bila tidak ada keyword yang cocok, kamera dianggap tidak ditemukan
+  meskipun Windows mengenali device tersebut, dan halaman Verifikasi Wajah menampilkan
+  "Kamera tidak ditemukan". Device dengan status error/tidak hadir juga tidak dipakai.
+
+  Detail status berasal dari satu fungsi `CameraServices.ResolveDetail()`: saat terhubung,
+  **nama device selalu ditampilkan** supaya bisa dipastikan kamera mana yang dikenali Windows.
   Halaman Verifikasi Wajah juga menampilkan daftar kamera hasil scan
-  (`CameraServices.AvailableCameras`) untuk memudahkan pengecekan, dan membedakan pesan
-  "kamera tidak ditemukan" dari "kamera ditemukan, tetapi tidak dapat digunakan".
+  (`CameraServices.AvailableCameras`) untuk memudahkan pengecekan.
   Status tampil di header sebagai indikator kedua (di sebelah indikator fingerprint) dan
   menjadi sumber status yang sama untuk area kamera di halaman **Verifikasi Wajah**.
   Tahap ini hanya mendeteksi dan memilih device — stream, capture, dan pemrosesan wajah belum ada.

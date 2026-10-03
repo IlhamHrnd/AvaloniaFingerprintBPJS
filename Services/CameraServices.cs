@@ -32,31 +32,18 @@ namespace AvaloniaFingerprint.Services
         public bool IsDeviceConnected => watcher.IsConnected;
         public string? DeviceName => watcher.DeviceName;
 
-        /// <summary>Cara kamera aktif dipilih (keyword atau fallback) — dipakai Header untuk detail.</summary>
-        public CameraMatchType MatchType => watcher.MatchType;
-
         /// <summary>
-        /// Nama semua kamera yang terdeteksi dan bisa dipakai pada scan terakhir. Dipakai halaman
-        /// Verifikasi Wajah untuk menampilkan daftar kamera (memudahkan pengecekan device mana yang
-        /// dikenali Windows, termasuk kamera HP / kamera virtual).
+        /// Nama semua kamera yang terdeteksi (cocok salah satu <c>cameraKeywords</c>) pada scan
+        /// terakhir. Dipakai halaman Verifikasi Wajah untuk menampilkan daftar kamera sehingga
+        /// pengguna/developer bisa memastikan device mana yang dikenali Windows.
         /// </summary>
         public IReadOnlyList<string> AvailableCameras => watcher.AvailableCameras;
 
         /// <summary>
-        /// Nama semua device kandidat pada scan terakhir, termasuk yang tidak dapat dipakai.
-        /// Dipakai untuk membedakan "kamera tidak ditemukan" dari "kamera ditemukan tetapi tidak
-        /// dapat digunakan".
-        /// </summary>
-        public IReadOnlyList<string> DetectedDevices => watcher.DetectedDevices;
-
-        /// <summary>True jika kamera aktif dipakai sebagai cadangan, bukan hasil pencocokan keyword.</summary>
-        public bool IsFallback => watcher.MatchType == CameraMatchType.Fallback;
-
-        /// <summary>
         /// Detail status yang dipakai indikator Header sekaligus halaman Verifikasi Wajah, sehingga
         /// keduanya selalu menampilkan teks yang sama. Saat kamera terhubung, nama device selalu
-        /// ditampilkan supaya pengguna bisa memastikan kamera mana yang dipakai — ini penting untuk
-        /// kamera HP/kamera virtual yang namanya tidak selalu mengandung kata "camera".
+        /// ditampilkan supaya pengguna bisa memastikan kamera mana yang dipakai — penting untuk
+        /// kamera virtual seperti Windows Virtual Camera (Link to Windows / Phone Link).
         /// </summary>
         public string ResolveDetail()
         {
@@ -74,19 +61,19 @@ namespace AvaloniaFingerprint.Services
         /// Hasil satu siklus scan kamera. Dipakai halaman Verifikasi Wajah untuk memberi tahu
         /// pengguna apa yang terjadi setelah tombol "Hubungkan Kamera" ditekan.
         /// </summary>
-        public readonly record struct CameraScanResult(bool Connected, string Detail, CameraMatchType MatchType);
+        public readonly record struct CameraScanResult(bool Connected, string Detail);
 
         /// <summary>
-        /// Scan ulang dan pilih kamera terbaik memakai mekanisme deteksi yang sama dengan
-        /// <see cref="RefreshDeviceAsync"/> (keyword berprioritas, lalu fallback), kemudian
-        /// laporkan hasilnya. Dipakai tombol "Hubungkan Kamera" — tidak membuat deteksi kedua.
+        /// Scan ulang dan pilih kamera memakai mekanisme deteksi yang sama dengan
+        /// <see cref="RefreshDeviceAsync"/> (pencocokan <c>cameraKeywords</c>), kemudian laporkan
+        /// hasilnya. Dipakai tombol "Hubungkan Kamera" — tidak membuat deteksi kedua.
         /// Aman dipanggil saat kamera sudah terhubung: <see cref="CameraDeviceWatcherServices"/>
         /// memakai penjaga <c>_scanning</c> sehingga scan ganda tidak menumpuk.
         /// </summary>
         public async Task<CameraScanResult> ReconnectAsync()
         {
             await RefreshDeviceAsync();
-            return new CameraScanResult(IsDeviceConnected, ResolveDetail(), MatchType);
+            return new CameraScanResult(IsDeviceConnected, ResolveDetail());
         }
 
         public void Dispose() => watcher.Dispose();
