@@ -14,21 +14,21 @@
       <StackPanel Spacing="14">
         <TextBlock Classes="h2" Text="Verifikasi Wajah" />
 
-        <!-- camera host: nanti diganti actual camera preview.
-             Untuk sementara hanya menampilkan placeholder. -->
-        <!-- Live camera view. Bingkai frame digambar oleh CameraServices (OpenCV) dan dikirim
-             sebagai frame BGRA; bitmap ditukar setiap frame oleh VerifikasiWajahViewModel.
-             Placeholder hanya tampil selama belum ada frame. -->
+        <!-- Area gambar. Isinya mengikuti sumber yang dipilih: frame live kamera atau foto yang
+             diupload. Bingkai frame digambar oleh CameraServices (OpenCV) dan dikirim sebagai frame
+             BGRA; bitmap ditukar setiap frame oleh VerifikasiWajahViewModel. Placeholder hanya
+             tampil selama belum ada frame maupun foto. -->
         <Border CornerRadius="6" Height="240"
                 Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1"
                 HorizontalAlignment="Stretch">
           <Panel>
-            <Image Source="{Binding CameraFrame}"
+            <!-- PreviewImage mengikuti sumber yang dipilih: frame live, atau foto upload. -->
+            <Image Source="{Binding PreviewImage}"
                    Stretch="Uniform"
-                   IsVisible="{Binding IsPreviewActive}" />
+                   IsVisible="{Binding IsPreviewVisible}" />
 
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6"
-                        IsVisible="{Binding !IsPreviewActive}">
+                        IsVisible="{Binding !IsPreviewVisible}">
               <TextBlock Text="📷" FontSize="32" HorizontalAlignment="Center" />
               <TextBlock Text="{Binding CameraTitle}" FontWeight="SemiBold" HorizontalAlignment="Center" />
               <TextBlock Text="{Binding CameraStatus}" Classes="caption" HorizontalAlignment="Center" />
@@ -43,6 +43,19 @@
                 HorizontalContentAlignment="Center"
                 IsEnabled="{Binding !IsConnecting}"
                 Background="{StaticResource AccentBrush}" Foreground="White" />
+
+        <!-- Sumber gambar manual: memakai foto dari file sebagai pengganti live camera. -->
+        <Button Content="Upload Foto" Command="{Binding UploadPhotoCommand}"
+                Height="38" HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Background="{StaticResource AccentBrush}" Foreground="White" />
+
+        <!-- Penukar sumber gambar (live camera <-> foto upload). Hanya tampil bila sudah ada foto
+             yang diupload, sehingga pengguna tidak pernah terjebak di salah satu sumber. -->
+        <Button Content="{Binding PhotoSourceActionLabel}" Command="{Binding TogglePhotoSourceCommand}"
+                IsVisible="{Binding HasUploadedPhoto}"
+                Height="38" HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center" />
 
         <Button Content="Verifikasi Wajah" Command="{Binding VerifyFaceCommand}"
                 Height="38" HorizontalAlignment="Stretch"
@@ -71,14 +84,23 @@
 
         <Grid ColumnDefinitions="Auto,*">
 
-          <!-- preview wajah (placeholder) -->
+          <!-- preview wajah: gambar hasil verifikasi, atau placeholder selama belum ada -->
           <Border Grid.Column="0" Width="140" Height="180" CornerRadius="6" Margin="0,0,20,0"
                   Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1"
                   VerticalAlignment="Top">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-              <TextBlock Text="🙂" FontSize="28" HorizontalAlignment="Center" />
-              <TextBlock Text="Wajah" Classes="caption" HorizontalAlignment="Center" />
-            </StackPanel>
+            <Panel>
+              <!-- Dibiarkan memakai rasio aslinya di dalam kotak berukuran tetap, supaya wajah
+                   tidak terlihat gepeng. -->
+              <Image Source="{Binding CapturedPhoto}"
+                     Stretch="Uniform"
+                     IsVisible="{Binding HasCapturedPhoto}" />
+
+              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6"
+                          IsVisible="{Binding !HasCapturedPhoto}">
+                <TextBlock Text="🙂" FontSize="28" HorizontalAlignment="Center" />
+                <TextBlock Text="Wajah" Classes="caption" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Panel>
           </Border>
 
           <!-- detail hasil -->
@@ -100,6 +122,12 @@
                        TextWrapping="Wrap" FontSize="12" />
           </Grid>
         </Grid>
+
+        <!-- Membuang foto upload dan hasil verifikasi, lalu kembali ke live camera. -->
+        <Button Content="Hapus Foto" Command="{Binding ClearPhotoCommand}"
+                IsVisible="{Binding HasAnyPhoto}"
+                HorizontalAlignment="Left" Height="34" Padding="16,0"
+                HorizontalContentAlignment="Center" />
       </StackPanel>
     </Border>
   </Grid>

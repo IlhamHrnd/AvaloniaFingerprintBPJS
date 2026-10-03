@@ -1,12 +1,15 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -15,9 +18,10 @@ using System.Threading.Tasks;
 namespace AvaloniaFingerprint.ViewModels;
 
 /// <summary>
-/// Halaman Verifikasi Wajah. Menampilkan live view dari <see cref="CameraServices"/> dan
-/// menyiapkan tempat untuk hasil verifikasi. Face detection/recognition, encoding, dan
-/// panggilan API belum termasuk pada tahap ini.
+/// Halaman Verifikasi Wajah. Menampilkan gambar yang akan diverifikasi, yang bisa berasal dari live
+/// view kamera (<see cref="CameraServices"/>) atau dari foto yang diupload pengguna, dan menyiapkan
+/// tempat untuk hasil verifikasi. Face detection/recognition, encoding, dan panggilan API belum
+/// termasuk pada tahap ini.
 /// </summary>
 public sealed partial class VerifikasiWajahViewModel : ViewModelBase
 {
@@ -76,14 +80,17 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
 
     /// <summary>Bitmap yang sedang ditampilkan di area kamera (berganti isi setiap frame).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewImage))]
     private IImage? _cameraFrame;
 
     /// <summary>
-    /// True bila ada frame yang sudah digambar. Dipakai untuk menukar placeholder dengan live
-    /// view; sengaja tidak memakai "stream terbuka" supaya placeholder tidak hilang sebelum
-    /// frame pertama benar-benar siap.
+    /// True bila ada frame live yang sudah digambar. Dipakai bersama <see cref="IsShowingUploadedPhoto"/>
+    /// untuk menukar placeholder dengan gambar; sengaja tidak memakai "stream terbuka" supaya
+    /// placeholder tidak hilang sebelum frame pertama benar-benar siap.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPreviewVisible))]
+    [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
     private bool _isPreviewActive;
 
     /// <summary>
@@ -114,6 +121,79 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     [ObservableProperty]
     private bool _hasCameraDeviceList;
 
+    // ---- sumber gambar: live camera atau foto upload ------------------------
+    // Dua hal yang berbeda dan sengaja tidak disatukan:
+    //   * IsShowingUploadedPhoto -> apa yang mengisi area kamera besar
+    //   * CapturedPhoto          -> apa yang mengisi kotak "Hasil Verifikasi"
+    // Dengan pemisahan ini, foto upload tetap tampil walaupun kamera terputus, dan hasil
+    // verifikasi tidak ikut hilang saat sumber gambar ditukar.
+
+    /// <summary>
+    /// Foto yang dipilih pengguna lewat tombol "Upload Foto". Bitmap lama sengaja tidak di-Dispose
+    /// saat diganti, dengan alasan yang sama seperti <see cref="EnsureFrameBuffers"/>: renderer
+    /// Avalonia bisa masih memakai bitmap yang baru saja dilepas dari Image.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewImage))]
+    [NotifyPropertyChangedFor(nameof(IsPreviewVisible))]
+    [NotifyPropertyChangedFor(nameof(HasUploadedPhoto))]
+    [NotifyPropertyChangedFor(nameof(HasAnyPhoto))]
+    [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
+    private IImage? _uploadedPhoto;
+
+    /// <summary>
+    /// True bila area kamera besar sedang menampilkan foto upload, bukan live camera. Dipakai
+    /// tombol penukar sumber gambar dan pemilihan gambar yang akan diverifikasi.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewImage))]
+    [NotifyPropertyChangedFor(nameof(IsPreviewVisible))]
+    [NotifyPropertyChangedFor(nameof(PhotoSourceActionLabel))]
+    [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
+    private bool _isShowingUploadedPhoto;
+
+    /// <summary>
+    /// Gambar yang ditampilkan di kotak "Hasil Verifikasi": frame kamera pada saat tombol
+    /// "Verifikasi Wajah" ditekan, atau foto yang diupload. Null berarti placeholder masih tampil.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCapturedPhoto))]
+    [NotifyPropertyChangedFor(nameof(HasAnyPhoto))]
+    private IImage? _capturedPhoto;
+
+    /// <summary>True bila sudah ada gambar hasil verifikasi (placeholder ditukar).</summary>
+    public bool HasCapturedPhoto => CapturedPhoto is not null;
+
+    /// <summary>True bila sudah ada foto upload, sehingga tombol penukar sumber gambar berguna.</summary>
+    public bool HasUploadedPhoto => UploadedPhoto is not null;
+
+    /// <summary>True bila ada foto upload atau hasil verifikasi yang bisa dibuang.</summary>
+    public bool HasAnyPhoto => HasCapturedPhoto || HasUploadedPhoto;
+
+    /// <summary>
+    /// Gambar untuk area kamera besar. Foto upload menggantikan live view selama dipilih, supaya
+    /// jelas gambar mana yang akan diverifikasi.
+    /// </summary>
+    public IImage? PreviewImage => IsShowingUploadedPhoto ? UploadedPhoto : CameraFrame;
+
+    /// <summary>
+    /// True bila area kamera besar menampilkan sesuatu (frame live atau foto upload). Dipakai untuk
+    /// menukar placeholder; tidak memakai "stream terbuka" supaya placeholder tidak hilang sebelum
+    /// frame pertama siap, dan tetap benar saat kamera terputus sementara foto upload masih tampil.
+    /// </summary>
+    public bool IsPreviewVisible => IsPreviewActive || (IsShowingUploadedPhoto && UploadedPhoto is not null);
+
+    /// <summary>Label tombol penukar sumber gambar, mengikuti sumber yang sedang tampil.</summary>
+    public string PhotoSourceActionLabel =>
+        IsShowingUploadedPhoto ? "Ganti ke Live Camera" : "Tampilkan Foto Upload";
+
+    /// <summary>
+    /// Jendela tempat halaman ini tampil. Dibutuhkan untuk membuka dialog pilih file, karena
+    /// dialog dimiliki oleh <c>StorageProvider</c> milik <see cref="TopLevel"/>, bukan oleh
+    /// ViewModel. Diserahkan oleh view saat terpasang.
+    /// </summary>
+    public TopLevel? TopLevel { get; set; }
+
     // ---- hasil verifikasi ----------------------------------------------------
     // Nilai default "-" (belum ada data). Pengambilan data peserta akan
     // diimplementasikan pada tahap berikutnya.
@@ -138,6 +218,13 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
             // Siklus hidup stream diatur MainWindowViewModel (satu pemilik). Di sini cukup
             // memastikan tidak ada frame basi yang tertinggal setelah logout.
             ClearFrames();
+
+            // Foto upload dan hasil verifikasi ikut dibuang supaya data peserta tidak tertinggal
+            // di layar untuk pengguna berikutnya.
+            CapturedPhoto = null;
+            UploadedPhoto = null;
+            IsShowingUploadedPhoto = false;
+
             SetStatus(string.Empty, false);
         }
     }
@@ -174,6 +261,12 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     /// </summary>
     private void OnFrameReady(object? sender, CameraFrameEventArgs e)
     {
+        // Saat foto upload sedang tampil, frame kamera tidak digambar sama sekali: area kamera
+        // memang menampilkan foto, jadi menyalin dan menggambar frame hanya membuang CPU. Begitu
+        // sumber ditukar kembali ke live, frame berikutnya langsung menggantikan.
+        if (IsShowingUploadedPhoto)
+            return;
+
         if (e.Width <= 0 || e.Height <= 0 || e.Stride <= 0)
             return;
 
@@ -304,6 +397,8 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
 
         Interlocked.Exchange(ref _renderPending, 0);
     }
+    /// <summary>
+    /// Menyegarkan daftar nama kamera yang terdeteksi (debugging).
     /// <see cref="Services.CameraServices"/> — sama dengan Header — jadi tidak ada state kedua.
     /// </summary>
     private void RefreshCameraDeviceList()
@@ -362,13 +457,179 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     private bool CanConnectCamera() => !IsConnecting;
 
     /// <summary>
-    /// Sementara hanya logic UI. Proses verifikasi wajah (kamera, encoding, API)
-    /// akan diimplementasikan pada tahap berikutnya.
+    /// Tombol "Upload Foto": memakai foto dari file sebagai sumber gambar, menggantikan live
+    /// camera. Dialog yang dibatalkan tidak mengubah apa pun, dan format di luar JPG/JPEG/PNG
+    /// ditolak dengan pesan, bukan exception.
     /// </summary>
     [RelayCommand]
+    private async Task UploadPhotoAsync()
+    {
+        var topLevel = TopLevel;
+        if (topLevel is null)
+        {
+            SetStatus("Jendela utama belum siap sehingga dialog pilih file tidak bisa dibuka.", true);
+            return;
+        }
+
+        IReadOnlyList<IStorageFile> files;
+        try
+        {
+            files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Pilih Foto Wajah",
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("Foto (JPG, JPEG, PNG)")
+                    {
+                        Patterns = ["*.jpg", "*.jpeg", "*.png"],
+                    },
+                ],
+            });
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Gagal membuka dialog pilih file: {ex.Message}", true);
+            return;
+        }
+
+        // Dibatalkan pengguna: sumber gambar dan pesan status tidak diubah.
+        if (files.Count == 0)
+            return;
+
+        var file = files[0];
+        if (!IsSupportedPhotoFile(file.Name))
+        {
+            SetStatus("Format foto tidak didukung. Pilih foto JPG, JPEG, atau PNG.", true);
+            return;
+        }
+
+        try
+        {
+            // Bitmap dilepas dari stream, jadi file tidak terkunci setelah dibaca.
+            using var stream = await file.OpenReadAsync();
+
+            UploadedPhoto = new Bitmap(stream);
+            IsShowingUploadedPhoto = true;
+
+            SetStatus($"Foto berhasil dipilih: {file.Name}", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Gagal membaca file foto: {ex.Message}", true);
+        }
+    }
+
+    private static bool IsSupportedPhotoFile(string fileName)
+    {
+        var extension = System.IO.Path.GetExtension(fileName);
+
+        return extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".png", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Menukar sumber gambar di area kamera besar antara live camera dan foto upload. Selalu
+    /// tersedia selama sudah ada foto upload, sehingga pengguna tidak pernah terjebak di salah
+    /// satu sumber.
+    /// </summary>
+    [RelayCommand]
+    private void TogglePhotoSource() => IsShowingUploadedPhoto = !IsShowingUploadedPhoto;
+
+    /// <summary>
+    /// Membuang foto upload dan hasil verifikasi, lalu kembali ke live camera.
+    /// </summary>
+    [RelayCommand]
+    private void ClearPhoto()
+    {
+        CapturedPhoto = null;
+        UploadedPhoto = null;
+        IsShowingUploadedPhoto = false;
+
+        SetStatus("Foto dan hasil verifikasi dihapus.", false);
+    }
+
+    /// <summary>
+    /// Mengambil gambar yang sedang jadi sumber verifikasi dan menampilkannya di kotak "Hasil
+    /// Verifikasi". Pengenalan wajah, encoding, dan panggilan API belum termasuk tahap ini.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanVerifyFace))]
     private void VerifyFace()
     {
-        SetStatus("Fitur verifikasi wajah belum diimplementasikan.", false);
+        var captured = CaptureCurrentImage();
+        if (captured is null)
+        {
+            SetStatus("Belum ada gambar untuk diverifikasi. Hubungkan kamera atau upload foto terlebih dahulu.", true);
+            return;
+        }
+
+        CapturedPhoto = captured;
+        SetStatus("Gambar berhasil diambil. Pengenalan wajah akan diproses pada tahap berikutnya.", false);
+    }
+
+    /// <summary>Tombol verifikasi hanya aktif bila ada yang bisa diverifikasi.</summary>
+    private bool CanVerifyFace() => IsPreviewVisible;
+
+    /// <summary>
+    /// Menyalin gambar yang sedang jadi sumber verifikasi. Null bila tidak ada yang bisa dipakai.
+    ///
+    /// Untuk sumber live yang diambil adalah frame terakhir yang diterima dari kamera, bukan
+    /// bitmap yang sedang tampil: penggambaran frame berikutnya sengaja ditunda/dibuang saat UI
+    /// thread masih sibuk, sehingga bitmap yang tampil bisa tertinggal beberapa frame. Buffer
+    /// staging selalu berisi frame terbaru karena isinya diperbarui sebelum penundaan itu.
+    /// </summary>
+    private IImage? CaptureCurrentImage()
+    {
+        // Foto upload: yang diverifikasi adalah foto itu sendiri, kamera tidak disentuh sama sekali.
+        if (IsShowingUploadedPhoto && UploadedPhoto is not null)
+            return UploadedPhoto;
+
+        byte[] pixels;
+        int width, height, stride;
+
+        lock (_frameLock)
+        {
+            width = _stagingWidth;
+            height = _stagingHeight;
+            stride = _stagingStride;
+
+            if (width <= 0 || height <= 0 || stride <= 0 || _staging.Length < stride * height)
+                return null;
+
+            // Disalin di dalam kunci supaya isinya tidak berubah saat dibaca.
+            pixels = new byte[stride * height];
+            Buffer.BlockCopy(_staging, 0, pixels, 0, pixels.Length);
+        }
+
+        return CreateStillBitmap(pixels, width, height, stride);
+    }
+
+    /// <summary>
+    /// Membuat bitmap lepas dari frame BGRA. Bitmap ini tidak dipakai ulang oleh live view,
+    /// sehingga gambarnya tetap utuh walaupun stream terus berjalan.
+    /// </summary>
+    private static Bitmap CreateStillBitmap(byte[] pixels, int width, int height, int stride)
+    {
+        var bitmap = new WriteableBitmap(
+            new PixelSize(width, height), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque);
+
+        using (var framebuffer = bitmap.Lock())
+        {
+            // Stride bitmap belum tentu sama dengan stride frame, jadi disalin per baris.
+            var rowBytes = Math.Min(stride, framebuffer.RowBytes);
+
+            for (var y = 0; y < height; y++)
+            {
+                Marshal.Copy(
+                    pixels,
+                    y * stride,
+                    IntPtr.Add(framebuffer.Address, y * framebuffer.RowBytes),
+                    rowBytes);
+            }
+        }
+
+        return bitmap;
     }
 
     private void SetStatus(string message, bool isError)

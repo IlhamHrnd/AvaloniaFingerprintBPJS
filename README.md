@@ -9,7 +9,7 @@ project WinForms `KonfirmasiPendaftaranOnline`:
 | `VerifikasiFingerprint` | **Verifikasi Fingerprint** |
 | `RegistrasiFingerprint` | **Registrasi Fingerprint** |
 | — | **Kode Booking** |
-| — | **Verifikasi Wajah** (live camera view) |
+| — | **Verifikasi Wajah** (live camera view + upload foto) |
 
 ## Perilaku utama
 
@@ -80,8 +80,33 @@ project WinForms `KonfirmasiPendaftaranOnline`:
     (stream berjalan), `Kamera gagal dibuka` (device ada tetapi stream gagal dibuka), dan
     `Kamera terputus` (device hilang / stream terputus).
 
-  Face detection/recognition, capture foto, encoding, dan pemanggilan API Frista **belum** ada —
-  yang ditampilkan murni frame dari device yang sudah diekspos Windows.
+  Face detection/recognition, encoding, dan pemanggilan API Frista **belum** ada — yang
+  ditampilkan murni frame dari device yang sudah diekspos Windows.
+
+* **Upload foto (sumber gambar manual).** Halaman Verifikasi Wajah bisa memakai foto dari file
+  sebagai pengganti live camera, supaya verifikasi tetap bisa dilakukan saat kamera tidak
+  tersedia:
+
+  * **Dua sumber, satu area gambar.** `Upload Foto` membuka dialog pilih file
+    (`IStorageProvider.OpenFilePickerAsync`) dengan filter `*.jpg`, `*.jpeg`, `*.png`. Ekstensi
+    tetap divalidasi ulang setelah file dipilih, dan file dengan format lain ditolak dengan pesan,
+    bukan exception. Foto yang dipilih menggantikan live view di area kamera, dan tombol
+    penukar sumber (label mengikuti kondisi: `Ganti ke Live Camera` / `Tampilkan Foto Upload`)
+    mengembalikannya. Selama foto tampil, frame kamera tidak digambar sama sekali — tidak ada CPU
+    terbuang untuk gambar yang tidak terlihat.
+  * **Foto terpisah dari stream.** Foto upload tetap tampil walaupun kamera terputus, karena
+    sumber gambar disimpan terpisah dari status stream. Sebaliknya, hasil verifikasi juga tidak
+    hilang saat sumber gambar ditukar.
+  * **"Verifikasi Wajah" menangkap gambar saat tombol ditekan.** Untuk sumber live yang disalin
+    adalah frame **terakhir yang diterima dari kamera**, bukan bitmap yang sedang tampil: frame
+    yang datang saat UI thread masih sibuk sengaja dibuang, sehingga bitmap yang tampil bisa
+    tertinggal beberapa frame. Untuk sumber foto, yang dipakai adalah foto itu sendiri dan kamera
+    tidak disentuh. Hasilnya tampil di kotak **Hasil Verifikasi** (`Stretch="Uniform"`, jadi rasio
+    foto tidak diubah). Tombol `Hapus Foto` membuang foto dan hasil verifikasi lalu kembali ke live.
+  * **Satu foto per waktu, dibatasi GC.** Bitmap foto lama tidak di-`Dispose` saat diganti (alasan
+    sama dengan bitmap live: renderer Avalonia bisa masih memakainya), dan jumlahnya paling banyak
+    satu per upload sehingga dampak memorinya terbatas.
+  * Pengenalan wajah, encoding, dan pemanggilan API Frista untuk foto ini **belum** ada.
 
 ## Konfigurasi
 
