@@ -9,7 +9,7 @@ project WinForms `KonfirmasiPendaftaranOnline`:
 | `VerifikasiFingerprint` | **Verifikasi Fingerprint** |
 | `RegistrasiFingerprint` | **Registrasi Fingerprint** |
 | — | **Kode Booking** |
-| — | **Verifikasi Wajah** (baru, masih placeholder) |
+| — | **Verifikasi Wajah** (live camera view) |
 
 ## Perilaku utama
 
@@ -44,15 +44,44 @@ project WinForms `KonfirmasiPendaftaranOnline`:
   meskipun Windows mengenali device tersebut, dan halaman Verifikasi Wajah menampilkan
   "Kamera tidak ditemukan". Device dengan status error/tidak hadir juga tidak dipakai.
 
-  Detail status berasal dari satu fungsi `CameraServices.ResolveDetail()`: saat terhubung,
-  **nama device selalu ditampilkan** supaya bisa dipastikan kamera mana yang dikenali Windows.
-  Halaman Verifikasi Wajah juga menampilkan daftar kamera hasil scan
+  Detail status berasal dari satu fungsi `CameraServices.ResolveDetail()`: saat streaming,
+  **nama device selalu ditampilkan** (beserta index OpenCV yang dipakai) supaya bisa dipastikan
+  kamera mana yang aktif. Halaman Verifikasi Wajah juga menampilkan daftar kamera hasil scan
   (`CameraServices.AvailableCameras`) untuk memudahkan pengecekan.
   Status tampil di header sebagai indikator kedua (di sebelah indikator fingerprint) dan
   menjadi sumber status yang sama untuk area kamera di halaman **Verifikasi Wajah**.
-  Tahap ini hanya mendeteksi dan memilih device — stream, capture, dan pemrosesan wajah belum ada.
   Aplikasi **tidak** terhubung langsung ke HP (tanpa socket/IP camera/HTTP/Android API/Bluetooth):
   yang dibaca hanya device yang memang sudah diekspos Windows.
+* **Live camera view.** Deteksi device saja tidak cukup untuk menampilkan gambar, jadi stream
+  dibuka oleh `CameraPreviewServices` memakai **OpenCvSharp4** (`VideoCapture`):
+
+  * **Index tidak bisa dipetakan dari nama.** `VideoCapture` hanya menerima index (`int`), dan
+    urutan index OpenCV tidak sama dengan urutan WMI. Karena itu index dicoba satu per satu
+    (`0..N-1`, dengan `N` = jumlah kamera terdeteksi) dan percobaan berhenti pada index pertama
+    yang benar-benar mengeluarkan frame. Untuk mesin dengan banyak kamera, index bisa dikunci
+    lewat `Apps:CameraIndex` di `appsettings.json` (`null` = coba otomatis).
+  * **Backend MSMF lebih dulu, lalu DSHOW.** Kamera virtual (Link to Windows / Phone Link)
+    diekspos lewat Media Foundation, sehingga `MSMF` dicoba lebih dulu; `DSHOW` hanya cadangan.
+  * **Terbuka berarti ada frame.** `VideoCapture.IsOpened` saja bisa `true` untuk device yang
+    sudah hilang, jadi device baru dianggap terbuka setelah ada frame nyata yang keluar.
+  * **Satu stream saja.** Start/stop diserialkan dengan `SemaphoreSlim`, dan start ditolak saat
+    sudah streaming, sehingga menekan tombol berulang tidak pernah menghasilkan dua stream.
+    Tombol "Hubungkan Kamera" selalu menjalankan urutan stop → lepas device → buka ulang → start.
+  * **Frame BGRA ke `WriteableBitmap`, double-buffered.** OpenCV menghasilkan BGR sedangkan
+    Avalonia merender BGRA8888, jadi setiap frame dikonversi lalu digambar ke `WriteableBitmap`.
+    Dua bitmap dipakai bergantian karena Avalonia hanya menggambar ulang `Image` saat referensi
+    `Source` berubah — menulis ke bitmap yang sama tidak akan terlihat bergerak. Pembacaan frame
+    berjalan di thread background dan penggambaran di UI thread, dengan frame yang datang saat UI
+    masih sibuk dibuang supaya tidak menumpuk (target ~20 fps).
+  * **Siklus hidup.** Stream dibuka otomatis setelah login dan saat device terdeteksi, ditutup
+    saat logout, dan dilepas saat aplikasi ditutup (`AppServices.Dispose()`).
+  * **Indikator hijau = stream benar-benar terbuka.** Header dan halaman Verifikasi Wajah
+    menurunkan status dari kondisi stream, bukan dari deteksi device: `Kamera terhubung`
+    (stream berjalan), `Kamera gagal dibuka` (device ada tetapi stream gagal dibuka), dan
+    `Kamera terputus` (device hilang / stream terputus).
+
+  Face detection/recognition, capture foto, encoding, dan pemanggilan API Frista **belum** ada —
+  yang ditampilkan murni frame dari device yang sudah diekspos Windows.
 
 ## Konfigurasi
 
@@ -67,6 +96,10 @@ project WinForms `KonfirmasiPendaftaranOnline`:
   "Storage":     { "RegistrationsFile": "registrations.json" }
 }
 ```
+
+`Apps:CameraIndex` (opsional, default `null`) mengunci index kamera OpenCV untuk live view.
+Biarkan `null` untuk pencarian otomatis; isi angka (mis. `0`) bila mesin punya lebih dari satu
+kamera dan kamera yang diinginkan bukan yang pertama ditemukan.
 
 ## SDK DigitalPersona
 

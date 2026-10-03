@@ -99,6 +99,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Registrasi.OnSessionChanged(session.IsLoggedIn);
         KodeBooking.OnSessionChanged(session.IsLoggedIn);
         VerifikasiWajah.OnSessionChanged(session.IsLoggedIn);
+
+        // Kamera mengikuti sesi: dibuka setelah login, ditutup saat logout supaya device tidak
+        // terus dipakai saat tabnya tidak aktif.
+        if (session.IsLoggedIn)
+            _ = EnsureCameraPreviewAsync();
+        else
+            _ = _services.Camera.StopPreviewAsync();
     }
 
     // ---- device state --------------------------------------------------------
@@ -118,6 +125,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CameraTooltip))]
     private string _cameraDetail = string.Empty;
+
+    // Penjaga supaya percobaan membuka stream tidak menumpuk saat beberapa event datang
+    // berdekatan (deteksi device dan perubahan sesi).
+    private bool _previewStarting;
 
     /// <summary>
     /// Tooltip indikator fingerprint. Header hanya menampilkan chip ringkas
@@ -139,22 +150,55 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void UpdateCameraState()
     {
-        var isConnected = _services.Camera.IsDeviceConnected;
+        var isStreaming = _services.Camera.IsConnected;
         var cameraName = _services.Camera.DeviceName;
 
-        Trace.WriteLine($"[MainWindowViewModel] UpdateCameraState. Connected={isConnected}, Name={cameraName}");
+        Trace.WriteLine($"[MainWindowViewModel] UpdateCameraState. Streaming={isStreaming}, State={_services.Camera.StreamState}, Name={cameraName}");
 
-        CameraConnected = isConnected;
-        CameraStatus = isConnected ? CameraServices.ConnectedStatus : CameraServices.DisconnectedStatus;
+        // Indikator Header hijau hanya bila stream benar-benar terbuka, bukan sekadar device
+        // terdeteksi — kamera yang gagal dibuka tetap dihitung belum terhubung.
+        CameraConnected = isStreaming;
+        CameraStatus = _services.Camera.ResolveStatus();
 
-        // Detail (termasuk nama device saat kamera fallback) diambil dari CameraServices supaya
-        // Header dan halaman Verifikasi Wajah memakai teks yang persis sama.
+        // Detail (termasuk nama device) diambil dari CameraServices supaya Header dan halaman
+        // Verifikasi Wajah memakai teks yang persis sama.
         var detail = _services.Camera.ResolveDetail();
         CameraDetail = detail;
 
         // Satu sumber status untuk Header dan halaman Verifikasi Wajah, supaya keduanya
         // tidak pernah menampilkan kondisi kamera yang berbeda.
-        VerifikasiWajah.OnCameraStatusChanged(isConnected, detail);
+        VerifikasiWajah.OnCameraStatusChanged(isStreaming, CameraStatus, detail);
+
+        // Stream dibuka otomatis begitu device terdeteksi dan sesi sudah login.
+        _ = EnsureCameraPreviewAsync();
+    }
+
+    /// <summary>
+    /// Membuka stream kamera secara otomatis (setelah login dan saat device terdeteksi) tanpa
+    /// memblokir UI thread. Aman dipanggil berulang: penjaga di sini mencegah percobaan menumpuk,
+    /// dan <see cref="CameraServices"/> sendiri menolak start saat sudah streaming.
+    /// </summary>
+    private async Task EnsureCameraPreviewAsync()
+    {
+        if (_previewStarting || _services.Camera.IsConnected || !_services.Session.IsLoggedIn)
+            return;
+
+        if (!_services.Camera.IsDeviceConnected)
+            return;
+
+        _previewStarting = true;
+        try
+        {
+            await _services.Camera.StartPreviewAsync();
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[MainWindowViewModel] Camera preview start failed: {ex.GetType().Name}: {ex.Message}");
+        }
+        finally
+        {
+            _previewStarting = false;
+        }
     }
 
     private void UpdateDeviceState()

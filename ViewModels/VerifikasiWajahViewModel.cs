@@ -1,29 +1,64 @@
+using Avalonia;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
+using Avalonia.Threading;
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AvaloniaFingerprint.ViewModels;
 
 /// <summary>
-/// Halaman Verifikasi Wajah. Tahap ini hanya UI + logic sederhana: belum ada
-/// kamera, face detection/recognition, encoding, maupun panggilan API.
+/// Halaman Verifikasi Wajah. Menampilkan live view dari <see cref="CameraServices"/> dan
+/// menyiapkan tempat untuk hasil verifikasi. Face detection/recognition, encoding, dan
+/// panggilan API belum termasuk pada tahap ini.
 /// </summary>
 public sealed partial class VerifikasiWajahViewModel : ViewModelBase
 {
-    // Disimpan untuk tahap berikutnya (camera service / Frista API).
+    // Disimpan untuk tahap berikutnya (face recognition / Frista API).
     private readonly AppServices _services;
+
+    // ---- double buffering frame kamera --------------------------------------
+    // Avalonia hanya me-render ulang sebuah Image saat referensi Source berubah; menulis ke
+    // WriteableBitmap yang sama berulang kali tidak memicu repaint. Karena itu dua bitmap
+    // dipakai bergantian setiap frame.
+    private WriteableBitmap? _frameA;
+    private WriteableBitmap? _frameB;
+    private bool _useSecondBuffer;
+
+    // Salinan frame dari thread capture. Dilindungi _frameLock karena ditulis di thread capture
+    // dan dibaca di UI thread.
+    private readonly object _frameLock = new();
+    private byte[] _staging = Array.Empty<byte>();
+    private int _stagingWidth;
+    private int _stagingHeight;
+    private int _stagingStride;
+
+    // 0/1: penanda UI thread sedang menggambar frame. Frame berikutnya yang datang saat masih
+    // 1 akan dibuang supaya tidak ada penumpukan pekerjaan di UI thread.
+    private int _renderPending;
 
     public VerifikasiWajahViewModel(AppServices services)
     {
         _services = services;
         IsLoggedIn = _services.Session.IsLoggedIn;
 
-        // Kamera yang sudah tersedia saat halaman dibuat langsung ditampilkan sebagai siap,
-        // memakai sumber status yang sama dengan Header (CameraServices).
-        OnCameraStatusChanged(_services.Camera.IsDeviceConnected, _services.Camera.ResolveDetail());
+        // Frame datang dari thread capture kamera. Handler menyalin datanya lebih dulu, lalu
+        // menggambar di UI thread — objek UI tidak pernah disentuh dari thread lain.
+        _services.Camera.FrameReady += OnFrameReady;
+
+        // Kamera yang sudah streaming saat halaman dibuat langsung ditampilkan, memakai sumber
+        // status yang sama dengan Header (CameraServices).
+        OnCameraStatusChanged(
+            _services.Camera.IsConnected,
+            _services.Camera.ResolveStatus(),
+            _services.Camera.ResolveDetail());
     }
 
     [ObservableProperty]
@@ -39,9 +74,17 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     [ObservableProperty]
     private string _cameraStatus = "Kamera belum diaktifkan";
 
-    /// <summary>Belum dipakai; disiapkan untuk tahap implementasi kamera berikutnya.</summary>
+    /// <summary>Bitmap yang sedang ditampilkan di area kamera (berganti isi setiap frame).</summary>
     [ObservableProperty]
-    private bool _isCameraActive;
+    private IImage? _cameraFrame;
+
+    /// <summary>
+    /// True bila ada frame yang sudah digambar. Dipakai untuk menukar placeholder dengan live
+    /// view; sengaja tidak memakai "stream terbuka" supaya placeholder tidak hilang sebelum
+    /// frame pertama benar-benar siap.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isPreviewActive;
 
     /// <summary>
     /// True selama proses pencarian/pemilihan kamera berjalan, supaya tombol "Hubungkan Kamera"
@@ -92,29 +135,175 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
         IsLoggedIn = loggedIn;
         if (!loggedIn)
         {
+            // Siklus hidup stream diatur MainWindowViewModel (satu pemilik). Di sini cukup
+            // memastikan tidak ada frame basi yang tertinggal setelah logout.
+            ClearFrames();
             SetStatus(string.Empty, false);
         }
     }
 
     /// <summary>
-    /// Dipanggil dari <see cref="MainWindowViewModel"/> memakai status dari
+    /// Dipanggil dari <see cref="MainWindowViewModel"/> memakai status stream dari
     /// <see cref="Services.CameraServices"/> — sumber yang sama dengan indikator di Header,
-    /// sehingga halaman ini tidak pernah menyimpang dari status Header. Area preview tetap
-    /// placeholder: stream kamera belum dibuka pada tahap ini.
+    /// sehingga halaman ini tidak pernah menyimpang dari status Header.
     /// </summary>
-    public void OnCameraStatusChanged(bool connected, string? cameraDetail)
+    public void OnCameraStatusChanged(bool connected, string? cameraStatus, string? cameraDetail)
     {
-        IsCameraActive = connected;
+        // Placeholder hanya terlihat saat stream tidak berjalan, jadi judulnya mengikuti kondisi.
         CameraTitle = connected ? "Live Camera View" : "Kamera tidak tersedia";
         CameraStatus = connected
             ? cameraDetail ?? CameraServices.ConnectedDetail
-            : CameraServices.DisconnectedDetail;
+            : cameraStatus ?? CameraServices.DisconnectedDetail;
+
+        if (!connected)
+        {
+            // Stream tertutup: jangan tinggalkan frame terakhir yang sudah basi — placeholder
+            // harus terlihat lagi.
+            ClearFrames();
+        }
 
         RefreshCameraDeviceList();
     }
 
+    // ---- rendering frame kamera ---------------------------------------------
+
     /// <summary>
-    /// Menampilkan daftar kamera yang dikenali Windows pada scan terakhir. Sumbernya tetap
+    /// Menerima frame dari thread capture. Handler ini harus selesai cepat karena buffer milik
+    /// service dipakai ulang untuk frame berikutnya, jadi isinya disalin lebih dulu dan
+    /// penggambaran dilakukan di UI thread.
+    /// </summary>
+    private void OnFrameReady(object? sender, CameraFrameEventArgs e)
+    {
+        if (e.Width <= 0 || e.Height <= 0 || e.Stride <= 0)
+            return;
+
+        var needed = e.Stride * e.Height;
+        if (needed <= 0 || e.Pixels.Length < needed)
+            return;
+
+        lock (_frameLock)
+        {
+            if (_staging.Length < needed)
+                _staging = new byte[needed];
+
+            Buffer.BlockCopy(e.Pixels, 0, _staging, 0, needed);
+            _stagingWidth = e.Width;
+            _stagingHeight = e.Height;
+            _stagingStride = e.Stride;
+        }
+
+        // Bila UI thread belum selesai menggambar frame sebelumnya, frame ini dibuang. Live view
+        // tidak perlu setiap frame; yang penting tidak ada penumpukan kerja di UI thread.
+        if (Interlocked.Exchange(ref _renderPending, 1) == 1)
+            return;
+
+        Dispatcher.UIThread.Post(RenderFrame);
+    }
+
+    /// <summary>
+    /// Menggambar frame terakhir ke bitmap. Selalu dipanggil di UI thread.
+    /// </summary>
+    private void RenderFrame()
+    {
+        try
+        {
+            int width, height, stride;
+            lock (_frameLock)
+            {
+                width = _stagingWidth;
+                height = _stagingHeight;
+                stride = _stagingStride;
+            }
+
+            if (width <= 0 || height <= 0 || stride <= 0)
+                return;
+
+            EnsureFrameBuffers(width, height);
+
+            // Buffer ditukar setiap frame. Referensi Source yang selalu berubah inilah yang
+            // memicu Avalonia menggambar ulang.
+            var target = _useSecondBuffer ? _frameA : _frameB;
+            _useSecondBuffer = !_useSecondBuffer;
+
+            if (target is null)
+                return;
+
+            using (var framebuffer = target.Lock())
+            {
+                // Stride bitmap belum tentu sama dengan stride frame, jadi disalin per baris
+                // memakai lebar baris milik bitmap.
+                var rowBytes = Math.Min(stride, framebuffer.RowBytes);
+
+                lock (_frameLock)
+                {
+                    for (var y = 0; y < height; y++)
+                    {
+                        Marshal.Copy(
+                            _staging,
+                            y * stride,
+                            IntPtr.Add(framebuffer.Address, y * framebuffer.RowBytes),
+                            rowBytes);
+                    }
+                }
+            }
+
+            CameraFrame = target;
+            IsPreviewActive = true;
+        }
+        finally
+        {
+            // Dilepas terakhir supaya frame berikutnya baru diambil setelah penggambaran selesai.
+            Interlocked.Exchange(ref _renderPending, 0);
+        }
+    }
+
+    /// <summary>
+    /// Menyiapkan dua bitmap sesuai ukuran frame. Dibuat ulang hanya saat ukuran berubah
+    /// (mis. kamera diganti), karena alokasi bitmap tidak murah.
+    /// </summary>
+    private void EnsureFrameBuffers(int width, int height)
+    {
+        if (_frameA is not null && _frameB is not null &&
+            _frameA.PixelSize.Width == width && _frameA.PixelSize.Height == height)
+        {
+            return;
+        }
+
+        // Bitmap lama dilepas dari Image lebih dulu supaya tidak ada frame basi yang tampil
+        // dengan ukuran baru.
+        CameraFrame = null;
+        IsPreviewActive = false;
+
+        // Bitmap lama sengaja TIDAK di-Dispose di sini. Avalonia mencatat perintah gambar lalu
+        // mengeksekusinya di render thread, sehingga bitmap yang masih dipakai pada frame yang
+        // sedang berjalan bisa di-Dispose di bawahnya. Karena penggantian ukuran praktis tidak
+        // pernah terjadi (kamera ini tetap 1280x720), bitmap lama dibiarkan diambil GC daripada
+        // mengambil risiko crash pada renderer.
+        _frameA = CreateFrameBitmap(width, height);
+        _frameB = CreateFrameBitmap(width, height);
+        _useSecondBuffer = false;
+    }
+
+    private static WriteableBitmap CreateFrameBitmap(int width, int height) =>
+        new(new PixelSize(width, height), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque);
+
+    /// <summary>
+    /// Melepas frame dan mengembalikan area kamera ke placeholder. Hanya dipanggil di UI thread.
+    /// </summary>
+    private void ClearFrames()
+    {
+        CameraFrame = null;
+        IsPreviewActive = false;
+
+        lock (_frameLock)
+        {
+            _stagingWidth = 0;
+            _stagingHeight = 0;
+            _stagingStride = 0;
+        }
+
+        Interlocked.Exchange(ref _renderPending, 0);
+    }
     /// <see cref="Services.CameraServices"/> — sama dengan Header — jadi tidak ada state kedua.
     /// </summary>
     private void RefreshCameraDeviceList()
@@ -144,11 +333,20 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
             var result = await _services.Camera.ReconnectAsync();
 
             // Area kamera memakai status yang sama dengan Header (satu sumber state).
-            OnCameraStatusChanged(result.Connected, result.Detail);
+            OnCameraStatusChanged(result.Connected, _services.Camera.ResolveStatus(), result.Detail);
 
             if (result.Connected)
             {
                 SetStatus($"Kamera berhasil terhubung: {result.Detail}", false);
+            }
+            else if (_services.Camera.IsDeviceConnected)
+            {
+                // Device dikenali Windows tetapi stream tidak bisa dibuka. Pesannya dibedakan
+                // supaya pengguna tidak disuruh mengecek koneksi HP padahal masalahnya lain.
+                SetStatus(
+                    $"Kamera terdeteksi tetapi gagal dibuka: {result.Detail}. " +
+                    "Pastikan kamera tidak sedang dipakai aplikasi lain (mis. kamera sedang dibuka di HP).",
+                    true);
             }
             else
             {
