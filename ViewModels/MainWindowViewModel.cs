@@ -20,6 +20,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Verifikasi = new VerifikasiFingerprintViewModel(services);
         Registrasi = new RegistrasiFingerprintViewModel(services, Daftar);
         KodeBooking = new KodeBookingViewModel(services);
+        VerifikasiWajah = new VerifikasiWajahViewModel(services);
 
         services.Session.Changed += OnSessionChanged;
         services.Fingerprint.DeviceStatusChanged += OnDeviceStatusChanged;
@@ -34,6 +35,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public VerifikasiFingerprintViewModel Verifikasi { get; }
     public RegistrasiFingerprintViewModel Registrasi { get; }
     public KodeBookingViewModel KodeBooking { get; }
+    public VerifikasiWajahViewModel VerifikasiWajah { get; }
 
     // ---- login state ---------------------------------------------------------
 
@@ -93,6 +95,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Verifikasi.OnSessionChanged(session.IsLoggedIn);
         Registrasi.OnSessionChanged(session.IsLoggedIn);
         KodeBooking.OnSessionChanged(session.IsLoggedIn);
+        VerifikasiWajah.OnSessionChanged(session.IsLoggedIn);
     }
 
     // ---- device state --------------------------------------------------------

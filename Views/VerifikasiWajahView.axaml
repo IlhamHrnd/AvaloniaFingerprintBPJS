@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:AvaloniaFingerprint.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="520"
+             x:Class="AvaloniaFingerprint.Views.VerifikasiWajahView"
+             x:DataType="vm:VerifikasiWajahViewModel">
+
+  <Grid ColumnDefinitions="360,*" Margin="16">
+
+    <!-- ============ kiri: live camera ============ -->
+    <Border Grid.Column="0" Classes="card" VerticalAlignment="Top" Margin="0,0,16,0">
+      <StackPanel Spacing="14">
+        <TextBlock Classes="h2" Text="Verifikasi Wajah" />
+
+        <!-- camera host: nanti diganti actual camera preview.
+             Untuk sementara hanya menampilkan placeholder. -->
+        <Border CornerRadius="6" Height="240"
+                Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1"
+                HorizontalAlignment="Stretch">
+          <Panel>
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+              <TextBlock Text="📷" FontSize="32" HorizontalAlignment="Center" />
+              <TextBlock Text="{Binding CameraTitle}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+              <TextBlock Text="{Binding CameraStatus}" Classes="caption" HorizontalAlignment="Center" />
+            </StackPanel>
+          </Panel>
+        </Border>
+
+        <Button Content="Verifikasi Wajah" Command="{Binding VerifyFaceCommand}"
+                Height="38" HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Background="{StaticResource AccentBrush}" Foreground="White" />
+
+        <Border IsVisible="{Binding HasStatus}" CornerRadius="6" Padding="10" Background="#F3F4F6">
+          <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12"
+                     Foreground="{Binding !StatusIsError, Converter={StaticResource StatusBrush}}" />
+        </Border>
+      </StackPanel>
+    </Border>
+
+    <!-- ============ kanan: hasil verifikasi ============ -->
+    <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
+      <StackPanel Spacing="14">
+        <TextBlock Classes="h2" Text="Hasil Verifikasi" />
+
+        <Grid ColumnDefinitions="Auto,*">
+
+          <!-- preview wajah (placeholder) -->
+          <Border Grid.Column="0" Width="140" Height="180" CornerRadius="6" Margin="0,0,20,0"
+                  Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1"
+                  VerticalAlignment="Top">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+              <TextBlock Text="🙂" FontSize="28" HorizontalAlignment="Center" />
+              <TextBlock Text="Wajah" Classes="caption" HorizontalAlignment="Center" />
+            </StackPanel>
+          </Border>
+
+          <!-- detail hasil -->
+          <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="130,*">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Nama" Classes="caption" Margin="0,0,0,12" />
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ResultNama}"
+                       FontWeight="SemiBold" FontSize="15" Margin="0,0,0,12" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="No. Kartu" Classes="caption" Margin="0,0,0,12" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ResultNoKartu}"
+                       FontSize="15" Margin="0,0,0,12" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Usia" Classes="caption" Margin="0,0,0,12" />
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ResultUsia}"
+                       FontSize="15" Margin="0,0,0,12" />
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Keterangan" Classes="caption" />
+            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ResultKeterangan}"
+                       TextWrapping="Wrap" FontSize="12" />
+          </Grid>
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

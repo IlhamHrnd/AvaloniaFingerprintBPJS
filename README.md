@@ -8,6 +8,8 @@ project WinForms `KonfirmasiPendaftaranOnline`:
 | `DaftarFingerprint` | **Daftar Fingerprint** |
 | `VerifikasiFingerprint` | **Verifikasi Fingerprint** |
 | `RegistrasiFingerprint` | **Registrasi Fingerprint** |
+| — | **Kode Booking** |
+| — | **Verifikasi Wajah** (baru, masih placeholder) |
 
 ## Perilaku utama
 

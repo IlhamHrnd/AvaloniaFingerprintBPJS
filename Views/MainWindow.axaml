@@ -78,6 +78,9 @@
         <TabItem Header="Kode Booking" IsEnabled="{Binding IsLoggedIn}">
           <views:KodeBookingView DataContext="{Binding KodeBooking}" />
         </TabItem>
+        <TabItem Header="Verifikasi Wajah" IsEnabled="{Binding IsLoggedIn}">
+          <views:VerifikasiWajahView DataContext="{Binding VerifikasiWajah}" />
+        </TabItem>
       </TabControl>
 
       <!-- overlay shown while logged out -->
