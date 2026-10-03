@@ -105,12 +105,31 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty] private bool _deviceConnected;
     [ObservableProperty] private string _deviceStatus = "Mencari perangkat...";
-    [ObservableProperty] private string _deviceDetail = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DeviceTooltip))]
+    private string _deviceDetail = string.Empty;
 
     // ---- camera state --------------------------------------------------------
+
     [ObservableProperty] private bool _cameraConnected;
     [ObservableProperty] private string _cameraStatus = CameraServices.SearchingStatus;
-    [ObservableProperty] private string _cameraDetail = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CameraTooltip))]
+    private string _cameraDetail = string.Empty;
+
+    /// <summary>
+    /// Tooltip indikator fingerprint. Header hanya menampilkan chip ringkas
+    /// ("Fingerprint"), sehingga detail lengkap disajikan saat hover.
+    /// </summary>
+    public string DeviceTooltip => $"Fingerprint: {DeviceDetail}";
+
+    /// <summary>
+    /// Tooltip indikator kamera. Nama device panjang (mis. "Windows Virtual Camera Device")
+    /// cukup tampil di sini, bukan di Header.
+    /// </summary>
+    public string CameraTooltip => $"Kamera: {CameraDetail}";
 
     private void OnDeviceStatusChanged(object? sender, DeviceStatusEventArgs e) =>
         Dispatcher.UIThread.Post(UpdateDeviceState);

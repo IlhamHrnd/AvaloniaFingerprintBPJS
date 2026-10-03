@@ -16,61 +16,60 @@
   <DockPanel>
 
     <!-- ============ header: title, device status, login button (top right) ============ -->
-    <Border DockPanel.Dock="Top" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="20,12">
-      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+    <Border DockPanel.Dock="Top" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="20,8">
+      <DockPanel LastChildFill="True">
 
-        <StackPanel Grid.Column="0" Spacing="2">
-          <TextBlock Classes="h1" Text="Fingerprint BPJS" />
-          <TextBlock Classes="caption" Text="Daftar · Verifikasi · Registrasi · Kode Booking · Verifikasi Wajah" />
-        </StackPanel>
-
-        <!-- device indicators: fingerprint + camera -->
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Margin="0,0,16,0"
+        <!-- petugas + login/logout: di-dock lebih dulu supaya selalu mendapat lebar penuh
+             dan tombol Logout tidak pernah terpotong saat window diperkecil -->
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10"
                     VerticalAlignment="Center">
-
-          <!-- USB fingerprint indicator -->
-          <Border Padding="12,6" CornerRadius="16" Background="#F3F4F6"
-                  ToolTip.Tip="{Binding DeviceDetail}">
-            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-              <Ellipse Width="10" Height="10" VerticalAlignment="Center"
-                       Fill="{Binding DeviceConnected, Converter={StaticResource StatusBrush}}" />
-              <StackPanel>
-                <TextBlock Text="{Binding DeviceStatus}" FontSize="12" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding DeviceDetail}" Classes="caption" MaxWidth="260"
-                           TextTrimming="CharacterEllipsis" />
-              </StackPanel>
-            </StackPanel>
-          </Border>
-
-          <!-- camera indicator (same styling as the fingerprint indicator) -->
-          <Border Padding="12,6" CornerRadius="16" Background="#F3F4F6"
-                  ToolTip.Tip="{Binding CameraDetail}">
-            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-              <Ellipse Width="10" Height="10" VerticalAlignment="Center"
-                       Fill="{Binding CameraConnected, Converter={StaticResource StatusBrush}}" />
-              <StackPanel>
-                <TextBlock Text="{Binding CameraStatus}" FontSize="12" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding CameraDetail}" Classes="caption" MaxWidth="200"
-                           TextTrimming="CharacterEllipsis" />
-              </StackPanel>
-            </StackPanel>
-          </Border>
-        </StackPanel>
-
-        <!-- petugas + login/logout -->
-        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-          <StackPanel HorizontalAlignment="Right">
-            <TextBlock Text="{Binding PetugasName}" FontWeight="SemiBold" HorizontalAlignment="Right" />
-            <TextBlock Text="{Binding PetugasDetail}" Classes="caption" HorizontalAlignment="Right" />
+          <StackPanel HorizontalAlignment="Right" MaxWidth="180"
+                      ToolTip.Tip="{Binding PetugasName}">
+            <TextBlock Text="{Binding PetugasName}" FontWeight="SemiBold"
+                       HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding PetugasDetail}" Classes="caption"
+                       HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" />
           </StackPanel>
           <Button Content="{Binding LoginButtonText}"
                   Command="{Binding ToggleLoginCommand}"
                   IsEnabled="{Binding !IsLoginBusy}"
-                  MinWidth="96" Height="36"
+                  MinWidth="96" Height="34"
                   HorizontalContentAlignment="Center"
                   Background="{StaticResource AccentBrush}" Foreground="White" />
         </StackPanel>
-      </Grid>
+
+        <!-- device indicators: chip ringkas (icon warna + label), detail hanya di tooltip -->
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="0,0,16,0"
+                    VerticalAlignment="Center">
+
+          <!-- USB fingerprint indicator -->
+          <Border Padding="10,5" CornerRadius="14" Background="{StaticResource HeaderBrush}"
+                  ToolTip.Tip="{Binding DeviceTooltip}">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                       Fill="{Binding DeviceConnected, Converter={StaticResource StatusBrush}}" />
+              <TextBlock Text="Fingerprint" FontSize="12" FontWeight="SemiBold" />
+            </StackPanel>
+          </Border>
+
+          <!-- camera indicator (same styling as the fingerprint indicator) -->
+          <Border Padding="10,5" CornerRadius="14" Background="{StaticResource HeaderBrush}"
+                  ToolTip.Tip="{Binding CameraTooltip}">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                       Fill="{Binding CameraConnected, Converter={StaticResource StatusBrush}}" />
+              <TextBlock Text="Kamera" FontSize="12" FontWeight="SemiBold" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- title: mengisi sisa ruang, menyusut lebih dulu dan memakai ellipsis -->
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Classes="h1" Text="Fingerprint BPJS" TextTrimming="CharacterEllipsis" />
+          <TextBlock Classes="caption" Text="Daftar · Verifikasi · Registrasi · Kode Booking · Verifikasi Wajah"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </DockPanel>
     </Border>
 
     <!-- ============ status bar ============ -->
