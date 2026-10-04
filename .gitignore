@@ -361,3 +361,14 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Model dlib untuk FaceRecognitionDotNet (~126 MB, lisensi CC0, bisa diunduh ulang).
+# Jalankan: powershell -ExecutionPolicy Bypass -File tools\download-face-assets.ps1
+FaceModels/*.dat
+!FaceModels/README.md
+
+# Gambar uji untuk tools\FaceEncodingProbe (diunduh oleh skrip yang sama).
+tools/FaceEncodingProbe/testdata/
+
+# Log keluaran harness (dihasilkan tiap kali FaceEncodingProbe dijalankan).
+tools/FaceEncodingProbe/*.txt

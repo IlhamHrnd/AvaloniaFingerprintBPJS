@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk" InitialTargets="RejectAnyCpuPlatform">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -11,11 +11,45 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <RootNamespace>AvaloniaFingerprint</RootNamespace>
     <AssemblyName>AvaloniaFingerprint</AssemblyName>
-    <Platforms>AnyCPU;x86;x64</Platforms>
+    <!--
+      AnyCPU sengaja TIDAK ada di daftar. FaceRecognitionDotNet.props menyisipkan native lewat
+      path "runtimes\win-$(Platform)\native\", sementara package-nya hanya menyediakan win-x64
+      dan win-x86. Dengan Platform=AnyCPU path itu menjadi "win-AnyCPU" dan build gagal dengan
+      MSB3030 (file tidak ditemukan). Menghapus AnyCPU lebih jujur daripada memetakannya diam-diam
+      ke x64: app ini memang butuh native ber-arsitektur pasti.
+
+      x64 ditaruh PERTAMA karena AvaloniaFingerprint.slnx tidak memuat pemetaan platform, jadi
+      Visual Studio memakai entri pertama daftar ini.
+
+      Build biasa tanpa -p:Platform tetap jalan karena FaceRecognitionDotNet.props mengisi
+      $(Platform) yang kosong dengan x64, sehingga output-nya bin\x64\<Configuration>\.
+    -->
+    <Platforms>x64;x86</Platforms>
+    <!--
+      NETSDK1206 ditekan karena tidak bisa ditindaklanjuti dari sisi kita: package DlibDotNet /
+      FaceRecognitionDotNet ikut membawa folder RID "centos-x64", dan SDK memperingatkan bahwa
+      aset RID spesifik-distribusi tidak dicari lagi di .NET 8+. App ini net8.0-windows dan hanya
+      pernah memakai win-x64/win-x86, jadi aset centos itu memang tidak relevan.
+      tools\FaceEncodingProbe juga sudah menekan warning yang sama.
+    -->
+    <NoWarn>$(NoWarn);NETSDK1206</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <!--
+    tools\ berisi proyek konsol terpisah (mis. FaceEncodingProbe) yang punya entry point-nya
+    sendiri. Tanpa Remove di bawah, glob compile default SDK akan menyapu *.cs milik proyek
+    itu ke dalam app ini dan menghasilkan error "more than one entry point" plus tipe ganda.
+  -->
+  <ItemGroup>
+    <Compile Remove="tools\**" />
+    <AvaloniaResource Remove="tools\**" />
+    <AvaloniaXaml Remove="tools\**" />
+    <EmbeddedResource Remove="tools\**" />
+    <None Remove="tools\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -41,6 +75,19 @@
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
     <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
     <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20260627" />
+    <!--
+      FaceRecognitionDotNet (deteksi wajah + encoding 128 nilai). Package ini menarik
+      DlibDotNet beserta native-nya (DlibDotNetNative.dll / DlibDotNetNativeDnn.dll) secara
+      transitif, jadi tidak perlu PackageReference native terpisah. Native tersedia untuk
+      win-x64 DAN win-x86, tapi build x86 hanya perlu dipakai bila memang disasar - app ini
+      default-nya x64. Model dlib (~126 MB) TIDAK ikut dalam package: unduh lewat
+      tools\download-face-assets.ps1 ke FaceModels\.
+
+      Sampingan: package ini memunculkan warning NETSDK1206 ("centos-x64") karena nuspec
+      DlibDotNet mencantumkan RID khusus distribusi. Tidak berpengaruh di Windows dan tidak
+      bisa diperbaiki dari sisi kita, jadi warning-nya ditekan lewat NoWarn di atas.
+    -->
+    <PackageReference Include="FaceRecognitionDotNet" Version="1.3.0.7" />
   </ItemGroup>
 
   <ItemGroup>
@@ -60,6 +107,18 @@
 
   <ItemGroup>
     <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!--
+      Model dlib untuk FaceRecognitionDotNet. Sengaja memakai Update (bukan Include)
+      karena SDK sudah memasukkan file non-kode sebagai None secara default; Include
+      akan memicu error "duplicate items were included". File ini TIDAK di-commit
+      (lihat .gitignore) - glob yang tidak cocok apa pun hanyalah no-op, jadi build
+      tetap hijau sebelum tools\download-face-assets.ps1 dijalankan.
+      Tidak boleh diletakkan di Assets\: folder itu adalah glob AvaloniaResource dan
+      akan menanam ~126 MB ke dalam AvaloniaFingerprint.dll.
+    -->
+    <None Update="FaceModels\*.dat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
@@ -99,6 +158,29 @@
   <Target Name="ReportFingerprintSdk" BeforeTargets="CoreCompile">
     <Message Importance="high" Condition="'$(DpUruNetResolvedPath)' != ''" Text="[Fingerprint] SDK resolved: $(DpUruNetResolvedPath) (HAS_DPURUNET defined)" />
     <Warning Condition="'$(DpUruNetResolvedPath)' == ''" Text="[Fingerprint] DPUruNet.dll not found. Expected at '$(DpUruNetSdkPath)' or '$(DpUruNetRtePath)' or '$(DpUruNetLocalPath)'. The app will build without fingerprint capture." />
+  </Target>
+
+  <!--
+    Penjaga untuk Platform=AnyCPU. AnyCPU sudah dihapus dari <Platforms>, tapi masih bisa
+    dipaksa lewat command line (-p:Platform=AnyCPU) atau lewat konfigurasi solution lama.
+    Tanpa penjaga ini hasilnya MSB3030 "Could not copy the file ... win-AnyCPU ... not found"
+    yang tidak menjelaskan apa pun.
+
+    Dipasang sebagai InitialTargets (bukan BeforeTargets="Build") karena MSB3030 muncul dari
+    _CopyOutOfDateSourceItemsToOutputDirectory, yang ada di DALAM rantai DependsOnTargets milik
+    Build - jadi target BeforeTargets="Build" baru jalan sesudah error itu terjadi.
+
+    Kondisinya memeriksa ITEM yang rusak, bukan nama $(Platform). Alasannya: saat fase restore
+    NuGet menyetel ExcludeRestorePackageImports sehingga FaceRecognitionDotNet.props tidak
+    di-import, $(Platform) jatuh ke default SDK 'AnyCPU', dan item win-AnyCPU memang tidak ada.
+    Memeriksa $(Platform) == 'AnyCPU' akan salah tembak pada restore build biasa yang sehat;
+    memeriksa item-nya hanya menyala saat build benar-benar akan gagal.
+  -->
+  <Target Name="RejectAnyCpuPlatform">
+    <ItemGroup>
+      <_FaceBrokenAnyCpuNative Include="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').Contains('win-AnyCPU'))" />
+    </ItemGroup>
+    <Error Condition="'@(_FaceBrokenAnyCpuNative)' != ''" Text="[Face] Platform 'AnyCPU' tidak didukung. Native DlibDotNet/FaceRecognitionDotNet hanya tersedia untuk win-x64 dan win-x86, dan FaceRecognitionDotNet.props mencari runtimes\win-$(Platform)\native\ sehingga menghasilkan path win-AnyCPU yang tidak ada: @(_FaceBrokenAnyCpuNative->'%(Filename)%(Extension)', ', '). Build dengan '-p:Platform=x64' (atau x86), atau hilangkan parameter Platform agar default x64 dipakai." />
   </Target>
 
 </Project>

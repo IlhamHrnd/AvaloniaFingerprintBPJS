@@ -22,6 +22,10 @@ public sealed class AppServices : IDisposable
         Registrations = new RegistrationServices(Settings.Configuration, Session);
         Appointment = new AppointmentServices(Settings.Configuration, Session);
         Printout = new PrintoutServices(Settings.Configuration, Session);
+
+        // Dimuat malas: konstruktor ini TIDAK memuat model dlib (~126 MB file, ~500 MB
+        // native heap), jadi startup app tidak terpengaruh walaupun fitur wajah tak dipakai.
+        FaceRecognition = new FaceRecognitionService(Settings.Configuration, Session);
     }
 
     public AppSettings Settings { get; }
@@ -33,10 +37,18 @@ public sealed class AppServices : IDisposable
     public AppointmentServices Appointment { get; }
     public PrintoutServices Printout { get; }
 
+    /// <summary>
+    /// Diexpose lewat interface karena ini satu-satunya service di app yang punya kontrak
+    /// formal (tepat 128 nilai finite, tepat satu wajah) - pemanggil sebaiknya bergantung
+    /// pada kontrak itu, bukan pada implementasinya.
+    /// </summary>
+    public IFaceRecognitionService FaceRecognition { get; }
+
     public void Dispose()
     {
         Fingerprint.Dispose();
         Camera.Dispose();
+        FaceRecognition.Dispose();
         _current = null;
     }
 }

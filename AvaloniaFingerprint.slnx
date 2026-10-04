@@ -1,3 +1,33 @@
 <Solution>
-  <Project Path="AvaloniaFingerprint.csproj" />
+  <!--
+    Pemetaan konfigurasi solution -> project ditulis EKSPLISIT.
+
+    Latar belakang:
+    * AvaloniaFingerprint.csproj hanya mendeklarasikan <Platforms>x64;x86</Platforms>.
+      AnyCPU sengaja tidak didukung karena FaceRecognitionDotNet.props menyusun path
+      native runtimes\win-$(Platform)\native\, sementara package hanya memuat win-x64
+      dan win-x86. Build dengan Platform=AnyCPU berhenti di target RejectAnyCpuPlatform,
+      dan Visual Studio menampilkannya sebagai "The startup project cannot be launched".
+    * Visual Studio memakai "Any CPU" sebagai platform solution default, dan
+      `dotnet build *.slnx` tanpa -p:Platform juga meneruskan AnyCPU ke project.
+    * TERUKUR: blok <Configurations> saja TIDAK cukup, platform yang sampai ke project
+      tetap AnyCPU. Yang menentukan adalah elemen <Platform Solution=... Project=...>
+      di dalam <Project> di bawah ini.
+
+    Baris "*|Any CPU" -> x64 adalah jaring pengaman: bila VS masih memakai konfigurasi
+    aktif lama (Debug|Any CPU) dari .vs\*.suo, atau build dijalankan dari CLI tanpa
+    -p:Platform, project tetap dibangun sebagai x64 yang valid.
+
+    x64 ditulis pertama di <Configurations> agar menjadi default dropdown VS.
+  -->
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="AvaloniaFingerprint.csproj">
+    <Platform Solution="*|Any CPU" Project="x64" />
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|x86" Project="x86" />
+  </Project>
 </Solution>
+
