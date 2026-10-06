@@ -11,18 +11,27 @@ namespace AvaloniaFingerprint.Services
     /// <summary>
     /// Deteksi keberadaan kamera memakai mekanisme yang sama dengan
     /// <see cref="UsbDeviceWatcherServices"/>: WMI event (plug/unplug) sebagai jalur utama dan
-    /// poll timer sebagai cadangan. Pemilihan kamera murni berbasis
-    /// <see cref="BaseService.cameraKeywords"/>: device dianggap kamera bila namanya mengandung
-    /// salah satu keyword. Tahap ini hanya memeriksa apakah device kamera tersedia;
+    /// poll timer sebagai cadangan. Pemilihan kamera memakai dua sinyal yang juga dipakai
+    /// watcher USB: pencocokan <see cref="BaseService.cameraKeywords"/> sebagai prioritas, lalu
+    /// kelas PnP <c>Camera</c> sebagai fallback untuk kamera internal laptop yang namanya tidak
+    /// mengandung keyword apa pun. Tahap ini hanya memeriksa apakah device kamera tersedia;
     /// membuka stream, capture foto, dan pemrosesan wajah belum termasuk.
     /// </summary>
     public class CameraDeviceWatcherServices(IConfiguration config, SessionService session) : BaseService(config, session), IDisposable
     {
         /// <summary>
+        /// Kelas PnP yang dipakai Windows untuk semua kamera nyata. Sinyal ini setara dengan
+        /// <c>PNPClass = 'Biometric'</c> milik <see cref="UsbDeviceWatcherServices"/>.
+        /// Kelas <c>Image</c> sengaja tidak dipakai: itu scanner/printer.
+        /// </summary>
+        private const string CameraPnpClass = "Camera";
+
+        /// <summary>
         /// Kueri kandidat kamera: device yang namanya mengandung salah satu
-        /// <see cref="BaseService.cameraKeywords"/>. Menambah keyword otomatis memperluas
-        /// pencarian tanpa mengubah kode lain — mis. "Windows Virtual Camera" untuk kamera HP
-        /// yang diteruskan Link to Windows / Phone Link.
+        /// <see cref="BaseService.cameraKeywords"/>, ATAU device yang Windows kelompokkan ke
+        /// kelas PnP <c>Camera</c>. Menambah keyword otomatis memperluas pencarian tanpa
+        /// mengubah kode lain — mis. "Windows Virtual Camera" untuk kamera HP yang diteruskan
+        /// Link to Windows / Phone Link.
         /// </summary>
         private string DeviceQuery
         {
@@ -33,12 +42,18 @@ namespace AvaloniaFingerprint.Services
                     .Select(k => $"Name LIKE '%{k.Replace("'", "''")}%'")
                     .ToList();
 
-                // Tanpa keyword tidak ada yang bisa dicocokkan; kembalikan hasil kosong
-                // supaya kueri tetap valid.
-                if (nameClauses.Count == 0)
-                    return "SELECT Name, DeviceID, Status FROM Win32_PnPEntity WHERE 1 = 0";
+                // Kamera internal laptop sering memakai nama OEM di luar daftar keyword — mis.
+                // "HD User Facing" (Quanta, VID_0408) yang umum di HP/ASUS/Acer/Lenovo. Devicenya
+                // nyata dan bisa dibuka OpenCV, jadi kelas PnP dipakai sebagai jaring pengaman.
+                // Tanpa klausa ini mesin seperti itu melaporkan "kamera tidak ditemukan" dan
+                // VideoCapture bahkan tidak pernah dicoba.
+                // Sinyal ini sama dengan "PNPClass = 'Biometric'" milik UsbDeviceWatcherServices.
+                // Kelas 'Image' sengaja tidak ikut: itu scanner/printer (mis. EPSON L5290 Series).
+                nameClauses.Add($"PNPClass = '{CameraPnpClass}'");
 
-                return "SELECT Name, DeviceID, Status FROM Win32_PnPEntity WHERE " +
+                // Daftar klausa tidak pernah kosong karena PNPClass selalu ditambahkan, sehingga
+                // WHERE di bawah selalu valid.
+                return "SELECT Name, DeviceID, Status, PNPClass FROM Win32_PnPEntity WHERE " +
                     string.Join(" OR ", nameClauses);
             }
         }
@@ -54,8 +69,10 @@ namespace AvaloniaFingerprint.Services
         public string? DeviceId { get; private set; }
 
         /// <summary>
-        /// Nama semua kamera yang cocok keyword pada scan terakhir. Dipakai UI untuk menampilkan
-        /// daftar kamera sehingga pengguna/developer bisa melihat device apa saja yang terdeteksi.
+        /// Nama semua kamera yang dikenali pada scan terakhir — yang cocok
+        /// <see cref="BaseService.cameraKeywords"/> maupun yang terjaring kelas PnP
+        /// <c>Camera</c>. Dipakai UI untuk menampilkan daftar kamera sehingga
+        /// pengguna/developer bisa melihat device apa saja yang terdeteksi.
         /// </summary>
         public IReadOnlyList<string> AvailableCameras { get; private set; } = Array.Empty<string>();
 
@@ -149,14 +166,15 @@ namespace AvaloniaFingerprint.Services
                 using var searcher = new ManagementObjectSearcher(new ObjectQuery(DeviceQuery));
                 using var collection = searcher.Get();
 
-                var candidates = new List<(string name, string id, string status)>();
+                var candidates = new List<(string name, string id, string status, string pnpClass)>();
                 foreach (var o in collection)
                 {
                     using var mo = (ManagementObject)o;
                     var name = mo["Name"] as string ?? string.Empty;
                     var id = mo["DeviceID"] as string ?? string.Empty;
                     var status = mo["Status"] as string ?? string.Empty;
-                    candidates.Add((name, id, status));
+                    var pnpClass = mo["PNPClass"] as string ?? string.Empty;
+                    candidates.Add((name, id, status, pnpClass));
                 }
 
                 return Select(candidates);
@@ -175,11 +193,18 @@ namespace AvaloniaFingerprint.Services
             string.IsNullOrEmpty(status) || status.Equals("OK", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Memilih kamera pertama yang namanya cocok dengan keyword, diuji berurutan sesuai urutan
-        /// <see cref="BaseService.cameraKeywords"/> (urutan array = prioritas). Bila tidak ada
-        /// keyword yang cocok, kamera dianggap tidak ditemukan.
+        /// Memilih kamera dalam dua tahap:
+        /// 1. <b>Prioritas keyword</b> — nama device diuji berurutan sesuai urutan
+        ///    <see cref="BaseService.cameraKeywords"/> (urutan array = prioritas). Tahap ini tidak
+        ///    berubah, jadi kamera bernama jelas ("Integrated Camera") maupun kamera HP lewat
+        ///    "Windows Virtual Camera" tetap terpilih seperti sebelumnya.
+        /// 2. <b>Fallback kelas PnP</b> — bila tidak ada keyword yang cocok, dipakai device yang
+        ///    Windows kelompokkan sebagai kelas <c>Camera</c>. Kamera internal laptop sering
+        ///    bernama OEM di luar daftar keyword (mis. "HD User Facing") padahal devicenya nyata
+        ///    dan bisa dibuka <see cref="CameraPreviewServices"/>.
+        /// Bila keduanya kosong, kamera dianggap tidak ditemukan.
         /// </summary>
-        private ProbeResult Select(List<(string name, string id, string status)> candidates)
+        private ProbeResult Select(List<(string name, string id, string status, string pnpClass)> candidates)
         {
             var present = candidates
                 .Where(c => !string.IsNullOrWhiteSpace(c.name) && IsPresent(c.status))
@@ -202,6 +227,15 @@ namespace AvaloniaFingerprint.Services
                 if (match.name is not null)
                     return new ProbeResult(true, match.name, match.id, available);
             }
+
+            // Fallback: device yang Windows kelompokkan sebagai kelas PnP 'Camera'. Sengaja
+            // ditaruh SETELAH loop keyword supaya prioritas cameraKeywords tetap menentukan
+            // bila ada nama yang cocok.
+            var byClass = present.FirstOrDefault(c =>
+                c.pnpClass.Equals(CameraPnpClass, StringComparison.OrdinalIgnoreCase));
+
+            if (byClass.name is not null)
+                return new ProbeResult(true, byClass.name, byClass.id, available);
 
             return new ProbeResult(false, null, null, available);
         }

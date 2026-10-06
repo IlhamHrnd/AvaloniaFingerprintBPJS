@@ -27,22 +27,44 @@ project WinForms `KonfirmasiPendaftaranOnline`:
   Status tampil di header dan tombol scan/verifikasi otomatis nonaktif saat terputus.
 * **Deteksi kamera.** `CameraDeviceWatcher` memakai mekanisme yang sama dengan watcher USB:
   event WMI `Win32_DeviceChangeEvent` + pemindaian ulang berkala, dengan tipe event yang sama
-  (`DeviceStatusEventArgs`). Kamera dipilih **murni lewat pencocokan `cameraKeywords`**:
-  device dianggap kamera hanya bila namanya mengandung salah satu keyword, yaitu
-  `Webcam` → `Facecam` → `Integrated Camera` → `USB Video Device` → `UVC` →
-  `Windows Virtual Camera` (urutan array = prioritas). Pencocokan tidak case-sensitive dan
-  substring, sehingga `Integrated Camera`, `Integrated Camera HD`, dan `Integrated CAMERA`
-  sama-sama cocok.
+  (`DeviceStatusEventArgs`). Kamera dipilih lewat **dua sinyal**, sama seperti watcher USB
+  yang memakai `PNPClass = 'Biometric'`:
+
+  **1) Pencocokan `cameraKeywords` — prioritas.** Device dianggap kamera bila namanya
+  mengandung salah satu keyword dari array `cameraKeywords` di `Services/BaseService.cs`
+  (urutan array = prioritas): `Webcam`, `Facecam`, `Integrated Camera`, `USB Video Device`,
+  `UVC`, `Windows Virtual Camera`, lalu kelompok nama kamera bawaan laptop — `Integrated
+  Webcam`, `Built-in Camera`, `Built-in Webcam`, `HD Camera`, `HD Webcam`, `FHD Camera`,
+  `FHD Webcam`, `IR Camera`, `IR Webcam`, `Laptop Camera`, `Laptop Webcam`. Pencocokan tidak
+  case-sensitive dan substring, sehingga `Integrated Camera`, `Integrated Camera HD`, dan
+  `Integrated CAMERA` sama-sama cocok.
+
+  **2) Fallback kelas PnP `Camera`.** Bila tidak ada keyword yang cocok, dipakai device yang
+  Windows kelompokkan ke kelas `Camera` (`Win32_PnPEntity.PNPClass`). Kamera internal laptop
+  sering memakai nama OEM yang tidak mengandung keyword apa pun — mis. `HD User Facing`
+  (Quanta, `VID_0408`) di HP/ASUS/Acer/Lenovo — padahal devicenya nyata dan bisa dibuka
+  OpenCV. Tanpa fallback ini mesin seperti itu melaporkan "kamera tidak ditemukan" dan
+  `VideoCapture` bahkan tidak pernah dicoba. Kelas `Image` sengaja tidak ikut karena itu
+  scanner/printer (mis. `EPSON L5290 Series`).
+
+  Fallback dijalankan **setelah** loop keyword, jadi prioritas `cameraKeywords` tetap
+  menentukan bila ada nama yang cocok — perilaku kamera bernama jelas maupun kamera HP tidak
+  berubah. Menambah/mengubah daftar keyword dilakukan dengan mengedit array `cameraKeywords`
+  di `Services/BaseService.cs`; array ini belum terikat ke `appsettings.json`. Perlu dicatat
+  nama seperti `HD User Facing` tidak cocok dengan satu pun keyword di atas, jadi fallback
+  kelas PnP-lah yang menemukannya.
 
   Keyword terakhir, `Windows Virtual Camera`, adalah jalur untuk kamera HP yang diekspos Windows
   lewat **Link to Windows / Phone Link**: Windows menampilkannya sebagai *software device*
   bernama `Windows Virtual Camera Device`. Karena pencocokan bersifat substring, keyword tersebut
-  mengenai device itu tanpa kode khusus. Menambah/mengubah kamera cukup dengan mengedit daftar
-  keyword — itulah satu-satunya titik ekstensi deteksi kamera.
+  mengenai device itu tanpa kode khusus.
 
-  **Tidak ada fallback.** Bila tidak ada keyword yang cocok, kamera dianggap tidak ditemukan
-  meskipun Windows mengenali device tersebut, dan halaman Verifikasi Wajah menampilkan
-  "Kamera tidak ditemukan". Device dengan status error/tidak hadir juga tidak dipakai.
+  Bila **kedua** sinyal kosong, kamera dianggap tidak ditemukan dan halaman Verifikasi Wajah
+  menampilkan "Kamera internal laptop tidak ditemukan. Pastikan kamera tersedia dan tidak
+  sedang digunakan oleh aplikasi lain." Device dengan status error/tidak hadir juga tidak
+  dipakai. Bila device terdeteksi tetapi stream-nya gagal dibuka, pesannya dibedakan menjadi
+  "Kamera terdeteksi tetapi tidak dapat digunakan" — penyebab tersering adalah kamera sedang
+  dipakai aplikasi lain (Windows Camera, Teams, Zoom).
 
   Detail status berasal dari satu fungsi `CameraServices.ResolveDetail()`: saat streaming,
   **nama device selalu ditampilkan** (beserta index OpenCV yang dipakai) supaya bisa dipastikan

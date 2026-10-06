@@ -40,8 +40,20 @@ namespace AvaloniaFingerprint.Services
         /// <summary>Device ada, tetapi stream tidak bisa dibuka.</summary>
         public const string OpenFailedStatus = "Kamera gagal dibuka";
 
-        /// <summary>Detail saat device terdeteksi namun gagal dibuka.</summary>
-        public const string DetailOpenFailed = "Kamera terdeteksi tetapi gagal dibuka";
+        /// <summary>
+        /// Detail saat device terdeteksi namun stream-nya tidak bisa dibuka. Penyebab tersering:
+        /// kamera sedang dipakai aplikasi lain (Windows Camera, Teams, Zoom).
+        /// </summary>
+        public const string DetailOpenFailed =
+            "Kamera terdeteksi tetapi tidak dapat digunakan. " +
+            "Pastikan kamera tidak sedang digunakan oleh aplikasi lain.";
+
+        /// <summary>
+        /// Detail saat tidak ada satu pun device kamera yang dikenali Windows.
+        /// </summary>
+        public const string DetailDeviceNotFound =
+            "Kamera internal laptop tidak ditemukan. " +
+            "Pastikan kamera tersedia dan tidak sedang digunakan oleh aplikasi lain.";
 
         /// <summary>Detail saat stream yang sedang berjalan terputus.</summary>
         public const string LostDetail = "Kamera terputus saat menampilkan gambar";
@@ -81,9 +93,10 @@ namespace AvaloniaFingerprint.Services
             });
 
         /// <summary>
-        /// Nama semua kamera yang terdeteksi (cocok salah satu <c>cameraKeywords</c>) pada scan
-        /// terakhir. Dipakai halaman Verifikasi Wajah untuk menampilkan daftar kamera sehingga
-        /// pengguna/developer bisa memastikan device mana yang dikenali Windows.
+        /// Nama semua kamera yang terdeteksi (cocok <c>cameraKeywords</c> atau kelas PnP
+        /// <c>Camera</c>) pada scan terakhir. Dipakai halaman Verifikasi Wajah untuk menampilkan
+        /// daftar kamera sehingga pengguna/developer bisa memastikan device mana yang dikenali
+        /// Windows.
         /// </summary>
         public IReadOnlyList<string> AvailableCameras => watcher.AvailableCameras;
 
@@ -117,7 +130,7 @@ namespace AvaloniaFingerprint.Services
 
                 default:
                     if (!IsDeviceConnected)
-                        return DisconnectedDetail;
+                        return DetailDeviceNotFound;
 
                     return string.IsNullOrWhiteSpace(DeviceName) ? ConnectedDetail : DeviceName!;
             }
@@ -159,7 +172,8 @@ namespace AvaloniaFingerprint.Services
 
         /// <summary>
         /// Scan ulang dan buka kamera memakai mekanisme deteksi yang sama dengan
-        /// <see cref="RefreshDeviceAsync"/> (pencocokan <c>cameraKeywords</c>), kemudian laporkan
+        /// <see cref="RefreshDeviceAsync"/> (pencocokan <c>cameraKeywords</c> + fallback kelas
+        /// PnP <c>Camera</c>), kemudian laporkan
         /// hasilnya. Dipakai tombol "Hubungkan Kamera" — tidak membuat deteksi kedua.
         ///
         /// Urutannya selalu stop → lepas device → buka ulang → start, sehingga menekan tombol

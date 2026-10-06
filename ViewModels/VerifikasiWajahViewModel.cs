@@ -413,7 +413,8 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
 
     /// <summary>
     /// Mencari dan memilih kamera aktif memakai mekanisme deteksi yang sudah ada
-    /// (<see cref="CameraServices.ReconnectAsync"/>): pencocokan <c>cameraKeywords</c>.
+    /// (<see cref="CameraServices.ReconnectAsync"/>): pencocokan <c>cameraKeywords</c> dengan
+    /// fallback kelas PnP <c>Camera</c>.
     /// Tidak membuat mekanisme deteksi kedua. Aman dipakai ulang untuk reconnect
     /// tanpa restart aplikasi.
     /// </summary>
@@ -431,22 +432,11 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
             OnCameraStatusChanged(result.Connected, _services.Camera.ResolveStatus(), result.Detail);
 
             if (result.Connected)
-            {
                 SetStatus($"Kamera berhasil terhubung: {result.Detail}", false);
-            }
             else if (_services.Camera.IsDeviceConnected)
-            {
-                // Device dikenali Windows tetapi stream tidak bisa dibuka. Pesannya dibedakan
-                // supaya pengguna tidak disuruh mengecek koneksi HP padahal masalahnya lain.
-                SetStatus(
-                    $"Kamera terdeteksi tetapi gagal dibuka: {result.Detail}. " +
-                    "Pastikan kamera tidak sedang dipakai aplikasi lain (mis. kamera sedang dibuka di HP).",
-                    true);
-            }
+                SetStatus(CameraServices.DetailOpenFailed, true);
             else
-            {
-                SetStatus("Kamera tidak ditemukan. Pastikan kamera HP sudah terhubung ke Windows melalui Link to Windows.", true);
-            }
+                SetStatus(CameraServices.DetailDeviceNotFound, true);
         }
         finally
         {
