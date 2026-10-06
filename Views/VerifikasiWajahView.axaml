@@ -11,8 +11,26 @@
 
     <!-- ============ kiri: live camera ============ -->
     <Border Grid.Column="0" Classes="card" VerticalAlignment="Top" Margin="0,0,16,0">
-      <StackPanel Spacing="14">
+      <!-- ScrollViewer wajib ada di sini: tinggi card dibatasi window (terukur 459 px, StackPanel
+           425 px) sedangkan isinya bisa jauh lebih tinggi — terutama karena StatusMessage dan
+           CameraDeviceList memakai TextWrapping sehingga tingginya tidak terbatas. Tanpa ini,
+           tombol "Verifikasi Wajah" dan pesan error NIK terdorong keluar card dan tak terlihat. -->
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="10">
         <TextBlock Classes="h2" Text="Verifikasi Wajah" />
+
+        <!-- NIK peserta: input utama sebelum verifikasi wajah, divalidasi di awal
+             VerifyFaceAsync. Pola label+TextBox mengikuti halaman Verifikasi Fingerprint
+             (label SemiBold 12; TextBox Height 36 FontSize 15 — sama dengan TextBox di
+             DaftarFingerprintView, sengaja compact agar area kamera tidak perlu mengecil).
+             PlaceholderText dipakai karena Watermark sudah obsolete (memicu AVLN5001). -->
+        <StackPanel Spacing="4">
+          <TextBlock Text="NIK" FontWeight="SemiBold" FontSize="12" />
+          <TextBox Text="{Binding Nik}"
+                   MaxLength="16"
+                   PlaceholderText="Masukkan NIK"
+                   Height="36" FontSize="15" />
+        </StackPanel>
 
         <!-- Area gambar. Isinya mengikuti sumber yang dipilih: frame live kamera atau foto yang
              diupload. Bingkai frame digambar oleh CameraServices (OpenCV) dan dikirim sebagai frame
@@ -75,6 +93,7 @@
                      Foreground="{Binding !StatusIsError, Converter={StaticResource StatusBrush}}" />
         </Border>
       </StackPanel>
+      </ScrollViewer>
     </Border>
 
     <!-- ============ kanan: hasil verifikasi ============ -->

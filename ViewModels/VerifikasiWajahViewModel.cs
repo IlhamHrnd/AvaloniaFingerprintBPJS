@@ -54,6 +54,41 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isLoggedIn;
 
+    // ---- input peserta -------------------------------------------------------
+
+    /// <summary>
+    /// NIK peserta yang wajahnya akan diverifikasi. Diisi operator sebelum menekan "Verifikasi
+    /// Wajah" dan divalidasi di awal <see cref="VerifyFaceAsync"/>. Untuk tahap ini hanya disimpan
+    /// sebagai state: belum diteruskan ke endpoint mana pun, menyusul bersama
+    /// <see cref="FaceEncoding"/> saat pengiriman ke API Frista dikerjakan.
+    /// </summary>
+    /// <remarks>
+    /// Sengaja tanpa <c>[NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]</c>: tombol harus
+    /// tetap bisa ditekan saat NIK kosong supaya pesan validasinya benar-benar tampil, bukan tombol
+    /// yang mati tanpa penjelasan.
+    /// </remarks>
+    [ObservableProperty]
+    private string _nik = string.Empty;
+
+    /// <summary>
+    /// Panjang NIK yang diterima — 16 digit, sama dengan keterangan "NIK 16 digit" di halaman
+    /// Verifikasi Fingerprint.
+    /// </summary>
+    private const int NikLength = 16;
+
+    /// <summary>
+    /// Menyaring masukan NIK: hanya angka ASCII dan maksimal <see cref="NikLength"/> karakter,
+    /// sehingga hasil tempel yang mengandung huruf atau spasi langsung bersih.
+    /// Idempoten — bila hasilnya sama dengan nilai yang masuk tidak ada penugasan ulang, jadi
+    /// mengetik angka secara normal tidak menggeser posisi kursor.
+    /// </summary>
+    partial void OnNikChanged(string value)
+    {
+        var cleaned = new string(value.Where(char.IsAsciiDigit).Take(NikLength).ToArray());
+        if (cleaned != value)
+            Nik = cleaned;
+    }
+
     [ObservableProperty]
     private string _cameraTitle = "Live Camera View";
 
@@ -223,6 +258,9 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
 
             // Encoding wajah peserta sebelumnya tidak boleh tertinggal untuk pengguna berikutnya.
             FaceEncoding = null;
+
+            // NIK peserta sebelumnya juga dibuang, supaya tidak ikut terverifikasi untuk pasien lain.
+            Nik = string.Empty;
 
             SetStatus(string.Empty, false);
         }
@@ -565,6 +603,29 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanVerifyFace))]
     private async Task VerifyFaceAsync()
     {
+        // Validasi NIK lebih dulu, sebelum gambar disalin atau model dlib disentuh: permintaan yang
+        // pasti ditolak tidak boleh menanggung biaya apa pun, dan CapturedPhoto/FaceEncoding tidak
+        // boleh berubah oleh verifikasi yang batal berjalan.
+        var nik = Nik.Trim();
+
+        if (nik.Length == 0)
+        {
+            SetStatus("NIK masih kosong. Silakan masukkan NIK terlebih dahulu.", true);
+            return;
+        }
+
+        if (!nik.All(char.IsAsciiDigit))
+        {
+            SetStatus("NIK hanya boleh berisi angka.", true);
+            return;
+        }
+
+        if (nik.Length != NikLength)
+        {
+            SetStatus($"NIK harus {NikLength} digit. Jumlah digit saat ini: {nik.Length}.", true);
+            return;
+        }
+
         var snapshot = CaptureCurrentImage();
 
         // Foto belum tersedia: tidak ada yang bisa dienkode.
