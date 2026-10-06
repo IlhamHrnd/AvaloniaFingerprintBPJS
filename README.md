@@ -119,18 +119,21 @@ project WinForms `KonfirmasiPendaftaranOnline`:
   * **Foto terpisah dari stream.** Foto upload tetap tampil walaupun kamera terputus, karena
     sumber gambar disimpan terpisah dari status stream. Sebaliknya, hasil verifikasi juga tidak
     hilang saat sumber gambar ditukar.
-  * **"Verifikasi Wajah" menangkap gambar saat tombol ditekan.** Untuk sumber live yang disalin
-    adalah frame **terakhir yang diterima dari kamera**, bukan bitmap yang sedang tampil: frame
-    yang datang saat UI thread masih sibuk sengaja dibuang, sehingga bitmap yang tampil bisa
-    tertinggal beberapa frame. Untuk sumber foto, yang dipakai adalah foto itu sendiri dan kamera
-    tidak disentuh. Hasilnya tampil di kotak **Hasil Verifikasi** (`Stretch="Uniform"`, jadi rasio
-    foto tidak diubah). Tombol `Hapus Foto` membuang foto dan hasil verifikasi lalu kembali ke live.
+  * **"Verifikasi Wajah" menangkap gambar lalu mengenkode wajah saat tombol ditekan.** Untuk sumber
+    live yang disalin adalah frame **terakhir yang diterima dari kamera**, bukan bitmap yang sedang
+    tampil: frame yang datang saat UI thread masih sibuk sengaja dibuang, sehingga bitmap yang tampil
+    bisa tertinggal beberapa frame. Untuk sumber foto, yang dipakai adalah foto itu sendiri dan
+    kamera tidak disentuh. Gambar yang disalin tampil di kotak **Hasil Verifikasi**
+    (`Stretch="Uniform"`, jadi rasio foto tidak diubah) **dan** salinan yang sama persis dikirim ke
+    `FaceRecognitionService`, sehingga yang dilihat pengguna adalah yang benar-benar diproses.
+    Tombol `Hapus Foto` membuang foto, hasil verifikasi, dan encoding lalu kembali ke live.
   * **Satu foto per waktu, dibatasi GC.** Bitmap foto lama tidak di-`Dispose` saat diganti (alasan
     sama dengan bitmap live: renderer Avalonia bisa masih memakainya), dan jumlahnya paling banyak
     satu per upload sehingga dampak memorinya terbatas.
-  * Pengenalan wajah untuk foto ini sudah tersedia sebagai service berdiri sendiri
-    (`FaceRecognitionService`, lihat bagian [Pengenalan wajah](#pengenalan-wajah-encoding-128-nilai)),
-    tetapi **belum disambungkan** ke tombol Verifikasi Wajah maupun ke API Frista.
+  * Tombol **Verifikasi Wajah** memproses gambar yang sedang aktif menjadi face encoding 128 nilai
+    lewat `FaceRecognitionService` (lihat bagian
+    [Pengenalan wajah](#pengenalan-wajah-encoding-128-nilai)). Encoding disimpan di ViewModel dan
+    **belum dikirim** ke API Frista.
 
 ## Konfigurasi
 
@@ -167,11 +170,19 @@ mengembalikan `List<double>` berisi **tepat 128 nilai** (vektor embedding wajah 
 Dibangun di atas [`FaceRecognitionDotNet`](https://www.nuget.org/packages/FaceRecognitionDotNet)
 (pembungkus dlib), dengan OpenCvSharp yang sudah ada di project untuk konversi pixel.
 
-> **Belum terintegrasi.** Alur verifikasi wajah yang ada (`VerifikasiWajahViewModel.VerifyFace()`)
-> dan `FingerprintServices` tidak diubah, tidak ada UI yang
-> memanggil service ini, dan tidak ada pengiriman ke Frista. Service hanya terdaftar di
-> `AppServices.FaceRecognition` dan siap dipakai. Perbandingan 1:1 juga di luar cakupan;
-> yang disediakan baru pembuatan vektor (plus helper `EuclideanDistance` untuk pengujian).
+> **Sudah tersambung ke UI, belum ke API.** `VerifikasiWajahViewModel.VerifyFaceAsync()` (tombol
+> *Verifikasi Wajah*) memanggil service ini pada gambar yang sedang aktif — foto upload lewat
+> `GetFaceEncodingAsync(byte[])`, frame kamera lewat `GetFaceEncodingAsync(pixel, w, h, stride)` —
+> lalu menyimpan hasilnya di properti `FaceEncoding`. **Tidak ada** pengiriman ke Frista, dan
+> `FingerprintServices` serta filter `Fingerprint/Verify` tidak diubah. Perbandingan 1:1 juga di
+> luar cakupan; yang disediakan baru pembuatan vektor (plus helper `EuclideanDistance` untuk
+> pengujian).
+>
+> Pemanggilan pertama menanggung muat model (~126 MB, ±1,5 detik). Setelah itu satu encoding pada
+> frame kamera 640×480 terukur **±5 detik** di mesin pengembangan, karena detektor CNN dlib berjalan
+> di CPU. UI tidak membeku selama proses — service melepas kerja native ke thread pool — tetapi umpan
+> baliknya hanya teks status, dan tombol *Verifikasi Wajah* nonaktif lewat `CanExecute` sampai proses
+> selesai.
 
 ### Kontrak
 

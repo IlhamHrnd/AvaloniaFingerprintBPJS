@@ -5,6 +5,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using AvaloniaFingerprint.Exceptions;
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -20,45 +21,30 @@ namespace AvaloniaFingerprint.ViewModels;
 /// <summary>
 /// Halaman Verifikasi Wajah. Menampilkan gambar yang akan diverifikasi, yang bisa berasal dari live
 /// view kamera (<see cref="CameraServices"/>) atau dari foto yang diupload pengguna, dan menyiapkan
-/// tempat untuk hasil verifikasi. Face detection/recognition, encoding, dan panggilan API belum
-/// termasuk pada tahap ini.
+/// tempat untuk hasil verifikasi. Tombol "Verifikasi Wajah" memproses gambar yang sedang aktif
+/// menjadi face encoding 128 nilai lewat <see cref="IFaceRecognitionService"/>; deteksi wajah dan
+/// encoding sudah termasuk, sedangkan pengiriman ke API Frista belum.
 /// </summary>
 public sealed partial class VerifikasiWajahViewModel : ViewModelBase
 {
-    // Disimpan untuk tahap berikutnya (face recognition / Frista API).
+    // Dipakai untuk kamera, sesi, dan pengenalan wajah (FaceRecognition); pengiriman ke API Frista
+    // belum termasuk tahap ini.
     private readonly AppServices _services;
-
-    // ---- double buffering frame kamera --------------------------------------
-    // Avalonia hanya me-render ulang sebuah Image saat referensi Source berubah; menulis ke
-    // WriteableBitmap yang sama berulang kali tidak memicu repaint. Karena itu dua bitmap
-    // dipakai bergantian setiap frame.
     private WriteableBitmap? _frameA;
     private WriteableBitmap? _frameB;
     private bool _useSecondBuffer;
-
-    // Salinan frame dari thread capture. Dilindungi _frameLock karena ditulis di thread capture
-    // dan dibaca di UI thread.
     private readonly object _frameLock = new();
     private byte[] _staging = Array.Empty<byte>();
     private int _stagingWidth;
     private int _stagingHeight;
     private int _stagingStride;
-
-    // 0/1: penanda UI thread sedang menggambar frame. Frame berikutnya yang datang saat masih
-    // 1 akan dibuang supaya tidak ada penumpukan pekerjaan di UI thread.
     private int _renderPending;
 
     public VerifikasiWajahViewModel(AppServices services)
     {
         _services = services;
         IsLoggedIn = _services.Session.IsLoggedIn;
-
-        // Frame datang dari thread capture kamera. Handler menyalin datanya lebih dulu, lalu
-        // menggambar di UI thread — objek UI tidak pernah disentuh dari thread lain.
         _services.Camera.FrameReady += OnFrameReady;
-
-        // Kamera yang sudah streaming saat halaman dibuat langsung ditampilkan, memakai sumber
-        // status yang sama dengan Header (CameraServices).
         OnCameraStatusChanged(
             _services.Camera.IsConnected,
             _services.Camera.ResolveStatus(),
@@ -68,17 +54,12 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isLoggedIn;
 
-    /// <summary>
-    /// Placeholder area kamera. Nantinya container ini diganti menjadi actual
-    /// camera preview, sehingga title/status disiapkan sebagai binding.
-    /// </summary>
     [ObservableProperty]
     private string _cameraTitle = "Live Camera View";
 
     [ObservableProperty]
     private string _cameraStatus = "Kamera belum diaktifkan";
 
-    /// <summary>Bitmap yang sedang ditampilkan di area kamera (berganti isi setiap frame).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PreviewImage))]
     private IImage? _cameraFrame;
@@ -101,6 +82,15 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(ConnectCameraCommand))]
     private bool _isConnecting;
 
+    /// <summary>
+    /// True selama encoding wajah berjalan. Menonaktifkan tombol "Verifikasi Wajah" supaya klik
+    /// berulang tidak menumpuk pekerjaan native dlib — pola yang sama dengan
+    /// <see cref="IsConnecting"/> pada tombol "Hubungkan Kamera".
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
+    private bool _isVerifyingFace;
+
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
@@ -121,18 +111,6 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     [ObservableProperty]
     private bool _hasCameraDeviceList;
 
-    // ---- sumber gambar: live camera atau foto upload ------------------------
-    // Dua hal yang berbeda dan sengaja tidak disatukan:
-    //   * IsShowingUploadedPhoto -> apa yang mengisi area kamera besar
-    //   * CapturedPhoto          -> apa yang mengisi kotak "Hasil Verifikasi"
-    // Dengan pemisahan ini, foto upload tetap tampil walaupun kamera terputus, dan hasil
-    // verifikasi tidak ikut hilang saat sumber gambar ditukar.
-
-    /// <summary>
-    /// Foto yang dipilih pengguna lewat tombol "Upload Foto". Bitmap lama sengaja tidak di-Dispose
-    /// saat diganti, dengan alasan yang sama seperti <see cref="EnsureFrameBuffers"/>: renderer
-    /// Avalonia bisa masih memakai bitmap yang baru saja dilepas dari Image.
-    /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PreviewImage))]
     [NotifyPropertyChangedFor(nameof(IsPreviewVisible))]
@@ -140,6 +118,15 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasAnyPhoto))]
     [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
     private IImage? _uploadedPhoto;
+
+    /// <summary>
+    /// Byte asli file upload, disimpan bersama <see cref="UploadedPhoto"/> supaya encoding memakai
+    /// byte yang persis dipilih pengguna. Jalur ini yang diharapkan
+    /// <see cref="IFaceRecognitionService.GetFaceEncodingAsync(byte[], CancellationToken)"/>:
+    /// format file tidak perlu diketahui pemanggil dan tidak ada konversi pixel manual.
+    /// Selalu disetel/dikosongkan bersamaan dengan <see cref="UploadedPhoto"/>.
+    /// </summary>
+    private byte[]? _uploadedPhotoBytes;
 
     /// <summary>
     /// True bila area kamera besar sedang menampilkan foto upload, bukan live camera. Dipakai
@@ -210,6 +197,14 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     [ObservableProperty]
     private string _resultKeterangan = "-";
 
+    /// <summary>
+    /// Vektor embedding wajah 128 nilai hasil <see cref="IFaceRecognitionService"/>, disimpan untuk
+    /// tahap berikutnya (API Frista). <see langword="null"/> berarti belum ada encoding yang valid;
+    /// setiap jalur gagal mengosongkannya supaya nilai basi tidak terpakai. Sengaja bukan
+    /// <c>[ObservableProperty]</c> karena belum ada UI yang mengikatnya.
+    /// </summary>
+    private List<double>? FaceEncoding { get; set; }
+
     public void OnSessionChanged(bool loggedIn)
     {
         IsLoggedIn = loggedIn;
@@ -223,7 +218,11 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
             // di layar untuk pengguna berikutnya.
             CapturedPhoto = null;
             UploadedPhoto = null;
+            _uploadedPhotoBytes = null;
             IsShowingUploadedPhoto = false;
+
+            // Encoding wajah peserta sebelumnya tidak boleh tertinggal untuk pengguna berikutnya.
+            FaceEncoding = null;
 
             SetStatus(string.Empty, false);
         }
@@ -496,16 +495,27 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
 
         try
         {
-            // Bitmap dilepas dari stream, jadi file tidak terkunci setelah dibaca.
+            // File dibaca sekali ke memori lalu Bitmap dibuat dari stream terpisah, jadi file
+            // tidak terkunci setelah dibaca dan byte aslinya tetap tersedia untuk encoding.
             using var stream = await file.OpenReadAsync();
+            using var buffer = new System.IO.MemoryStream();
+            await stream.CopyToAsync(buffer);
+            var bytes = buffer.ToArray();
 
-            UploadedPhoto = new Bitmap(stream);
+            UploadedPhoto = new Bitmap(new System.IO.MemoryStream(bytes));
+            _uploadedPhotoBytes = bytes;
             IsShowingUploadedPhoto = true;
 
             SetStatus($"Foto berhasil dipilih: {file.Name}", false);
         }
         catch (Exception ex)
         {
+            // Gagal baca: jangan tinggalkan pasangan UploadedPhoto/_uploadedPhotoBytes yang
+            // tidak konsisten, supaya verifikasi tidak memakai foto lama dengan byte baru.
+            UploadedPhoto = null;
+            _uploadedPhotoBytes = null;
+            IsShowingUploadedPhoto = false;
+
             SetStatus($"Gagal membaca file foto: {ex.Message}", true);
         }
     }
@@ -535,45 +545,148 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     {
         CapturedPhoto = null;
         UploadedPhoto = null;
+        _uploadedPhotoBytes = null;
         IsShowingUploadedPhoto = false;
+
+        // Encoding dari foto yang baru dibuang tidak boleh tetap dianggap valid.
+        FaceEncoding = null;
 
         SetStatus("Foto dan hasil verifikasi dihapus.", false);
     }
 
     /// <summary>
-    /// Mengambil gambar yang sedang jadi sumber verifikasi dan menampilkannya di kotak "Hasil
-    /// Verifikasi". Pengenalan wajah, encoding, dan panggilan API belum termasuk tahap ini.
+    /// Memproses foto yang sedang aktif (live camera atau upload) menjadi face encoding 128 nilai
+    /// lewat <see cref="IFaceRecognitionService"/>, lalu menyimpannya di <see cref="FaceEncoding"/>
+    /// untuk tahap berikutnya. ViewModel tidak menyentuh <c>FaceRecognitionDotNet</c> dan tidak
+    /// melakukan konversi byte/pixel ke double secara manual: ia hanya memilih jalur masukan yang
+    /// sesuai sumber gambar, lalu service yang melakukan deteksi wajah dan encoding.
+    /// Belum ada panggilan API Frista pada tahap ini.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanVerifyFace))]
-    private void VerifyFace()
+    private async Task VerifyFaceAsync()
     {
-        var captured = CaptureCurrentImage();
-        if (captured is null)
+        var snapshot = CaptureCurrentImage();
+
+        // Foto belum tersedia: tidak ada yang bisa dienkode.
+        if (snapshot is null || !snapshot.HasInput)
         {
             SetStatus("Belum ada gambar untuk diverifikasi. Hubungkan kamera atau upload foto terlebih dahulu.", true);
             return;
         }
 
-        CapturedPhoto = captured;
-        SetStatus("Gambar berhasil diambil. Pengenalan wajah akan diproses pada tahap berikutnya.", false);
+        // Yang ditampilkan di kotak "Hasil Verifikasi" adalah snapshot yang sama persis dengan yang
+        // dienkode di bawah, sehingga pengguna melihat gambar yang benar-benar diproses.
+        CapturedPhoto = snapshot.Display;
+
+        // Pemeriksaan murah sebelum menanggung muat model dlib (~126 MB, ±1,5 detik) pada
+        // pemanggilan pertama.
+        if (!_services.FaceRecognition.IsReady)
+        {
+            FaceEncoding = null;
+            SetStatus(
+                "Model wajah belum tersedia sehingga encoding tidak bisa diproses. " +
+                $"Folder yang dicari: {_services.FaceRecognition.ModelDirectory}", true);
+            return;
+        }
+
+        IsVerifyingFace = true;
+        SetStatus("Memproses wajah...", false);
+
+        try
+        {
+            // Di-await biasa (TANPA ConfigureAwait(false)) supaya kelanjutannya kembali ke UI thread
+            // dan SetStatus aman dipanggil. Kerja native dlib sudah dilepas service ke thread pool
+            // lewat Task.Run, jadi UI thread tidak membeku selama proses berjalan.
+            //
+            // Upload memakai byte file apa adanya; kamera memakai buffer BGRA hasil salinan pribadi
+            // di CaptureCurrentImage, sehingga keduanya bebas dari manipulasi pixel manual.
+            var encoding = snapshot.EncodedBytes is { Length: > 0 }
+                ? await _services.FaceRecognition.GetFaceEncodingAsync(snapshot.EncodedBytes)
+                : await _services.FaceRecognition.GetFaceEncodingAsync(
+                      snapshot.BgraPixels!, snapshot.Width, snapshot.Height, snapshot.Stride);
+
+            // Penjaga kontrak. Service sudah menjamin tepat 128 nilai finite atau melempar, jadi
+            // cabang ini praktis tak tercapai; tetap dipasang sebagai pertahanan terakhir sebelum
+            // nilainya dipakai tahap berikutnya.
+            if (encoding is null || encoding.Count != 128)
+            {
+                FaceEncoding = null;
+                SetStatus("Encoding wajah tidak valid. Jumlah data harus 128.", true);
+                return;
+            }
+
+            FaceEncoding = encoding;
+            SetStatus("Wajah berhasil diproses.", false);
+        }
+        catch (NoFaceDetectedExceptions)
+        {
+            FaceEncoding = null;
+            SetStatus("Wajah tidak ditemukan pada foto.", true);
+        }
+        catch (MultipleFacesDetectedExceptions)
+        {
+            FaceEncoding = null;
+            SetStatus("Terdapat lebih dari satu wajah pada foto. Pastikan hanya satu wajah yang terlihat.", true);
+        }
+        catch (FaceEncodingExceptions)
+        {
+            FaceEncoding = null;
+            SetStatus("Encoding wajah gagal diproses.", true);
+        }
+        catch (OperationCanceledException)
+        {
+            FaceEncoding = null;
+            SetStatus("Proses wajah dibatalkan.", true);
+        }
+        catch (FaceRecognitionExceptions ex)
+        {
+            // Termasuk FaceModelMissingExceptions dan FaceImageExceptions: pesan dari service sudah
+            // memuat path yang dicari dan perintah pemulihan, jadi ditampilkan apa adanya.
+            FaceEncoding = null;
+            SetStatus($"Pengenalan wajah gagal: {ex.Message}", true);
+        }
+        catch (Exception ex)
+        {
+            // Kegagalan native di luar hierarki FaceRecognitionExceptions tidak boleh menjatuhkan
+            // aplikasi dari sebuah command UI.
+            FaceEncoding = null;
+            SetStatus($"Pengenalan wajah gagal: {ex.Message}", true);
+        }
+        finally
+        {
+            IsVerifyingFace = false;
+        }
     }
 
-    /// <summary>Tombol verifikasi hanya aktif bila ada yang bisa diverifikasi.</summary>
-    private bool CanVerifyFace() => IsPreviewVisible;
+    /// <summary>
+    /// Tombol verifikasi hanya aktif bila ada yang bisa diverifikasi (kamera berjalan atau ada foto
+    /// upload) dan tidak ada proses encoding yang sedang berjalan. <see cref="IsVerifyingFace"/>
+    /// dihubungkan lewat <c>NotifyCanExecuteChangedFor</c>, jadi tombol nonaktif sendiri selama
+    /// proses berjalan tanpa perlu mekanisme loading baru di AXAML.
+    /// </summary>
+    private bool CanVerifyFace() => IsPreviewVisible && !IsVerifyingFace;
 
     /// <summary>
-    /// Menyalin gambar yang sedang jadi sumber verifikasi. Null bila tidak ada yang bisa dipakai.
+    /// Menyalin gambar yang sedang jadi sumber verifikasi menjadi <see cref="ImageSnapshot"/>.
+    /// Null bila tidak ada yang bisa dipakai.
     ///
     /// Untuk sumber live yang diambil adalah frame terakhir yang diterima dari kamera, bukan
     /// bitmap yang sedang tampil: penggambaran frame berikutnya sengaja ditunda/dibuang saat UI
     /// thread masih sibuk, sehingga bitmap yang tampil bisa tertinggal beberapa frame. Buffer
     /// staging selalu berisi frame terbaru karena isinya diperbarui sebelum penundaan itu.
     /// </summary>
-    private IImage? CaptureCurrentImage()
+    private ImageSnapshot? CaptureCurrentImage()
     {
         // Foto upload: yang diverifikasi adalah foto itu sendiri, kamera tidak disentuh sama sekali.
+        // Byte aslinya diteruskan apa adanya ke service, jadi tidak ada decode/encode ulang di sini.
         if (IsShowingUploadedPhoto && UploadedPhoto is not null)
-            return UploadedPhoto;
+        {
+            return new ImageSnapshot
+            {
+                Display = UploadedPhoto,
+                EncodedBytes = _uploadedPhotoBytes,
+            };
+        }
 
         byte[] pixels;
         int width, height, stride;
@@ -587,12 +700,59 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
             if (width <= 0 || height <= 0 || stride <= 0 || _staging.Length < stride * height)
                 return null;
 
-            // Disalin di dalam kunci supaya isinya tidak berubah saat dibaca.
+            // Disalin di dalam kunci supaya isinya tidak berubah saat dibaca. Salinan pribadi ini
+            // juga yang membuat buffer tetap aman dipakai selama await, walau stream terus berjalan.
             pixels = new byte[stride * height];
             Buffer.BlockCopy(_staging, 0, pixels, 0, pixels.Length);
         }
 
-        return CreateStillBitmap(pixels, width, height, stride);
+        // Pixel kamera sudah BGRA8888 — format yang sama dipakai CreateStillBitmap dan seluruh
+        // pipeline preview — jadi buffer ini langsung cocok dengan overload pixel milik
+        // IFaceRecognitionService tanpa konversi urutan kanal apa pun.
+        return new ImageSnapshot
+        {
+            Display = CreateStillBitmap(pixels, width, height, stride),
+            BgraPixels = pixels,
+            Width = width,
+            Height = height,
+            Stride = stride,
+        };
+    }
+
+    /// <summary>
+    /// Gambar aktif yang siap diverifikasi: <see cref="Display"/> untuk kotak "Hasil Verifikasi",
+    /// dan tepat satu dari <see cref="EncodedBytes"/> (sumber upload) atau <see cref="BgraPixels"/>
+    /// (sumber kamera) sebagai masukan mentah <see cref="IFaceRecognitionService"/>. Menyimpan
+    /// keduanya dalam satu snapshot menjamin gambar yang dilihat pengguna adalah gambar yang
+    /// benar-benar dienkode.
+    /// </summary>
+    private sealed record ImageSnapshot
+    {
+        /// <summary>Gambar untuk ditampilkan. Selalu terisi pada snapshot yang valid.</summary>
+        public required IImage Display { get; init; }
+
+        /// <summary>Byte file upload (JPEG/PNG) apa adanya, atau null untuk sumber kamera.</summary>
+        public byte[]? EncodedBytes { get; init; }
+
+        /// <summary>Buffer pixel BGRA frame kamera, atau null untuk sumber upload.</summary>
+        public byte[]? BgraPixels { get; init; }
+
+        /// <summary>Lebar pixel frame kamera.</summary>
+        public int Width { get; init; }
+
+        /// <summary>Tinggi pixel frame kamera.</summary>
+        public int Height { get; init; }
+
+        /// <summary>Jarak antar-baris frame kamera dalam byte.</summary>
+        public int Stride { get; init; }
+
+        /// <summary>
+        /// True bila ada masukan mentah yang bisa dienkode. Menghindari melempar buffer kosong ke
+        /// service, yang pesannya ("Gambar terlalu kecil untuk deteksi wajah") akan menyesatkan.
+        /// </summary>
+        public bool HasInput =>
+            EncodedBytes is { Length: > 0 } ||
+            (BgraPixels is { Length: > 0 } && Width > 0 && Height > 0 && Stride >= Width * 4);
     }
 
     /// <summary>
