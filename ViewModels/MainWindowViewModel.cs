@@ -23,10 +23,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         VerifikasiWajah = new VerifikasiWajahViewModel(services);
 
         services.Session.Changed += OnSessionChanged;
-        services.Fingerprint.DeviceStatusChanged += OnDeviceStatusChanged;
+        services.Fingerprint.DeviceStateChanged += OnDeviceStateChanged;
         services.Camera.DeviceStatusChanged += OnCameraStatusChanged;
 
-        Trace.WriteLine($"[MainWindowViewModel] Initialized. IsDeviceConnected={_services.Fingerprint.IsDeviceConnected}, DeviceName={_services.Fingerprint.DeviceName}");
+        Trace.WriteLine($"[MainWindowViewModel] Initialized. ReaderState={_services.Fingerprint.DeviceState.State}, IsDeviceConnected={_services.Fingerprint.IsDeviceConnected}, DeviceName={_services.Fingerprint.DeviceName}");
         Trace.WriteLine($"[MainWindowViewModel] Initialized. IsCameraConnected={_services.Camera.IsDeviceConnected}, CameraName={_services.Camera.DeviceName}");
 
         UpdateSessionState();
@@ -111,7 +111,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     // ---- device state --------------------------------------------------------
 
     [ObservableProperty] private bool _deviceConnected;
-    [ObservableProperty] private string _deviceStatus = "Mencari perangkat...";
+
+    // Nilai awal disamakan dengan pola _cameraStatus di bawah: sebelum probe pertama selesai,
+    // indikator menampilkan "mencari", bukan "terputus".
+    [ObservableProperty] private string _deviceStatus = FingerprintServices.SearchingStatus;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DeviceTooltip))]
@@ -142,7 +145,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     public string CameraTooltip => $"Kamera: {CameraDetail}";
 
-    private void OnDeviceStatusChanged(object? sender, DeviceStatusEventArgs e) =>
+    // Snapshot device sekarang diteruskan utuh (bukan sekadar bool) sehingga alasan "belum
+    // terhubung" ikut tersedia. Pembacaan state tetap dilakukan di UI thread.
+    private void OnDeviceStateChanged(object? sender, FingerprintDeviceState state) =>
         Dispatcher.UIThread.Post(UpdateDeviceState);
 
     private void OnCameraStatusChanged(object? sender, DeviceStatusEventArgs e) =>
@@ -203,21 +208,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void UpdateDeviceState()
     {
-        var isConnected = _services.Fingerprint.IsDeviceConnected;
-        var deviceName = _services.Fingerprint.DeviceName;
+        var fingerprint = _services.Fingerprint;
+        var state = fingerprint.DeviceState;
 
-        Trace.WriteLine($"[MainWindowViewModel] UpdateDeviceState. Connected={isConnected}, Name={deviceName}");
+        Trace.WriteLine($"[MainWindowViewModel] UpdateDeviceState. State={state.State}, Connected={fingerprint.IsDeviceConnected}, Name={state.DeviceName ?? "-"}, Detail={state.Detail ?? "-"}");
 
-        DeviceConnected = isConnected;
-        DeviceStatus = isConnected ? "Perangkat terhubung" : "Perangkat terputus";
-        DeviceDetail = isConnected
-            ? deviceName ?? "Fingerprint reader"
-            : _services.Fingerprint.IsSdkAvailable
-                ? "Hubungkan USB fingerprint reader"
-                : _services.Fingerprint.SdkMissing;
+        // Hanya FingerprintReaderState.Ready yang menyalakan indikator. Perangkat biometrik yang
+        // terlihat Windows tetapi tidak bisa dibuka SDK (sensor WBF bawaan laptop, kamera IR,
+        // atau entri ghost setelah dicabut) tidak lagi dihitung sebagai terhubung.
+        DeviceConnected = fingerprint.IsDeviceConnected;
 
-        Verifikasi.OnDeviceStatusChanged(isConnected);
-        Registrasi.OnDeviceStatusChanged(isConnected);
+        // Teks status dan detail diambil dari FingerprintServices supaya Header dan halaman
+        // fingerprint tidak pernah menampilkan kondisi yang berbeda.
+        DeviceStatus = fingerprint.ResolveStatus();
+        DeviceDetail = fingerprint.ResolveDetail();
+
+        Verifikasi.OnDeviceStatusChanged(DeviceConnected);
+        Registrasi.OnDeviceStatusChanged(DeviceConnected);
     }
 }
 
