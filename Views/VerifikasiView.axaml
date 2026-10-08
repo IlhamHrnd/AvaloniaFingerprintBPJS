@@ -9,21 +9,11 @@
 
   <Grid ColumnDefinitions="360,*" Margin="16">
 
-    <!-- ============ kiri: identitas peserta + panel metode aktif ============ -->
     <Border Grid.Column="0" Classes="card" VerticalAlignment="Top" Margin="0,0,16,0">
-      <!-- ScrollViewer wajib ada di sini: tinggi card dibatasi window sedangkan isinya bisa jauh
-           lebih tinggi, terutama karena StatusMessage dan CameraDeviceList memakai TextWrapping
-           sehingga tingginya tidak terbatas. Tanpa ini, tombol verifikasi dan pesan error NIK
-           terdorong keluar card dan tidak terlihat. -->
       <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
       <StackPanel Spacing="10">
         <TextBlock Classes="h2" Text="Verifikasi" />
 
-        <!-- Nomor identitas peserta: SATU field untuk KEDUA metode dan kedua jenis nomor. Jenis
-             nomornya ditentukan dari panjangnya oleh ViewModel (radio "Jenis Nomor" sudah
-             dihapus), jadi tidak ada field kedua. Karena itu field ini berada di ATAS pemilih
-             metode, bukan di dalam salah satu panel.
-             PlaceholderText dipakai karena Watermark sudah obsolete (memicu AVLN5001). -->
         <StackPanel Spacing="4">
           <TextBlock Text="NIK / No. BPJS" FontWeight="SemiBold" FontSize="12" />
           <TextBox Text="{Binding IdentityNumber}"
@@ -33,9 +23,6 @@
           <TextBlock Classes="caption" Text="NIK 16 digit / No. BPJS 13 digit" />
         </StackPanel>
 
-        <!-- Pemilih metode. Hanya panel milik metode yang dipilih yang ditampilkan; panel metode
-             lain disembunyikan, bukan dibongkar, supaya isi inputnya tidak hilang saat operator
-             berpindah bolak-balik. -->
         <StackPanel Spacing="4">
           <TextBlock Text="Metode Verifikasi" FontWeight="SemiBold" FontSize="12" />
           <StackPanel Orientation="Horizontal" Spacing="16">
@@ -44,7 +31,6 @@
           </StackPanel>
         </StackPanel>
 
-        <!-- ================= panel metode: FINGERPRINT ================= -->
         <StackPanel IsVisible="{Binding IsFingerprintMode}" Spacing="14">
 
           <StackPanel Orientation="Horizontal" Spacing="8">
@@ -55,8 +41,6 @@
                     Height="38" MinWidth="100" HorizontalContentAlignment="Center" />
           </StackPanel>
 
-          <!-- Progres pemindaian. ScanStatus diisi bertahap dari "Letakkan jari..." sampai
-               "Memproses cetak Label...", jadi operator selalu tahu tahap yang sedang berjalan. -->
           <StackPanel IsVisible="{Binding IsScanning}" Spacing="6">
             <TextBlock Text="{Binding ScanStatus}" FontWeight="SemiBold" TextWrapping="Wrap"
                        Foreground="{StaticResource AccentBrush}" />
@@ -69,17 +53,11 @@
           </Border>
         </StackPanel>
 
-        <!-- =================== panel metode: WAJAH =================== -->
         <StackPanel IsVisible="{Binding IsWajahMode}" Spacing="10">
-          <!-- Area gambar. Isinya mengikuti sumber yang dipilih: frame live kamera atau foto yang
-               diupload. Bingkai frame digambar oleh CameraServices (OpenCV) dan dikirim sebagai frame
-               BGRA; bitmap ditukar setiap frame oleh VerifikasiViewModel. Placeholder hanya
-               tampil selama belum ada frame maupun foto. -->
           <Border CornerRadius="6" Height="240"
                   Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1"
                   HorizontalAlignment="Stretch">
             <Panel>
-              <!-- PreviewImage mengikuti sumber yang dipilih: frame live, atau foto upload. -->
               <Image Source="{Binding PreviewImage}"
                      Stretch="Uniform"
                      IsVisible="{Binding IsPreviewVisible}" />
@@ -93,22 +71,17 @@
             </Panel>
           </Border>
 
-          <!-- Tombol utama: cari & pilih kamera aktif (keyword berprioritas, lalu fallback),
-               memakai mekanisme deteksi yang sama dengan status kamera di Header. -->
           <Button Content="Hubungkan Kamera" Command="{Binding ConnectCameraCommand}"
                   Height="38" HorizontalAlignment="Stretch"
                   HorizontalContentAlignment="Center"
                   IsEnabled="{Binding !IsConnecting}"
                   Background="{StaticResource AccentBrush}" Foreground="White" />
 
-          <!-- Sumber gambar manual: memakai foto dari file sebagai pengganti live camera. -->
           <Button Content="Upload Foto" Command="{Binding UploadPhotoCommand}"
                   Height="38" HorizontalAlignment="Stretch"
                   HorizontalContentAlignment="Center"
                   Background="{StaticResource AccentBrush}" Foreground="White" />
 
-          <!-- Penukar sumber gambar (live camera <-> foto upload). Hanya tampil bila sudah ada foto
-               yang diupload, sehingga pengguna tidak pernah terjebak di salah satu sumber. -->
           <Button Content="{Binding PhotoSourceActionLabel}" Command="{Binding TogglePhotoSourceCommand}"
                   IsVisible="{Binding HasUploadedPhoto}"
                   Height="38" HorizontalAlignment="Stretch"
@@ -119,8 +92,6 @@
                   HorizontalContentAlignment="Center"
                   Background="{StaticResource AccentBrush}" Foreground="White" />
 
-          <!-- Daftar kamera yang dikenali Windows pada scan terakhir (memudahkan pengecekan device,
-               termasuk kamera HP lewat Link to Windows / Phone Link dan kamera virtual lain). -->
           <Border IsVisible="{Binding HasCameraDeviceList}" CornerRadius="6" Padding="10" Background="#F9FAFB"
                   BorderBrush="#E5E7EB" BorderThickness="1">
             <TextBlock Text="{Binding CameraDeviceList}" TextWrapping="Wrap" FontSize="12"
@@ -128,17 +99,11 @@
           </Border>
         </StackPanel>
 
-        <!-- Status bersama: satu Border untuk kedua metode. Isinya diisi SetStatus(),
-             dan warna teksnya mengikuti StatusIsError lewat converter StatusBrush. -->
         <Border IsVisible="{Binding HasStatus}" CornerRadius="6" Padding="10" Background="#F3F4F6">
           <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12"
                      Foreground="{Binding !StatusIsError, Converter={StaticResource StatusBrush}}" />
         </Border>
 
-        <!-- Membuang foto upload dan hasil verifikasi wajah, lalu kembali ke live camera.
-             Diletakkan di kolom kiri, BUKAN di dalam kartu Hasil Verifikasi, supaya kartu hasil
-             tetap identik di kedua metode. Hanya muncul saat memang ada foto yang bisa dibuang
-             (hanya mungkin di metode Wajah). -->
         <Button Content="Hapus Foto" Command="{Binding ClearPhotoCommand}"
                 IsVisible="{Binding HasAnyPhoto}"
                 HorizontalAlignment="Stretch" Height="34"
@@ -147,41 +112,30 @@
       </ScrollViewer>
     </Border>
 
-    <!-- ====== kanan: hasil verifikasi (satu kartu untuk kedua metode) ====== -->
     <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
       <StackPanel Spacing="14">
         <TextBlock Classes="h2" Text="Hasil Verifikasi" />
 
         <Grid ColumnDefinitions="Auto,*">
 
-          <!-- Gambar peserta. Satu area untuk KEDUA metode: placeholder bersama tanpa emoji/icon,
-               dan slot gambar yang dipilih oleh metode aktif. Kotak berukuran tetap supaya kartu
-               hasil tidak berubah bentuk saat metode berpindah. -->
           <Border Grid.Column="0" Width="140" Height="180" CornerRadius="6" Margin="0,0,20,0"
                   Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1"
                   VerticalAlignment="Top">
             <Panel>
-              <!-- Placeholder bersama: satu TextBlock, tanpa emoji, tanpa icon, untuk kedua metode.
-                   Hanya teksnya yang berbeda, diambil dari ResultPlaceholderLabel. Struktur yang
-                   sama inilah yang membuat alignment kedua metode identik. -->
               <TextBlock Text="{Binding ResultPlaceholderLabel}" Classes="caption"
                          HorizontalAlignment="Center" VerticalAlignment="Center"
                          IsVisible="{Binding !HasResultImage}" />
 
-              <!-- metode Fingerprint: sidik jari hasil capture (base64 -> gambar lewat converter) -->
               <Image Source="{Binding FingerImage, Converter={StaticResource Base64Image}}"
                      Stretch="Uniform" Margin="6"
                      IsVisible="{Binding IsFingerprintMode}" />
 
-              <!-- metode Wajah: foto yang diverifikasi. Margin disamakan dengan slot sidik jari di
-                   atas supaya kedua metode benar-benar tampil identik. -->
               <Image Source="{Binding CapturedPhoto}"
                      Stretch="Uniform" Margin="6"
                      IsVisible="{Binding IsWajahMode}" />
             </Panel>
           </Border>
 
-          <!-- detail hasil -->
           <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="130,*">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Nama" Classes="caption" Margin="0,0,0,12" />
             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ResultNama}"

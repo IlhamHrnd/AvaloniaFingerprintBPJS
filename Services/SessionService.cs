@@ -3,9 +3,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace AvaloniaFingerprint.Services;
 
-/// <summary>
-/// Holds the petugas login state. Every tab is disabled until <see cref="IsLoggedIn"/> is true.
-/// </summary>
 public sealed partial class SessionService : ObservableObject
 {
     [ObservableProperty]

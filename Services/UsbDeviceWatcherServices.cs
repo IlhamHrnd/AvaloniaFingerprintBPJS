@@ -9,12 +9,6 @@ using System.Threading.Tasks;
 
 namespace AvaloniaFingerprint.Services
 {
-    /// <summary>
-    /// Watcher device sidik jari. Jalur otoritatifnya adalah probe SDK (<see cref="FingerprintSdkProbe"/>):
-    /// hanya SDK yang dapat membuktikan sebuah reader benar-benar bisa dibuka dan dipakai.
-    /// Query WMI dipertahankan SEMATA-MATA sebagai diagnostik — hasilnya maksimal
-    /// <see cref="FingerprintReaderState.Detected"/> dan tidak pernah dianggap terhubung.
-    /// </summary>
     public class UsbDeviceWatcherServices(
         IConfiguration config,
         SessionService session,
@@ -23,11 +17,6 @@ namespace AvaloniaFingerprint.Services
         private const string DeviceQuery = "SELECT Name, DeviceID, PNPClass, Status, Present, ConfigManagerErrorCode FROM Win32_PnPEntity " +
             "WHERE PNPClass = 'Biometric' OR DeviceID LIKE '%VID_05BA%' " +
             "OR Name LIKE '%Fingerprint%' OR Name LIKE '%U.are.U%' OR Name LIKE '%Biometric%'";
-        /// <summary>
-        /// Detail untuk perangkat biometrik yang dilihat Windows tetapi tidak bisa dibuka SDK.
-        /// State ini sengaja BUKAN "terhubung": sensor WBF bawaan laptop, kamera IR Windows Hello,
-        /// dan entri ghost sama-sama cocok dengan kata kunci di <see cref="Matches"/>.
-        /// </summary>
         public const string DetailDetectedButUnusable =
             "Perangkat biometrik terlihat di Windows tetapi tidak dapat dibuka oleh SDK DigitalPersona.";
 
@@ -40,25 +29,16 @@ namespace AvaloniaFingerprint.Services
         private int _noReaderMisses;
         private bool _disposed;
 
-        /// <summary>
-        /// Jumlah probe berturut-turut yang harus melaporkan "tidak ada reader" sebelum status
-        /// diubah menjadi terputus. <c>ReaderCollection.GetReaders()</c> teruji bisa sesekali
-        /// mengembalikan 0 reader tepat setelah handle reader dilepas; tanpa debounce indikator
-        /// akan berkedip Terhubung -&gt; Terputus -&gt; Terhubung.
-        /// </summary>
         private const int NoReaderMissThreshold = 2;
 
-        /// <summary>Snapshot device terakhir. Selalu diganti utuh, tidak pernah dimutasi sebagian.</summary>
         public FingerprintDeviceState Current { get; private set; } = FingerprintDeviceState.None;
 
-        /// <summary>Benar hanya bila reader tervalidasi SDK dan berstatus siap.</summary>
         public bool IsConnected => Current.IsConnected;
 
         public string? DeviceName => Current.DeviceName;
 
         public string? DeviceId => Current.DeviceId;
 
-        /// <summary>Dipicu dari thread probe; konsumen wajib marshal ke UI thread sendiri.</summary>
         public event EventHandler<FingerprintDeviceState>? StatusChanged;
         public void Start()
         {
@@ -72,7 +52,6 @@ namespace AvaloniaFingerprint.Services
         {
             try
             {
-                // EventType 2 = device arrival, 3 = device removal.
                 var query = new WqlEventQuery(
                     "SELECT * FROM Win32_DeviceChangeEvent WITHIN 1 WHERE EventType = 2 OR EventType = 3");
                 _arrivalWatcher = new ManagementEventWatcher(query);
@@ -81,13 +60,10 @@ namespace AvaloniaFingerprint.Services
             }
             catch (Exception)
             {
-                // WMI eventing can be blocked by policy or unavailable in a session; the
-                // poll timer below still gives us connect/disconnect detection.
                 _arrivalWatcher = null;
             }
         }
 
-        /// <summary>Forces an immediate re-scan (used after a capture error, for example).</summary>
         public Task RefreshAsync() => ScanAsync();
 
         private async Task ScanAsync()
@@ -101,15 +77,11 @@ namespace AvaloniaFingerprint.Services
                 if (_disposed)
                     return;
 
-                // null = probe tidak memberi pendapat (capture sedang berjalan atau reader sedang
-                // dipakai proses lain). State terakhir dipertahankan supaya header tidak berkedip
-                // menjadi "terputus" di tengah pemindaian.
                 if (result is not null)
                     Publish(ApplyNoReaderDebounce(result));
             }
             catch (OperationCanceledException)
             {
-                // Pembatalan normal: aplikasi sedang ditutup, bukan kegagalan probe.
             }
             finally
             {
@@ -117,11 +89,6 @@ namespace AvaloniaFingerprint.Services
             }
         }
 
-        /// <summary>
-        /// Mengganti snapshot device dan memicu <see cref="StatusChanged"/> bila berubah.
-        /// Perbandingan memakai kesetaraan record, jadi perubahan alasan/detail (misalnya
-        /// Ready -&gt; NotReady dengan nama device yang sama) tetap terlihat oleh UI.
-        /// </summary>
         private void Publish(FingerprintDeviceState state)
         {
             FingerprintDeviceState previous;
@@ -132,8 +99,6 @@ namespace AvaloniaFingerprint.Services
                 if (state.Equals(previous))
                     return;
 
-                // Snapshot lama (beserta DeviceName/DeviceId/Detail-nya) dibuang utuh di sini,
-                // jadi tidak ada sisa state yang bisa bertahan setelah reader dicabut.
                 Current = state;
             }
 
@@ -142,11 +107,6 @@ namespace AvaloniaFingerprint.Services
             StatusChanged?.Invoke(this, state);
         }
 
-        /// <summary>
-        /// Menunda pengumuman "tidak ada reader" sampai terlihat <see cref="NoReaderMissThreshold"/>
-        /// kali berturut-turut. Saat masih ditunda, state sebelumnya dikembalikan apa adanya sehingga
-        /// <see cref="Publish"/> tidak melihat perubahan dan tidak memicu event.
-        /// </summary>
         private FingerprintDeviceState ApplyNoReaderDebounce(FingerprintDeviceState result)
         {
             if (result.State != FingerprintReaderState.NoDevice)
@@ -157,8 +117,6 @@ namespace AvaloniaFingerprint.Services
 
             var misses = Interlocked.Increment(ref _noReaderMisses);
 
-            // Hanya status "terhubung" yang perlu dikonfirmasi ulang. Saat memang belum pernah
-            // terhubung, tidak ada yang perlu ditunda sehingga deteksi tetap langsung.
             if (Current.IsConnected && misses < NoReaderMissThreshold)
             {
                 Trace.WriteLine($"[UsbDeviceWatcher] SDK tidak melihat reader (konfirmasi {misses}/{NoReaderMissThreshold}); status terhubung dipertahankan sementara.");
@@ -170,25 +128,18 @@ namespace AvaloniaFingerprint.Services
 
         private FingerprintDeviceState? Probe()
         {
-            // Daftar reader SDK adalah jawaban otoritatif: hanya SDK yang tahu reader mana yang
-            // benar-benar bisa dibuka, berstatus siap, dan mampu melakukan capture.
             if (_sdkProbe is not null)
             {
                 try
                 {
                     var sdk = _sdkProbe(Publish);
 
-                    // null = probe tidak memberi pendapat (capture sedang berjalan atau reader
-                    // sedang dipakai proses lain). State terakhir dipertahankan.
                     if (sdk is null)
                     {
                         Trace.WriteLine("[UsbDeviceWatcher] Probe SDK menunda (reader sedang dipakai); state terakhir dipertahankan.");
                         return null;
                     }
 
-                    // Jawaban SDK final selama bukan NoDevice. Sebelumnya jalur ini jatuh ke WMI
-                    // dan WMI bisa menimpanya menjadi "terhubung" hanya karena melihat perangkat
-                    // biometrik apa pun — itulah sumber false positive-nya.
                     if (sdk.State != FingerprintReaderState.NoDevice)
                         return sdk;
                 }
@@ -198,8 +149,6 @@ namespace AvaloniaFingerprint.Services
                 }
             }
 
-            // SDK tidak melihat reader (atau SDK memang tidak tersedia saat build). WMI hanya
-            // dipakai untuk menjelaskan kondisi ke pengguna, tidak untuk menyatakan terhubung.
             return ProbeWmi();
         }
 
@@ -245,12 +194,6 @@ namespace AvaloniaFingerprint.Services
             }
         }
 
-        /// <summary>
-        /// Hanya perangkat yang benar-benar terpasang yang dihitung. Entri ghost tetap muncul di
-        /// <c>Win32_PnPEntity</c> setelah device dicabut (<c>Present=false</c>,
-        /// <c>ConfigManagerErrorCode=45</c>); dulu entri seperti itu tetap membuat status bertahan
-        /// "terhubung" karena yang diperiksa hanya kolom <c>Status</c>.
-        /// </summary>
         private static bool IsPresent(bool present, int configManagerErrorCode, string status) =>
             present
             && configManagerErrorCode == 0
@@ -281,19 +224,11 @@ namespace AvaloniaFingerprint.Services
             }
             catch (Exception)
             {
-                // Teardown tidak boleh melempar keluar Dispose(): langkah pembersihan berikutnya
-                // (_cts.Dispose) tetap harus dijalankan.
             }
             _cts.Dispose();
         }
     }
 
-    /// <summary>
-    /// Argumen event deteksi device. Kelas ini dipakai bersama oleh watcher fingerprint dan
-    /// <see cref="CameraDeviceWatcherServices"/>, jadi bentuk serta lokasinya tidak boleh diubah
-    /// sepihak. Status fingerprint sendiri sekarang dibawa oleh <see cref="FingerprintDeviceState"/>,
-    /// yang jauh lebih kaya daripada sekadar flag "connected".
-    /// </summary>
     public sealed class DeviceStatusEventArgs : EventArgs
     {
         public bool Connected { get; init; }

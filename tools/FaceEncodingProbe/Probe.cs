@@ -7,10 +7,6 @@ using System.Threading.Tasks;
 
 namespace FaceEncodingProbe;
 
-/// <summary>
-/// Pencatat hasil dan helper assertion harness. Dipisah dari <c>Program.cs</c> supaya
-/// logika tiap kasus uji tetap ringkas dan mudah dibaca.
-/// </summary>
 internal static class Probe
 {
     private static readonly List<string> _failures = [];
@@ -40,11 +36,6 @@ internal static class Probe
     public static void Info(string label, string value) =>
         Console.WriteLine($"    {label,-10}: {value}");
 
-    /// <summary>
-    /// Mencatat satu assertion. Mengembalikan <paramref name="condition"/> supaya bisa
-    /// dirangkai dengan <c>&amp;=</c>; sengaja bukan <c>&amp;&amp;</c> agar kegagalan lain
-    /// tidak ikut tersembunyi oleh short-circuit.
-    /// </summary>
     public static bool Check(string label, bool condition, string detail)
     {
         if (condition)
@@ -61,22 +52,12 @@ internal static class Probe
         return condition;
     }
 
-    /// <summary>
-    /// Observasi yang menarik tapi bukan bagian kontrak keras (mis. rentang nilai encoding).
-    /// Tidak mempengaruhi exit code.
-    /// </summary>
     public static void Warn(string label, string detail)
     {
         _warnings.Add($"{label}: {detail}");
         Console.WriteLine($"    [WARN] {label}: {detail}");
     }
 
-    /// <summary>
-    /// Menjalankan aksi yang diharapkan BERHASIL, lalu memvalidasi seluruh kontrak publik
-    /// <c>IFaceRecognitionService</c>: tidak null, tepat 128 nilai, semuanya finite, dan
-    /// bukan vektor nol. Mengembalikan vektornya (untuk perbandingan silang antar kasus)
-    /// atau null bila ada assertion yang gagal.
-    /// </summary>
     public static async Task<List<double>?> ExpectEncodingAsync(string label, Func<Task<List<double>>> action)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -111,26 +92,15 @@ internal static class Probe
         Info("min/max", $"{min.ToString("F6", CultureInfo.InvariantCulture)} / {max.ToString("F6", CultureInfo.InvariantCulture)}");
         Info("6 pertama", string.Join(", ", encoding.Take(6).Select(x => x.ToString("F6", CultureInfo.InvariantCulture))));
 
-        // dlib ResNet v1 secara empiris menghasilkan nilai sekitar -0.35 s.d. +0.40. Batas di
-        // bawah sengaja longgar: ini penjaga "nilainya masuk akal", bukan bagian kontrak keras.
         if (Math.Abs(min) >= 1d || Math.Abs(max) >= 1d)
             Warn(label, $"rentang nilai [{Inv(min, 4)}, {Inv(max, 4)}] di luar kebiasaan dlib ResNet (|x| < 1)");
 
         return ok ? encoding : null;
     }
 
-    /// <summary>
-    /// Format angka yang tidak bergantung culture, supaya log harness terbaca sama di mesin
-    /// berbahasa Indonesia (yang memakai koma desimal) maupun yang memakai titik.
-    /// </summary>
     public static string Inv(double value, int digits = 6) =>
         value.ToString("F" + digits.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// Menjalankan aksi yang diharapkan MELEMPAR <typeparamref name="TException"/>.
-    /// Exception jenis lain - atau tidak melempar sama sekali - dihitung sebagai kegagalan,
-    /// karena itu berarti kontrak error service tidak sesuai yang dijanjikan di XML doc-nya.
-    /// </summary>
     public static async Task<TException?> ExpectThrowsAsync<TException>(string label, Func<Task> action)
         where TException : Exception
     {
@@ -157,9 +127,6 @@ internal static class Probe
         }
     }
 
-    /// <summary>
-    /// Mencetak ringkasan dan mengembalikan exit code proses (0 = semua lulus).
-    /// </summary>
     public static int Summarize()
     {
         Banner("RINGKASAN");

@@ -119,7 +119,7 @@ namespace AvaloniaFingerprint.Converters
         private const string destructionOfExpiredItems = "083";
         private const string assetWorkOrder = "201";
         private const string assetWorkOrderRealization = "202";
-        private const string assetPM = "203"; //AssetPreventiveMaintenance
+        private const string assetPM = "203";
         private const string sanitationWorkOrder = "204";
         private const string sanitationMaintenanceActivity = "205";
         private const string budgetPlanApproval = "141";
@@ -216,7 +216,7 @@ namespace AvaloniaFingerprint.Converters
     {
         private static string patientmanagement = "01";
         private static string systemauthorization = "95.01";
-        private static string myhome = "99.99.99"; // Untuk Template
+        private static string myhome = "99.99.99";
         private static string healthrecord = "02.01.26";
         private static string prescriptionreview = "04.04.02";
         private static string user = "95.01.02";

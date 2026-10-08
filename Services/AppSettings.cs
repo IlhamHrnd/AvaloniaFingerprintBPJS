@@ -6,11 +6,6 @@ namespace AvaloniaFingerprint.Services;
 
 public class AppSettings
 {
-    /// <summary>
-    /// Configuration root shared with the services. Disimpan agar service yang memerlukan
-    /// IConfiguration (client turunan BaseService) memakai instance yang sama, bukan membangun
-    /// sendiri. Nilai konfigurasi dibaca langsung oleh <see cref="BaseService"/>.
-    /// </summary>
     public IConfiguration Configuration { get; private set; } = new ConfigurationBuilder().Build();
 
     public static AppSettings Load()

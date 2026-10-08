@@ -27,7 +27,6 @@ public sealed partial class LoginViewModel : ViewModelBase
     [ObservableProperty] private string _message = string.Empty;
     [ObservableProperty] private bool _hasMessage;
 
-    /// <summary>Set by the dialog so a successful login can close the window.</summary>
     public Action? RequestClose { get; set; }
 
     public bool Succeeded { get; private set; }
@@ -45,7 +44,6 @@ public sealed partial class LoginViewModel : ViewModelBase
         {
             var userId = Username.Trim();
 
-            // GetUserAuth() is synchronous, so run it off the UI thread to keep the dialog responsive.
             var result = await Task.Run(() => _services.AppUser.GetUserAuth(userId, Password));
 
             if (!result.succeeded || string.IsNullOrEmpty(result.data))
@@ -58,7 +56,6 @@ public sealed partial class LoginViewModel : ViewModelBase
                 return;
             }
 
-            // SSO login returns no token; result.data is the authenticated UserId.
             _services.Session.SignIn(
                 string.Empty,
                 userId,
@@ -85,15 +82,11 @@ public sealed partial class LoginViewModel : ViewModelBase
     [RelayCommand]
     private void OpenSettingKoneksi()
     {
-        // Menu ini belum punya aksi: pengaturan koneksi masih dibaca dari appsettings.json,
-        // jadi belum ada nilai yang bisa diubah dari UI.
     }
 
     [RelayCommand]
     private void AddAction()
     {
-        // Pintasan yang direncanakan. Dibiarkan kosong supaya binding di LoginWindow.axaml
-        // tetap valid sampai alurnya ditentukan.
     }
 
     private void SetMessage(string text)

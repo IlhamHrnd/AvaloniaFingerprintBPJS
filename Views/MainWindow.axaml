@@ -15,12 +15,9 @@
 
   <DockPanel>
 
-    <!-- ============ header: title, device status, login button (top right) ============ -->
     <Border DockPanel.Dock="Top" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="20,8">
       <DockPanel LastChildFill="True">
 
-        <!-- petugas + login/logout: di-dock lebih dulu supaya selalu mendapat lebar penuh
-             dan tombol Logout tidak pernah terpotong saat window diperkecil -->
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10"
                     VerticalAlignment="Center">
           <StackPanel HorizontalAlignment="Right" MaxWidth="180"
@@ -38,11 +35,9 @@
                   Background="{StaticResource AccentBrush}" Foreground="White" />
         </StackPanel>
 
-        <!-- device indicators: chip ringkas (icon warna + label), detail hanya di tooltip -->
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="0,0,16,0"
                     VerticalAlignment="Center">
 
-          <!-- USB fingerprint indicator -->
           <Border Padding="10,5" CornerRadius="14" Background="{StaticResource HeaderBrush}"
                   ToolTip.Tip="{Binding DeviceTooltip}">
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -52,7 +47,6 @@
             </StackPanel>
           </Border>
 
-          <!-- camera indicator (same styling as the fingerprint indicator) -->
           <Border Padding="10,5" CornerRadius="14" Background="{StaticResource HeaderBrush}"
                   ToolTip.Tip="{Binding CameraTooltip}">
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -63,7 +57,6 @@
           </Border>
         </StackPanel>
 
-        <!-- title: mengisi sisa ruang, menyusut lebih dulu dan memakai ellipsis -->
         <StackPanel Spacing="2" VerticalAlignment="Center">
           <TextBlock Classes="h1" Text="Fingerprint BPJS" TextTrimming="CharacterEllipsis" />
           <TextBlock Classes="caption" Text="Verifikasi · Registrasi · Kode Booking"
@@ -72,7 +65,6 @@
       </DockPanel>
     </Border>
 
-    <!-- ============ status bar ============ -->
     <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="20,8">
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock Grid.Column="0" Classes="caption"
@@ -81,7 +73,6 @@
       </Grid>
     </Border>
 
-    <!-- ============ tabs (disabled until login) ============ -->
     <Grid Margin="20">
       <TabControl>
         <TabItem Header="Verifikasi" IsEnabled="{Binding IsLoggedIn}">
@@ -92,7 +83,6 @@
         </TabItem>
       </TabControl>
 
-      <!-- overlay shown while logged out -->
       <Border IsVisible="{Binding !IsLoggedIn}"
               Background="#F9FAFB" CornerRadius="8"
               Margin="0,44,0,0">

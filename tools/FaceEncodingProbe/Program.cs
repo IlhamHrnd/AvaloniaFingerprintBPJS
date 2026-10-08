@@ -15,22 +15,12 @@ using OpenCvSharp;
 
 namespace FaceEncodingProbe;
 
-/// <summary>
-/// Harness berdiri sendiri untuk membuktikan <see cref="FaceRecognitionService"/> benar-benar
-/// menghasilkan <see cref="List{T}"/> berisi 128 <see cref="double"/> yang tervalidasi, dari
-/// ketiga jalur masukan app (path file, byte JPEG/PNG, pixel BGRA kamera) - tanpa menyentuh
-/// UI, <c>VerifyFace()</c>, atau jaringan sama sekali.
-/// <para>
-/// Exit code: 0 = semua kasus lulus, 1 = ada assertion gagal, 2 = prasyarat belum diunduh.
-/// </para>
-/// </summary>
 internal static class Program
 {
     private const string ObamaFile = "obama.jpg";
     private const string TwoPeopleFile = "two_people.jpg";
     private const string BidenFile = "biden.jpg";
 
-    /// <summary>Ambang dlib untuk "orang yang sama" (jarak Euclidean &lt; 0.6).</summary>
     private const double SamePersonThreshold = 0.6;
 
     private static readonly string[] RequiredModels =
@@ -43,7 +33,6 @@ internal static class Program
 
     private static async Task<int> Main(string[] args)
     {
-        // Kegagalan native dlib bisa keras; tanpa penjaga ini penyebabnya hilang tanpa jejak.
         try
         {
             return await RunAsync(args).ConfigureAwait(false);
@@ -56,11 +45,6 @@ internal static class Program
         }
     }
 
-    /// <summary>
-    /// Argumen <c>benchmark</c> menjalankan hanya pengukuran waktu detektor, tanpa kasus
-    /// fungsional. Berguna saat menyetel <c>Detector</c>/<c>Upsample</c> di appsettings.json,
-    /// karena kombinasi CNN + upsample pada foto besar bisa puluhan kali lebih lambat.
-    /// </summary>
     private static async Task<int> RunAsync(string[] args)
     {
         var repoRoot = FindRepoRoot();
@@ -102,11 +86,6 @@ internal static class Program
         return Probe.Summarize();
     }
 
-    /// <summary>
-    /// Memastikan model dan gambar uji sudah terunduh. Harness ini butuh ~126 MB model dlib,
-    /// jadi kekurangan di sini dilaporkan sebagai masalah prasyarat (exit code 2),
-    /// bukan sebagai kegagalan uji.
-    /// </summary>
     private static bool CheckPrerequisites(string modelsDir, string testDir)
     {
         var missingModels = RequiredModels
@@ -130,17 +109,10 @@ internal static class Program
         return false;
     }
 
-    /// <summary>
-    /// Memakai <c>appsettings.json</c> sungguhan supaya kunci yang dibaca <c>BaseService</c>
-    /// (terutama <c>Apps:Timeout</c>, yang di-parse tanpa fallback dan akan melempar bila
-    /// hilang) ikut teruji, lalu menimpa <c>FaceRecognition:ModelDirectory</c> dengan path
-    /// absolut agar harness tidak bergantung pada model yang tersalin ke folder output.
-    /// </summary>
     private static IConfiguration BuildConfiguration(string settingsPath, string modelsDir, Dictionary<string, string?>? overrides = null, bool logSource = true)
     {
         var builder = new ConfigurationBuilder();
 
-        // Fallback dipasang duluan supaya nilai asli di appsettings.json tetap menang.
         builder.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Apps:Timeout"] = "30",
@@ -175,10 +147,6 @@ internal static class Program
         return builder.Build();
     }
 
-    /// <summary>
-    /// Mencari root repo dengan berjalan naik dari folder output build, supaya harness tetap
-    /// jalan baik lewat <c>dotnet run</c> maupun dari executable di <c>bin\</c>.
-    /// </summary>
     private static string FindRepoRoot()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
@@ -192,19 +160,8 @@ internal static class Program
             "Jalankan harness ini dari dalam repo: dotnet run --project tools\\FaceEncodingProbe\\FaceEncodingProbe.csproj");
     }
 
-    // ------------------------------------------------------------------
-    // Penyiapan masukan
-    // ------------------------------------------------------------------
-
-    /// <summary>
-    /// Frame pixel BGRA8888 tiruan tangkapan kamera. <see cref="Stride"/> boleh lebih besar
-    /// dari <c>Width * 4</c> untuk menguji penanganan padding baris.
-    /// </summary>
     private sealed record BgraFrame(byte[] Pixels, int Width, int Height, int Stride);
 
-    /// <summary>
-    /// Hasil ketiga jalur masukan, dipakai lagi oleh kasus perbandingan identitas.
-    /// </summary>
     private sealed record InputResults(
         List<double>? FromFile,
         List<double>? FromBytes,
@@ -212,12 +169,6 @@ internal static class Program
         List<double>? FromPaddedBgra,
         BgraFrame Frame);
 
-    /// <summary>
-    /// Meniru tangkapan kamera: decode file ke BGRA8888 lalu salin ke buffer dengan stride
-    /// ber-padding, persis seperti <c>WriteableBitmap.LockBuffer</c> /
-    /// <c>CameraFrameEventArgs.Pixels</c>. Padding sengaja diisi 0xFF supaya harness bisa
-    /// membuktikan service tidak ikut membaca byte padding sebagai pixel.
-    /// </summary>
     private static BgraFrame ToBgraFrame(string imagePath, int paddingBytes)
     {
         using var bgr = Cv2.ImRead(imagePath, ImreadModes.Color);
@@ -239,7 +190,6 @@ internal static class Program
 
         return new BgraFrame(pixels, width, height, stride);
     }
-    /// <summary>Menyalin Mat BGRA rapat ke <see cref="BgraFrame"/> milik sendiri.</summary>
     private static BgraFrame MatToBgraFrame(Mat bgra)
     {
         var width = bgra.Cols;
@@ -250,7 +200,6 @@ internal static class Program
         return new BgraFrame(pixels, width, height, stride);
     }
 
-    /// <summary>Mengubah gambar ke BGRA8888 dengan ukuran persis yang diminta.</summary>
     private static BgraFrame ResizeToBgra(string imagePath, int width, int height)
     {
         using var bgr = Cv2.ImRead(imagePath, ImreadModes.Color);
@@ -261,11 +210,6 @@ internal static class Program
         return MatToBgraFrame(bgra);
     }
 
-    /// <summary>
-    /// Memperkecil gambar sampai sisi terpanjangnya tidak melebihi <paramref name="maxEdge"/>,
-    /// rasio aspek dipertahankan. Ini strategi yang diukur benchmark: membatasi ukuran masukan
-    /// detektor jauh lebih murah daripada menurunkan kualitas detektornya.
-    /// </summary>
     private static BgraFrame ResizeToMaxEdgeBgra(string imagePath, int maxEdge)
     {
         using var bgr = Cv2.ImRead(imagePath, ImreadModes.Color);
@@ -281,16 +225,8 @@ internal static class Program
         return MatToBgraFrame(bgra);
     }
 
-
-
-    /// <summary>
-    /// Gambar sintetis yang pasti tidak mengandung wajah: gradien halus dua arah plus derau
-    /// sempit. Dibuat sebagai pixel BGRA supaya kasus "tanpa wajah" sekaligus menguji jalur
-    /// kamera, bukan hanya jalur file.
-    /// </summary>
     private static BgraFrame CreateNoFaceFrame(int width = 480, int height = 360)
     {
-        // Seed tetap agar hasilnya bisa direproduksi antar run.
         var random = new Random(20260410);
         var pixels = new byte[width * height * 4];
 
@@ -299,26 +235,16 @@ internal static class Program
             for (var x = 0; x < width; x++)
             {
                 var offset = ((y * width) + x) * 4;
-                pixels[offset + 0] = (byte)((x * 255) / Math.Max(1, width - 1));   // B: gradien horizontal
-                pixels[offset + 1] = (byte)((y * 255) / Math.Max(1, height - 1));  // G: gradien vertikal
-                pixels[offset + 2] = (byte)random.Next(70, 90);                    // R: derau sempit
-                pixels[offset + 3] = 255;                                          // A
+                pixels[offset + 0] = (byte)((x * 255) / Math.Max(1, width - 1));
+                pixels[offset + 1] = (byte)((y * 255) / Math.Max(1, height - 1));
+                pixels[offset + 2] = (byte)random.Next(70, 90);
+                pixels[offset + 3] = 255;
             }
         }
 
         return new BgraFrame(pixels, width, height, width * 4);
     }
 
-    // ------------------------------------------------------------------
-    // Kasus 0: memisahkan biaya muat model dari biaya deteksi
-    // ------------------------------------------------------------------
-
-    /// <summary>
-    /// Pemanggilan pertama service menanggung pembacaan + deserialisasi ~126 MB model dlib.
-    /// Tanpa kasus ini, biaya tersebut menyatu dengan waktu deteksi gambar pertama dan membuat
-    /// angka benchmark menyesatkan. Gambar 64x64 dipakai agar biaya deteksinya bisa diabaikan
-    /// dibanding biaya muat model.
-    /// </summary>
     private static async Task RunInitializationCasesAsync(FaceRecognitionService service)
     {
         Probe.Banner("KASUS 0: BIAYA INISIALISASI MODEL (pemanggilan pertama)");
@@ -335,10 +261,6 @@ internal static class Program
         if (thrown is null)
             Probe.Warn("kasus0", "gambar 64x64 ternyata terdeteksi sebagai wajah; biaya inisialisasi tidak terisolasi");
     }
-
-    // ------------------------------------------------------------------
-    // Kasus 1-3: ketiga jalur masukan yang dipakai app
-    // ------------------------------------------------------------------
 
     private static async Task<InputResults> RunInputPathCasesAsync(FaceRecognitionService service, string testDir)
     {
@@ -368,9 +290,6 @@ internal static class Program
         var fromPadded = await Probe.ExpectEncodingAsync("kasus3b",
             () => service.GetFaceEncodingAsync(padded.Pixels, padded.Width, padded.Height, padded.Stride)).ConfigureAwait(false);
 
-        // Kedua frame ini berasal dari decoder yang SAMA (OpenCV) dan berisi pixel identik,
-        // jadi hasilnya harus identik bit-per-bit. Ini uji stride yang tegas: kalau service
-        // salah membaca byte padding, vektornya pasti bergeser.
         if (fromBgra is not null && fromPadded is not null)
         {
             var distance = FaceRecognitionService.EuclideanDistance(fromBgra, fromPadded);
@@ -378,9 +297,6 @@ internal static class Program
                 $"padding stride tidak mengubah hasil (jarak {distance.ToString("E3", CultureInfo.InvariantCulture)})");
         }
 
-        // Kedua jalur ini kini memakai decoder yang SAMA (OpenCV), jadi gambar yang sama
-        // harus menghasilkan vektor yang identik. Toleransi kecil hanya untuk berjaga terhadap
-        // perbedaan pembulatan pada urutan resize.
         if (fromFile is not null && fromBgra is not null)
         {
             var distance = FaceRecognitionService.EuclideanDistance(fromFile, fromBgra);
@@ -391,10 +307,6 @@ internal static class Program
 
         return new InputResults(fromFile, fromBytes, fromBgra, fromPadded, frame);
     }
-
-    // ------------------------------------------------------------------
-    // Kasus 4-6: penolakan yang dijanjikan kontrak
-    // ------------------------------------------------------------------
 
     private static async Task RunRejectionCasesAsync(FaceRecognitionService service, string testDir)
     {
@@ -444,10 +356,6 @@ internal static class Program
             () => service.GetFaceEncodingAsync(new byte[8 * 8 * 4], 8, 8, 16)).ConfigureAwait(false);
     }
 
-    // ------------------------------------------------------------------
-    // Kasus 7: determinisme + sanity check identitas
-    // ------------------------------------------------------------------
-
     private static async Task RunIdentityCasesAsync(FaceRecognitionService service, string testDir, InputResults inputs)
     {
         Probe.Banner("KASUS 7: DETERMINISME + SANITY CHECK IDENTITAS");
@@ -487,10 +395,6 @@ internal static class Program
                 "jarak == 0 - kedua jalur memakai satu decoder sehingga vektornya identik bit-per-bit");
         }
     }
-
-    // ------------------------------------------------------------------
-    // Kasus 8-12: siklus hidup, konkurensi, kontrak buffer pooled
-    // ------------------------------------------------------------------
 
     private static async Task RunLifecycleCasesAsync(FaceRecognitionService service, string obamaPath, IConfiguration configuration)
     {
@@ -554,14 +458,6 @@ internal static class Program
             () => disposable.GetFaceEncodingFromFileAsync(obamaPath)).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Kasus terpenting untuk integrasi kamera: <c>CameraFrameEventArgs.Pixels</c> dipinjam dari
-    /// <see cref="ArrayPool{T}"/> dan dikembalikan pemanggil segera setelah event handler
-    /// mengembalikan Task-nya. Harness ini menyewa buffer, menyalin pixel wajah ke dalamnya,
-    /// memanggil service, lalu MENGHAPUS isi buffer sebelum Task selesai. Bila service menunda
-    /// pembacaan pixel sampai setelah await pertama (bug yang sangat mudah terjadi),
-    /// encoding-nya akan berubah atau deteksi gagal sama sekali.
-    /// </summary>
     private static async Task RunPooledBufferCaseAsync(FaceRecognitionService service, string obamaPath)
     {
         var frame = ToBgraFrame(obamaPath, paddingBytes: 0);
@@ -573,7 +469,6 @@ internal static class Program
 
             var pending = service.GetFaceEncodingAsync(pooled, frame.Width, frame.Height, frame.Stride);
 
-            // Rusak buffer SEBELUM Task selesai, meniru ArrayPool.Shared.Return().
             Array.Fill(pooled, (byte)0);
 
             var encoding = await pending.ConfigureAwait(false);
@@ -582,7 +477,6 @@ internal static class Program
             Probe.Check("kasus11-panjang", encoding.Count == 128 && encoding.All(double.IsFinite),
                 $"encoding tetap valid ({encoding.Count} nilai finite) walau buffer sudah di-nol-kan");
 
-            // Pembanding: frame utuh dengan pixel yang persis sama, lewat jalur yang sama.
             var intact = await service
                 .GetFaceEncodingAsync(frame.Pixels, frame.Width, frame.Height, frame.Stride)
                 .ConfigureAwait(false);
@@ -597,16 +491,6 @@ internal static class Program
         }
     }
 
-    // ------------------------------------------------------------------
-    // Kasus 13: MaxEdge (pembatasan ukuran masukan detektor)
-    // ------------------------------------------------------------------
-
-    /// <summary>
-    /// Membuktikan <c>FaceRecognition:MaxEdge</c> bekerja. Foto resolusi asli dienkode dua kali:
-    /// sekali dengan pembatasan (default 800 px) dan sekali tanpa (<c>MaxEdge=0</c>). Keduanya
-    /// harus tetap mengenali orang yang sama - kalau tidak, pembatasan itu merusak identitas dan
-    /// nilai default-nya berbahaya. Sekaligus memperlihatkan penghematan waktunya.
-    /// </summary>
     private static async Task RunMaxEdgeCaseAsync(string settingsPath, string modelsDir, string testDir, InputResults inputs)
     {
         Probe.Banner("KASUS 13: MaxEdge (pembatasan ukuran) tidak mengubah identitas");
@@ -637,18 +521,6 @@ internal static class Program
         }
     }
 
-    // ------------------------------------------------------------------
-    // Benchmark detektor (dijalankan dengan argumen: benchmark)
-    // ------------------------------------------------------------------
-
-    /// <summary>
-    /// Mengukur biaya deteksi untuk tiap kombinasi (Detector, Upsample) pada tiga ukuran
-    /// gambar: frame kamera 640x480, foto yang diperkecil sampai sisi terpanjang 800 px, dan
-    /// foto unggahan resolusi asli. Angka-angka inilah yang dipakai memilih nilai default di
-    /// <c>appsettings.json</c> - CNN dengan upsample pada foto besar terbukti memakan puluhan
-    /// detik. Seluruh pengukuran lewat jalur pixel BGRA agar konsisten dan sekaligus mencakup
-    /// biaya konversi warna.
-    /// </summary>
     private static async Task RunBenchmarkAsync(string settingsPath, string modelsDir, string testDir)
     {
         Probe.Banner("BENCHMARK DETEKTOR (informatif, tanpa assertion)");
@@ -690,8 +562,6 @@ internal static class Program
                 ["FaceRecognition:Upsample"] = upsample.ToString(CultureInfo.InvariantCulture),
             }, logSource: false);
 
-            // Service baru per konfigurasi; pemanggilan pertama tiap service ikut menanggung
-            // muat model ~1.4 s, jadi kolom "kamera" (yang diukur duluan) sedikit membesar.
             using var service = new FaceRecognitionService(configuration, new SessionService());
 
             var cells = new List<string>();

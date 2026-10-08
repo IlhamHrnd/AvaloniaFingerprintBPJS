@@ -31,7 +31,6 @@ namespace AvaloniaFingerprint.Services
             "UVC",
             "Windows Virtual Camera",
 
-            // Kamera bawaan laptop
             "Integrated Webcam",
             "Built-in Camera",
             "Built-in Webcam",
@@ -73,14 +72,6 @@ namespace AvaloniaFingerprint.Services
             return headers;
         }
 
-        /// <summary>
-        /// Pemanggil wajib mengisi <paramref name="endpoint"/> dan <paramref name="method"/>; keduanya
-        /// kosong berarti permintaan dibatalkan tanpa memanggil API.
-        /// <paramref name="unit"/> memilih satuan <paramref name="timeOut"/> (1=detik, 2=menit,
-        /// 3=jam, 4=hari, lainnya=ms). Bila <paramref name="file"/> terisi, isinya diunggah sebagai
-        /// multipart; <paramref name="body"/> hanya dipakai untuk method selain GET, dan di sanalah
-        /// field biasa diletakkan.
-        /// </summary>
         protected RestResponse RestResponse(string url, string endpoint, int timeOut, List<Models.Master.Parameter> headers, int unit, int method, object? body = null, IFormFile? file = null, List<Models.Master.Parameter>? param = null)
         {
             if (string.IsNullOrEmpty(endpoint)) return new RestResponse();
@@ -140,8 +131,6 @@ namespace AvaloniaFingerprint.Services
             return response;
         }
 
-        // Format untuk hasil scan finger agar bisa diolah.
-        // Static + internal so non-derived services (e.g. FingerprintService) can reuse it.
         protected internal static byte[] GrayscaleToJpeg(byte[] gray, int width, int height, int quality = 90)
         {
             if (gray is null || width <= 0 || height <= 0)
@@ -156,9 +145,9 @@ namespace AvaloniaFingerprint.Services
             {
                 var v = gray[i];
                 var o = i * 4;
-                pixels[o] = v;      // B
-                pixels[o + 1] = v;  // G
-                pixels[o + 2] = v;  // R
+                pixels[o] = v;
+                pixels[o + 1] = v;
+                pixels[o + 2] = v;
                 pixels[o + 3] = 255;
             }
 

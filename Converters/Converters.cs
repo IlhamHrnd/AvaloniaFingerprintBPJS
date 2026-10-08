@@ -377,7 +377,6 @@ namespace AvaloniaFingerprint.Converters
         #endregion
     }
 
-    /// <summary>Turns a base64 JPEG string into a bitmap for <c>Image.Source</c>.</summary>
     public sealed class Base64ImageConverter : IValueConverter
     {
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -403,7 +402,6 @@ namespace AvaloniaFingerprint.Converters
         }
     }
 
-    /// <summary>Green when true, red when false — used for the device / login indicators.</summary>
     public sealed class BoolToBrushConverter : IValueConverter
     {
         public IBrush TrueBrush { get; set; } = new SolidColorBrush(Color.Parse("#107C10"));

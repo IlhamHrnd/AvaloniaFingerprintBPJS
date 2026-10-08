@@ -16,8 +16,6 @@ namespace AvaloniaFingerprint.Services
 
         public FingerprintServices(IConfiguration config, SessionService session) : base(config, session)
         {
-            // The SDK probe is a method group on this instance, so the watcher has to be wired in the
-            // constructor body: a field initializer cannot reference an instance member (CS0236).
             watcher = new UsbDeviceWatcherServices(config, session, ProbeSdkReader);
             watcher.StatusChanged += (_, state) => DeviceStateChanged?.Invoke(this, state);
         }
@@ -43,9 +41,6 @@ namespace AvaloniaFingerprint.Services
             return result;
         }
 
-        // Teks status dipakai bersama oleh indikator Header dan halaman fingerprint, sehingga
-        // keduanya tidak mungkin menampilkan kondisi yang berbeda. Polanya sama persis dengan
-        // CameraServices.ResolveStatus()/ResolveDetail().
         public const string SearchingStatus = "Mencari perangkat...";
         public const string ConnectedStatus = "Perangkat terhubung";
         public const string DetectedStatus = "Perangkat terdeteksi";
@@ -53,34 +48,18 @@ namespace AvaloniaFingerprint.Services
         public const string DisconnectedStatus = "Perangkat terputus";
         public const string UnavailableStatus = "Perangkat tidak tersedia";
 
-        /// <summary>Detail saat benar-benar tidak ada reader yang terlihat.</summary>
         public const string DetailDisconnected = "Hubungkan USB fingerprint reader DigitalPersona";
 
-        /// <summary>
-        /// Satu-satunya sumber kebenaran status reader: mengirim snapshot lengkap (state + nama +
-        /// penyebab) sehingga UI tidak perlu merakit sendiri kesimpulan dari beberapa flag yang
-        /// bisa saling bertentangan.
-        /// </summary>
         public event EventHandler<FingerprintDeviceState>? DeviceStateChanged;
 
-        /// <summary>Snapshot device terakhir yang dipublikasikan watcher.</summary>
         public FingerprintDeviceState DeviceState => watcher.Current;
 
-        /// <summary>
-        /// Benar hanya bila reader sudah dibuka SDK, berstatus <c>DP_STATUS_READY</c>, dan mampu
-        /// melakukan capture. Tidak ada jalur lain yang bisa menyalakan flag ini.
-        /// </summary>
         public bool IsDeviceConnected => watcher.IsConnected;
 
         public string? DeviceName => watcher.DeviceName;
 
         public string? DeviceId => watcher.DeviceId;
 
-        /// <summary>
-        /// Teks status ringkas untuk indikator Header. Hanya <see cref="ConnectedStatus"/> yang
-        /// membuat indikator hijau; device yang dilihat Windows tetapi tidak bisa dibuka SDK
-        /// dilaporkan apa adanya, bukan sebagai "terhubung".
-        /// </summary>
         public string ResolveStatus() => DeviceState.State switch
         {
             FingerprintReaderState.Ready => ConnectedStatus,
@@ -90,10 +69,6 @@ namespace AvaloniaFingerprint.Services
             _ => IsSdkAvailable ? DisconnectedStatus : UnavailableStatus,
         };
 
-        /// <summary>
-        /// Keterangan lengkap (nama device, atau penyebab kegagalan) untuk tooltip Header dan
-        /// halaman fingerprint, sehingga keduanya selalu menampilkan teks yang identik.
-        /// </summary>
         public string ResolveDetail()
         {
             var state = DeviceState;
@@ -107,9 +82,6 @@ namespace AvaloniaFingerprint.Services
                     return string.IsNullOrWhiteSpace(state.Detail) ? SearchingStatus : state.Detail!;
 
                 default:
-                    // Alasan spesifik dari probe (gagal dibuka, tidak siap, tidak bisa capture,
-                    // atau perangkat biometrik yang tidak dapat dipakai) jauh lebih berguna bagi
-                    // petugas daripada teks generik.
                     if (!string.IsNullOrWhiteSpace(state.Detail))
                         return state.Detail!;
 
@@ -127,13 +99,10 @@ namespace AvaloniaFingerprint.Services
 
         public Task RefreshDeviceAsync() => watcher.RefreshAsync();
 
-        /// <summary>Capture budget in ms, surfaced for the UI layer (mirrors <see cref="BaseService.captureTimeoutMs"/>).</summary>
         public int CaptureTimeoutMs => captureTimeoutMs;
 
-        /// <summary>Verify budget in ms, surfaced for the UI layer (mirrors <see cref="BaseService.verifyTimeoutMs"/>).</summary>
         public int VerifyTimeoutMs => verifyTimeoutMs;
 
-        /// <summary>Scans one finger. Throws <see cref="FingerprintExceptions"/> on any reader problem.</summary>
         public Task<Models.Fingerprint.Capture> CaptureAsync(int? timeoutMs = null, CancellationToken ct = default)
         {
             var timeout = timeoutMs ?? captureTimeoutMs;
@@ -149,19 +118,9 @@ namespace AvaloniaFingerprint.Services
 
         private int _capturing;
 
-        /// <summary>
-        /// Benar selama pemindaian berlangsung. Watcher memeriksanya dan menunda probe validasi
-        /// supaya polling tidak membuka/merebut reader di tengah capture milik pengguna.
-        /// </summary>
         public bool IsCaptureInFlight => Volatile.Read(ref _capturing) != 0;
 
         #if HAS_DPURUNET
-        /// <summary>
-        /// Pembungkus <see cref="CaptureCore"/> yang menyalakan <see cref="IsCaptureInFlight"/>
-        /// selama pemindaian. Tanpa penjaga ini, probe yang berjalan tiap beberapa detik bisa
-        /// mendapat DP_DEVICE_BUSY dan membuat indikator berkedip "terputus" padahal pemindaian
-        /// sedang berlangsung normal.
-        /// </summary>
         private async Task<Models.Fingerprint.Capture> CaptureGuardedAsync(int timeoutMs, CancellationToken ct)
         {
             Interlocked.Increment(ref _capturing);
@@ -176,32 +135,11 @@ namespace AvaloniaFingerprint.Services
         }
         #endif
 
-        /// <summary>
-        /// Human-readable message shown when the DigitalPersona SDK is missing at build time.
-        /// Single source of truth is <see cref="BaseService"/>; exposed for the UI layer.
-        /// </summary>
         public string SdkMissing => SdkMissingMessage;
 
-        /// <summary>
-        /// Memvalidasi reader lewat SDK. Enumerasi saja TIDAK cukup: DpHost bisa mendaftarkan reader
-        /// (termasuk sensor WBF bawaan laptop) yang tampak rapi di daftar tetapi tidak benar-benar
-        /// bisa dipakai. Karena itu setiap kandidat harus lolos Open + GetStatus + Status +
-        /// CanCapture sebelum dianggap <see cref="FingerprintReaderState.Ready"/>.
-        /// </summary>
-        /// <remarks>
-        /// PENTING: <see cref="ReaderCollection"/> sengaja TIDAK di-dispose. Teruji di perangkat ini,
-        /// <c>ReaderCollection.Dispose()</c> membuat <c>GetReaders()</c> mengembalikan 0 reader selama
-        /// 1-2 menit berikutnya sehingga aplikasi kehilangan device sama sekali. Sebaliknya
-        /// <c>Reader.Dispose()</c> aman dan tetap dipanggil.
-        /// </remarks>
-        /// <returns>
-        /// <c>null</c> bila probe tidak memberi pendapat (capture sedang berjalan atau reader sedang
-        /// dipakai proses lain); watcher akan mempertahankan state terakhir.
-        /// </returns>
         private FingerprintDeviceState? ProbeSdkReader(Action<FingerprintDeviceState> publish)
         {
         #if HAS_DPURUNET
-            // Jangan membuka/memvalidasi reader selagi pengguna sedang memindai.
             if (IsCaptureInFlight)
                 return null;
 
@@ -236,7 +174,6 @@ namespace AvaloniaFingerprint.Services
 
                 var validation = ValidateReader(reader, deviceName, deviceId);
 
-                // null = reader sedang dipakai (DP_DEVICE_BUSY): pertahankan state terakhir.
                 if (validation is null)
                     return null;
 
@@ -256,11 +193,6 @@ namespace AvaloniaFingerprint.Services
         }
 
         #if HAS_DPURUNET
-        /// <summary>
-        /// Membuka reader lalu memeriksa status dan kemampuannya. Mengembalikan <c>null</c> bila
-        /// reader sedang dipakai proses lain (<c>DP_DEVICE_BUSY</c>): kondisi itu bukan "tidak
-        /// terhubung", jadi state terakhir dipertahankan.
-        /// </summary>
         private FingerprintDeviceState? ValidateReader(Reader reader, string? deviceName, string? deviceId)
         {
             try
@@ -288,8 +220,6 @@ namespace AvaloniaFingerprint.Services
                     return FingerprintDeviceState.AsNotReady(deviceName, deviceId, $"Reader gagal dibuka ({open}).");
                 }
 
-                // GetStatus() hanya mengembalikan ResultCode pemanggilan; status reader yang
-                // sesungguhnya baru terbaca dari reader.Status setelah GetStatus() sukses.
                 var statusResult = reader.GetStatus();
                 if (statusResult != Constants.ResultCode.DP_SUCCESS)
                 {
@@ -315,15 +245,10 @@ namespace AvaloniaFingerprint.Services
             }
             finally
             {
-                // Reader.Dispose() teruji aman dan tidak mengganggu enumerasi berikutnya.
-                try { reader.Dispose(); } catch { /* reader sudah hilang */ }
+                try { reader.Dispose(); } catch { }
             }
         }
 
-        /// <summary>
-        /// Mengumumkan <see cref="FingerprintReaderState.Initializing"/> hanya saat benar-benar ada
-        /// perpindahan, supaya indikator tidak berkedip Ready -&gt; Mencari -&gt; Ready setiap poll.
-        /// </summary>
         private void PublishInitializing(Action<FingerprintDeviceState> publish, string? deviceName, string? deviceId)
         {
             var current = watcher.Current;
@@ -355,16 +280,6 @@ namespace AvaloniaFingerprint.Services
         #endif
 
         #if HAS_DPURUNET
-        /// <summary>
-        /// Membuka reader pertama yang benar-benar dapat dipakai. DpHost bisa mendaftarkan beberapa
-        /// reader (misalnya sensor WBF bawaan laptop) yang tampak rapi di daftar tetapi gagal dibuka,
-        /// jadi mengambil <c>readers[0]</c> saja tidak cukup dan bisa membuat capture memakai reader
-        /// yang berbeda dari yang dinyatakan Ready oleh <see cref="ProbeSdkReader"/>.
-        /// </summary>
-        /// <remarks>
-        /// <see cref="ReaderCollection"/> sengaja tidak di-dispose (lihat keterangan pada
-        /// <see cref="ProbeSdkReader"/>); hanya <see cref="Reader"/> yang dilepas.
-        /// </remarks>
         private static Reader OpenFirstUsableReader(ReaderCollection readers)
         {
             var lastOpenError = Constants.ResultCode.DP_FAILURE;
@@ -388,11 +303,9 @@ namespace AvaloniaFingerprint.Services
                 }
                 finally
                 {
-                    // Kandidat yang tidak terpakai dilepas di sini; reader yang dikembalikan
-                    // dilepas oleh pemanggil setelah capture selesai.
                     if (!opened)
                     {
-                        try { candidate.Dispose(); } catch { /* reader sudah hilang */ }
+                        try { candidate.Dispose(); } catch { }
                     }
                 }
             }
@@ -415,16 +328,11 @@ namespace AvaloniaFingerprint.Services
             if (readers is null || readers.Count == 0)
                 throw new FingerprintExceptions("Perangkat Fingerprint Tidak Terdeteksi");
 
-            // Hasil Open() dulu diabaikan sama sekali, sehingga capture tetap dijalankan pada reader
-            // yang tidak pernah terbuka dan gagal dengan pesan yang menyesatkan.
             var reader = OpenFirstUsableReader(readers);
             try
             {
                 var calibrateResult = reader.Calibrate();
                 if (calibrateResult != Constants.ResultCode.DP_SUCCESS)
-                    // Beberapa reader (mis. sensor WBF) melaporkan HasCalibration=false sehingga
-                    // Calibrate() tidak mengembalikan DP_SUCCESS. Itu bukan alasan membatalkan
-                    // pemindaian, jadi cukup dicatat.
                     Trace.WriteLine($"[FingerprintServices] Calibrate mengembalikan {calibrateResult}; capture tetap dilanjutkan.");
 
                 var result = reader.Capture(
@@ -466,7 +374,7 @@ namespace AvaloniaFingerprint.Services
             }
             finally
             {
-                try { reader.Dispose(); } catch { /* reader already gone */ }
+                try { reader.Dispose(); } catch { }
             }
         }
         #endif
