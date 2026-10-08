@@ -19,16 +19,18 @@
       <StackPanel Spacing="10">
         <TextBlock Classes="h2" Text="Verifikasi" />
 
-        <!-- NIK peserta: field bersama untuk KEDUA metode. Diisi sekali, lalu dipakai metode
-             Fingerprint (saat metode nomor "NIK" yang dipilih) maupun metode Wajah. Karena itu
-             field ini berada di ATAS pemilih metode, bukan di dalam salah satu panel.
+        <!-- Nomor identitas peserta: SATU field untuk KEDUA metode dan kedua jenis nomor. Jenis
+             nomornya ditentukan dari panjangnya oleh ViewModel (radio "Jenis Nomor" sudah
+             dihapus), jadi tidak ada field kedua. Karena itu field ini berada di ATAS pemilih
+             metode, bukan di dalam salah satu panel.
              PlaceholderText dipakai karena Watermark sudah obsolete (memicu AVLN5001). -->
         <StackPanel Spacing="4">
-          <TextBlock Text="NIK" FontWeight="SemiBold" FontSize="12" />
-          <TextBox Text="{Binding Nik}"
+          <TextBlock Text="NIK / No. BPJS" FontWeight="SemiBold" FontSize="12" />
+          <TextBox Text="{Binding IdentityNumber}"
                    MaxLength="16"
-                   PlaceholderText="Masukkan NIK"
+                   PlaceholderText="Masukkan NIK atau No. BPJS"
                    Height="36" FontSize="15" />
+          <TextBlock Classes="caption" Text="NIK 16 digit / No. BPJS 13 digit" />
         </StackPanel>
 
         <!-- Pemilih metode. Hanya panel milik metode yang dipilih yang ditampilkan; panel metode
@@ -44,26 +46,6 @@
 
         <!-- ================= panel metode: FINGERPRINT ================= -->
         <StackPanel IsVisible="{Binding IsFingerprintMode}" Spacing="14">
-
-          <!-- Metode nomor menentukan field mana yang dikirim sebagai keyword verifikasi. Saat
-               "NIK" dipilih, field Nomor disembunyikan karena NIK bersama di atas yang dipakai;
-               saat "No. BPJS" dipilih, field Nomor tampil dengan batas 13 digit. -->
-          <StackPanel Spacing="6">
-            <TextBlock Text="Jenis Nomor" FontWeight="SemiBold" FontSize="12" />
-            <StackPanel Orientation="Horizontal" Spacing="16">
-              <RadioButton GroupName="jenis" Content="NIK" IsChecked="{Binding IsNik}" />
-              <RadioButton GroupName="jenis" Content="No. BPJS" IsChecked="{Binding IsNoBpjs}" />
-            </StackPanel>
-          </StackPanel>
-
-          <StackPanel Spacing="4" IsVisible="{Binding IsNoBpjs}">
-            <TextBlock Text="Nomor" FontWeight="SemiBold" FontSize="12" />
-            <TextBox Text="{Binding Number}"
-                     MaxLength="{Binding NumberMaxLength}"
-                     PlaceholderText="Minimal 13 digit"
-                     Height="38" FontSize="15" />
-            <TextBlock Classes="caption" Text="No. BPJS 13 digit" />
-          </StackPanel>
 
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Button Content="Verifikasi" Command="{Binding VerifyCommand}"
@@ -152,6 +134,15 @@
           <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12"
                      Foreground="{Binding !StatusIsError, Converter={StaticResource StatusBrush}}" />
         </Border>
+
+        <!-- Membuang foto upload dan hasil verifikasi wajah, lalu kembali ke live camera.
+             Diletakkan di kolom kiri, BUKAN di dalam kartu Hasil Verifikasi, supaya kartu hasil
+             tetap identik di kedua metode. Hanya muncul saat memang ada foto yang bisa dibuang
+             (hanya mungkin di metode Wajah). -->
+        <Button Content="Hapus Foto" Command="{Binding ClearPhotoCommand}"
+                IsVisible="{Binding HasAnyPhoto}"
+                HorizontalAlignment="Stretch" Height="34"
+                HorizontalContentAlignment="Center" />
       </StackPanel>
       </ScrollViewer>
     </Border>
@@ -163,35 +154,30 @@
 
         <Grid ColumnDefinitions="Auto,*">
 
-          <!-- Gambar peserta. Sumbernya mengikuti metode yang aktif: base64 sidik jari untuk
-               metode Fingerprint, atau foto yang diverifikasi untuk metode Wajah. Kotaknya satu
-               dan berukuran tetap supaya kartu hasil tidak berubah bentuk saat metode berpindah. -->
+          <!-- Gambar peserta. Satu area untuk KEDUA metode: placeholder bersama tanpa emoji/icon,
+               dan slot gambar yang dipilih oleh metode aktif. Kotak berukuran tetap supaya kartu
+               hasil tidak berubah bentuk saat metode berpindah. -->
           <Border Grid.Column="0" Width="140" Height="180" CornerRadius="6" Margin="0,0,20,0"
                   Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1"
                   VerticalAlignment="Top">
             <Panel>
+              <!-- Placeholder bersama: satu TextBlock, tanpa emoji, tanpa icon, untuk kedua metode.
+                   Hanya teksnya yang berbeda, diambil dari ResultPlaceholderLabel. Struktur yang
+                   sama inilah yang membuat alignment kedua metode identik. -->
+              <TextBlock Text="{Binding ResultPlaceholderLabel}" Classes="caption"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                         IsVisible="{Binding !HasResultImage}" />
+
               <!-- metode Fingerprint: sidik jari hasil capture (base64 -> gambar lewat converter) -->
-              <Panel IsVisible="{Binding IsFingerprintMode}">
-                <TextBlock Text="Sidik jari" Classes="caption"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           IsVisible="{Binding FingerImage, Converter={x:Static ObjectConverters.IsNull}}" />
-                <Image Source="{Binding FingerImage, Converter={StaticResource Base64Image}}"
-                       Stretch="Uniform" Margin="6" />
-              </Panel>
+              <Image Source="{Binding FingerImage, Converter={StaticResource Base64Image}}"
+                     Stretch="Uniform" Margin="6"
+                     IsVisible="{Binding IsFingerprintMode}" />
 
-              <!-- metode Wajah: foto yang diverifikasi. Dibiarkan memakai rasio aslinya di dalam
-                   kotak berukuran tetap, supaya wajah tidak terlihat gepeng. -->
-              <Panel IsVisible="{Binding IsWajahMode}">
-                <Image Source="{Binding CapturedPhoto}"
-                       Stretch="Uniform"
-                       IsVisible="{Binding HasCapturedPhoto}" />
-
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6"
-                            IsVisible="{Binding !HasCapturedPhoto}">
-                  <TextBlock Text="🙂" FontSize="28" HorizontalAlignment="Center" />
-                  <TextBlock Text="Wajah" Classes="caption" HorizontalAlignment="Center" />
-                </StackPanel>
-              </Panel>
+              <!-- metode Wajah: foto yang diverifikasi. Margin disamakan dengan slot sidik jari di
+                   atas supaya kedua metode benar-benar tampil identik. -->
+              <Image Source="{Binding CapturedPhoto}"
+                     Stretch="Uniform" Margin="6"
+                     IsVisible="{Binding IsWajahMode}" />
             </Panel>
           </Border>
 
@@ -214,16 +200,6 @@
                        TextWrapping="Wrap" FontSize="12" />
           </Grid>
         </Grid>
-
-        <!-- Membuang foto upload dan hasil verifikasi wajah, lalu kembali ke live camera. Hanya
-             relevan untuk metode Wajah, jadi seluruhnya disembunyikan saat metode Fingerprint
-             yang aktif. -->
-        <StackPanel IsVisible="{Binding IsWajahMode}">
-          <Button Content="Hapus Foto" Command="{Binding ClearPhotoCommand}"
-                  IsVisible="{Binding HasAnyPhoto}"
-                  HorizontalAlignment="Left" Height="34" Padding="16,0"
-                  HorizontalContentAlignment="Center" />
-        </StackPanel>
       </StackPanel>
     </Border>
   </Grid>

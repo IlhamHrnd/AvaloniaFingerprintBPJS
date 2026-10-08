@@ -22,8 +22,9 @@ namespace AvaloniaFingerprint.ViewModels;
 
 /// <summary>
 /// Halaman <b>Verifikasi</b> — penggabungan "Verifikasi Fingerprint" dan "Verifikasi Wajah" dalam
-/// satu tab. Operator mengisi NIK sekali di bagian atas, memilih metode, dan panel input berubah
-/// mengikuti metode itu; kartu "Hasil Verifikasi" di kanan dipakai bersama oleh keduanya.
+/// satu tab. Operator mengisi NIK / No. BPJS sekali di bagian atas, memilih metode, dan panel
+/// input berubah mengikuti metode itu; kartu "Hasil Verifikasi" di kanan dipakai bersama oleh
+/// keduanya.
 ///
 /// Metode <b>Fingerprint</b> adalah port WinForms <c>VerifikasiFingerprint</c>: capture lewat
 /// <see cref="FingerprintServices"/> lalu <c>POST /frista/verify</c> (endpoint, payload, dan model
@@ -91,19 +92,21 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
 
     /// <summary>
     /// Metode yang sedang dipilih; default <b>Fingerprint</b>. Kedua flag dibuat saling meniadakan
-    /// memakai pola yang sama dengan <see cref="IsNik"/>/<see cref="IsNoBpjs"/>, sehingga dua
+    /// dengan logika di <c>OnIsFingerprintModeChanged</c>/<c>OnIsWajahModeChanged</c>, sehingga dua
     /// RadioButton di AXAML cukup terikat dua arah tanpa logika tambahan di view.
     /// </summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
     [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConnectCameraCommand))]
+    [NotifyPropertyChangedFor(nameof(ResultPlaceholderLabel))]
     private bool _isFingerprintMode = true;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
     [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConnectCameraCommand))]
+    [NotifyPropertyChangedFor(nameof(ResultPlaceholderLabel))]
     private bool _isWajahMode;
 
     partial void OnIsFingerprintModeChanged(bool value)
@@ -127,8 +130,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     /// <summary>
     /// Operator berpindah ke Fingerprint: seluruh state khusus wajah dibuang dan stream kamera
     /// dimatikan (lewat <see cref="CameraUsageChanged"/>), supaya tidak ada capture yang tetap
-    /// berjalan di belakang layar. NIK sengaja dipertahankan karena field NIK dipakai bersama oleh
-    /// kedua metode — identitas peserta tidak perlu diketik ulang.
+    /// berjalan di belakang layar. Nomor identitas sengaja dipertahankan karena field itu dipakai
+    /// bersama oleh kedua metode — identitas peserta tidak perlu diketik ulang.
     /// </summary>
     private void EnterFingerprintMode()
     {
@@ -197,97 +200,54 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     // ---- input peserta -------------------------------------------------------
 
     /// <summary>
-    /// NIK peserta — <b>field bersama</b> untuk kedua metode. Di metode Wajah inilah nomor peserta
-    /// yang divalidasi sebelum encoding; di metode Fingerprint dengan metode nomor "NIK" inilah
-    /// nomor yang dikirim ke <c>POST /frista/verify</c>. Karena dipakai bersama, NIK dipertahankan
-    /// saat operator berpindah metode dan hanya dikosongkan saat reset atau logout.
+    /// Nomor identitas peserta — <b>satu field bersama</b> untuk kedua metode dan kedua jenis
+    /// nomor. Radio "Jenis Nomor" sudah dihapus, jadi tidak ada lagi field kedua yang menyimpan
+    /// nomor No. BPJS: jenis nomornya ditentukan dari panjang isi field ini oleh
+    /// <see cref="ResolvedJnsFilter"/>. Nilainya dipertahankan saat operator berpindah metode dan
+    /// hanya dikosongkan saat reset atau logout.
     /// </summary>
     /// <remarks>
     /// Sengaja tanpa <c>[NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]</c>: tombol harus
-    /// tetap bisa ditekan saat NIK kosong supaya pesan validasinya benar-benar tampil, bukan tombol
-    /// yang mati tanpa penjelasan. <c>VerifyCommand</c> (fingerprint) tetap diberi tahu, karena di
-    /// metode nomor "NIK" isi field inilah yang menentukan tombol boleh hidup atau tidak.
+    /// tetap bisa ditekan saat nomor masih kosong supaya pesan validasinya benar-benar tampil,
+    /// bukan tombol yang mati tanpa penjelasan. <c>VerifyCommand</c> (fingerprint) tetap diberi
+    /// tahu, karena isi field inilah yang menentukan tombol boleh hidup atau tidak.
     /// </remarks>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
-    private string _nik = string.Empty;
+    private string _identityNumber = string.Empty;
 
     /// <summary>
-    /// Menyaring masukan NIK: hanya angka ASCII dan maksimal <see cref="NikLength"/> karakter,
-    /// sehingga hasil tempel yang mengandung huruf atau spasi langsung bersih.
-    /// Idempoten — bila hasilnya sama dengan nilai yang masuk tidak ada penugasan ulang, jadi
-    /// mengetik angka secara normal tidak menggeser posisi kursor.
+    /// Menyaring masukan nomor: hanya angka ASCII dan maksimal <see cref="NikLength"/> karakter
+    /// (panjang NIK, yang terbesar di antara kedua jenis nomor), sehingga hasil tempel yang
+    /// mengandung huruf atau spasi langsung bersih. Idempoten — bila hasilnya sama dengan nilai
+    /// yang masuk tidak ada penugasan ulang, jadi mengetik angka tidak menggeser posisi kursor.
     /// </summary>
-    partial void OnNikChanged(string value)
+    partial void OnIdentityNumberChanged(string value)
     {
         var cleaned = new string(value.Where(char.IsAsciiDigit).Take(NikLength).ToArray());
         if (cleaned != value)
-            Nik = cleaned;
+            IdentityNumber = cleaned;
     }
 
-    // ---- input fingerprint ------------------------------------------------------
-
     /// <summary>
-    /// Nomor yang dikirim ke API saat metode nomor "No. BPJS" dipilih. Saat "NIK" yang dipilih
-    /// field ini tidak tampil dan <see cref="Nik"/> di atas yang dipakai.
+    /// Jenis nomor ditentukan dari panjangnya, menggantikan radio "Jenis Nomor": 16 digit = NIK
+    /// (<c>"nik"</c>), 13 digit = No. BPJS (<c>"psnoka"</c>). Nilai inilah yang dikirim sebagai
+    /// <c>jnsFilter</c> pada <c>POST /frista/verify</c>. Panjang lain tidak bisa dipastikan
+    /// jenisnya, jadi dikosongkan.
     /// </summary>
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
-    private string _number = string.Empty;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
-    [NotifyPropertyChangedFor(nameof(NumberMaxLength))]
-    private bool _isNik = true;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
-    [NotifyPropertyChangedFor(nameof(NumberMaxLength))]
-    private bool _isNoBpjs;
-
-    /// <summary>
-    /// Batas panjang field "Nomor". Dihitung dari metode nomor yang aktif sehingga berubah saat
-    /// operator berpindah NIK ↔ No. BPJS; perubahan itu diberitahukan lewat
-    /// <c>NotifyPropertyChangedFor</c> di kedua flag di atas.
-    /// </summary>
-    public int NumberMaxLength => IsNoBpjs ? BpjsLength : NikLength;
-
-    /// <summary>
-    /// Nomor yang benar-benar dikirim ke <c>POST /frista/verify</c>: NIK bersama bila metode nomor
-    /// "NIK" yang dipilih, atau isi field "Nomor" bila "No. BPJS".
-    /// </summary>
-    private string EffectiveNumber => (IsNik ? Nik : Number).Trim();
-
-    /// <summary>
-    /// Aturan panjang existing dipertahankan apa adanya — tidak ada aturan baru: halaman
-    /// fingerprint lama memakai "lebih dari 12 digit" (≥13) untuk No. BPJS, dan halaman wajah
-    /// memakai tepat <see cref="NikLength"/> digit untuk NIK.
-    /// </summary>
-    private int RequiredNumberLength => IsNik ? NikLength : BpjsLength;
-
-    partial void OnIsNikChanged(bool value)
+    private string ResolvedJnsFilter => IdentityNumber.Length switch
     {
-        if (value && IsNoBpjs) IsNoBpjs = false;
+        NikLength => "nik",
+        BpjsLength => "psnoka",
+        _ => string.Empty
+    };
 
-        // Hasil yang diperoleh dengan metode nomor sebelumnya tidak boleh tetap tampil: nomor yang
-        // akan diverifikasi berikutnya sudah berbeda jenis.
-        if (value)
-        {
-            ResetResult();
-            SetStatus(string.Empty, false);
-        }
-    }
-
-    partial void OnIsNoBpjsChanged(bool value)
-    {
-        if (value && IsNik) IsNik = false;
-
-        if (value)
-        {
-            ResetResult();
-            SetStatus(string.Empty, false);
-        }
-    }
+    /// <summary>
+    /// Nomor dianggap valid hanya bila panjangnya pasti menandai NIK (16 digit) atau No. BPJS
+    /// (13 digit). Panjang ambigu (mis. 14–15 digit) sengaja ditolak supaya verifikasi tidak
+    /// dijalankan dengan jenis nomor yang salah.
+    /// </summary>
+    private bool IsIdentityValid => ResolvedJnsFilter.Length > 0;
 
     [ObservableProperty]
     private string _cameraTitle = "Live Camera View";
@@ -374,6 +334,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCapturedPhoto))]
     [NotifyPropertyChangedFor(nameof(HasAnyPhoto))]
+    [NotifyPropertyChangedFor(nameof(HasResultImage))]
     private IImage? _capturedPhoto;
 
     /// <summary>True bila sudah ada gambar hasil verifikasi (placeholder ditukar).</summary>
@@ -424,7 +385,23 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     /// diubah menjadi gambar oleh Base64Image converter di AXAML; null berarti placeholder.
     /// Hanya hidup di memori — dibuang saat reset, ganti metode, atau logout.
     /// </summary>
-    [ObservableProperty] private string? _fingerImage;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasResultImage))]
+    private string? _fingerImage;
+
+    /// <summary>
+    /// Label area gambar di kartu Hasil Verifikasi. Kartu ini satu dan dipakai bersama kedua
+    /// metode, jadi hanya teksnya yang berbeda: "Sidik jari" atau "Wajah". Sengaja TIDAK ada
+    /// emoji/icon khusus salah satu metode, supaya visual kedua metode identik.
+    /// </summary>
+    public string ResultPlaceholderLabel => IsWajahMode ? "Wajah" : "Sidik jari";
+
+    /// <summary>
+    /// True bila area gambar kartu hasil sudah berisi sesuatu (sidik jari hasil capture atau foto
+    /// hasil verifikasi wajah), sehingga placeholder disembunyikan. Satu penanda untuk kedua
+    /// metode, supaya aturan tampil/sembunyi placeholder tidak berbeda antar metode.
+    /// </summary>
+    public bool HasResultImage => FingerImage is not null || CapturedPhoto is not null;
 
     /// <summary>
     /// Vektor embedding wajah 128 nilai hasil <see cref="IFaceRecognitionService"/>, disimpan untuk
@@ -436,8 +413,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
 
     /// <summary>
     /// Mengembalikan kartu hasil ke keadaan kosong, termasuk gambar sidik jari. Dipakai tombol
-    /// Bersihkan, saat metode atau metode nomor berpindah, dan saat logout — satu jalur supaya
-    /// tidak ada data peserta yang tertinggal di layar.
+    /// Bersihkan, saat metode berpindah, dan saat logout — satu jalur supaya tidak ada data
+    /// peserta yang tertinggal di layar.
     /// </summary>
     private void ResetResult()
     {
@@ -472,13 +449,12 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
         // Gambar sidik jari, nomor yang sudah diketik, dan hasil verifikasinya juga dibuang:
         // semuanya milik peserta sebelumnya dan tidak boleh terbawa ke sesi berikutnya.
         FingerImage = null;
-        Number = string.Empty;
         ResetResult();
         IsScanning = false;
         ScanStatus = string.Empty;
 
-        // NIK peserta sebelumnya juga dibuang, supaya tidak ikut terverifikasi untuk pasien lain.
-        Nik = string.Empty;
+        // Nomor peserta sebelumnya juga dibuang, supaya tidak ikut terverifikasi untuk pasien lain.
+        IdentityNumber = string.Empty;
 
         SetStatus(string.Empty, false);
     }
@@ -824,26 +800,29 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanVerifyFace))]
     private async Task VerifyFaceAsync()
     {
-        // Validasi NIK lebih dulu, sebelum gambar disalin atau model dlib disentuh: permintaan yang
+        // Validasi nomor lebih dulu, sebelum gambar disalin atau model dlib disentuh: permintaan yang
         // pasti ditolak tidak boleh menanggung biaya apa pun, dan CapturedPhoto/FaceEncoding tidak
-        // boleh berubah oleh verifikasi yang batal berjalan.
-        var nik = Nik.Trim();
+        // boleh berubah oleh verifikasi yang batal berjalan. Aturan panjangnya sama dengan metode
+        // Fingerprint: 16 digit (NIK) atau 13 digit (No. BPJS).
+        var identity = IdentityNumber.Trim();
 
-        if (nik.Length == 0)
+        if (identity.Length == 0)
         {
-            SetStatus("NIK masih kosong. Silakan masukkan NIK terlebih dahulu.", true);
+            SetStatus("NIK / No. BPJS masih kosong. Silakan masukkan NIK atau No. BPJS terlebih dahulu.", true);
             return;
         }
 
-        if (!nik.All(char.IsAsciiDigit))
+        if (!identity.All(char.IsAsciiDigit))
         {
-            SetStatus("NIK hanya boleh berisi angka.", true);
+            SetStatus("NIK / No. BPJS hanya boleh berisi angka.", true);
             return;
         }
 
-        if (nik.Length != NikLength)
+        if (identity.Length != NikLength && identity.Length != BpjsLength)
         {
-            SetStatus($"NIK harus {NikLength} digit. Jumlah digit saat ini: {nik.Length}.", true);
+            SetStatus(
+                $"NIK / No. BPJS harus {NikLength} atau {BpjsLength} digit. " +
+                $"Jumlah digit saat ini: {identity.Length}.", true);
             return;
         }
 
@@ -1084,8 +1063,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     // laporan, dan nama printer semuanya dipakai kembali tanpa perubahan.
     //
     // Hanya ada penyesuaian yang menjadi konsekuensi langsung penggabungan halaman:
-    //   1. nomor yang dikirim diambil dari EffectiveNumber (NIK bersama atau field "Nomor"),
-    //      karena field NIK sekarang dimiliki bersama dengan metode Wajah;
+    //   1. nomor yang dikirim diambil dari IdentityNumber, satu field bersama untuk kedua metode
+    //      dan kedua jenis nomor (jenisnya ditentukan dari panjang nomor oleh ResolvedJnsFilter);
     //   2. ClearResult() menjadi ResetResult() dan ResultMeta menjadi ResultKeterangan, karena
     //      kartu hasil kini hanya satu dan dipakai bersama oleh kedua metode;
     //   3. dua penjaga IsFingerprintMode ditambahkan agar hasil yang datang sesudah operator
@@ -1108,8 +1087,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
 
     /// <summary>
     /// Tombol "Verifikasi" (fingerprint) hanya aktif selama metode Fingerprint yang dipilih,
-    /// operator sudah login, reader siap, tidak ada proses lain berjalan, dan nomor yang aktif
-    /// sudah memenuhi panjang minimumnya. <see cref="IsVerifyingFace"/> dan
+    /// operator sudah login, reader siap, tidak ada proses lain berjalan, dan panjang nomor sudah
+    /// pasti menandai NIK (16 digit) atau No. BPJS (13 digit). <see cref="IsVerifyingFace"/> dan
     /// <see cref="IsConnecting"/> ikut diperiksa supaya verifikasi wajah tidak pernah berjalan
     /// berbarengan dengan capture jari.
     /// </summary>
@@ -1120,7 +1099,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
         && !IsBusy
         && !IsVerifyingFace
         && !IsConnecting
-        && EffectiveNumber.Length >= RequiredNumberLength;
+        && IsIdentityValid;
 
     [RelayCommand(CanExecute = nameof(CanVerify))]
     private async Task VerifyAsync()
@@ -1145,8 +1124,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
             var result = await Task.Run(() => _services.Fingerprint.Verify(new Filters.Fingerprint.Verify
             {
                 finger = capture.VerificationTemplate,
-                keyword = EffectiveNumber,
-                jnsFilter = IsNoBpjs ? "psnoka" : "nik"
+                keyword = IdentityNumber.Trim(),
+                jnsFilter = ResolvedJnsFilter
             }));
 
             if (!result.succeeded)
@@ -1442,15 +1421,15 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Tombol "Bersihkan" di panel fingerprint: mengosongkan nomor, gambar sidik jari, dan kartu
-    /// hasil. <see cref="Nik"/> ikut dikosongkan karena di metode nomor "NIK" field itulah nomor
-    /// yang diverifikasi - persis isi field yang dibersihkan tombol ini di halaman lama.
+    /// Tombol "Bersihkan" di panel fingerprint: mengosongkan nomor identitas, gambar sidik jari,
+    /// dan kartu hasil. <see cref="IdentityNumber"/> ikut dikosongkan karena field itulah yang
+    /// menentukan jenis nomor sekaligus nomor yang diverifikasi - persis isi field yang
+    /// dibersihkan tombol ini di halaman lama.
     /// </summary>
     [RelayCommand]
     private void Clear()
     {
-        Nik = string.Empty;
-        Number = string.Empty;
+        IdentityNumber = string.Empty;
         ResetResult();
         SetStatus(string.Empty, false);
     }
