@@ -87,9 +87,6 @@
         <TabItem Header="Verifikasi" IsEnabled="{Binding IsLoggedIn}">
           <views:VerifikasiView DataContext="{Binding Verifikasi}" />
         </TabItem>
-        <TabItem Header="Registrasi Fingerprint" IsEnabled="{Binding IsLoggedIn}">
-          <views:RegistrasiFingerprintView DataContext="{Binding Registrasi}" />
-        </TabItem>
         <TabItem Header="Kode Booking" IsEnabled="{Binding IsLoggedIn}">
           <views:KodeBookingView DataContext="{Binding KodeBooking}" />
         </TabItem>

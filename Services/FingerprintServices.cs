@@ -3,7 +3,6 @@ using DPUruNet;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -37,27 +36,6 @@ namespace AvaloniaFingerprint.Services
             catch (Exception e)
             {
                 return result = new Root<Models.Fingerprint.Verify.VerifyRoot>
-                {
-                    errors = [e.Message, e.InnerException?.Message ?? string.Empty]
-                };
-            }
-            return result;
-        }
-
-        public Root<Models.Fingerprint.RegistValidate.RegistValidateRoot> AddFinger(Filters.Fingerprint.AddPeserta add)
-        {
-            var result = new Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>();
-            var header = headers(Session.UserId);
-
-            var response = RestResponse(url, "Finger/AddPeserta", timeout, header, 1, 2, add);
-            try
-            {
-                if (response.IsSuccessStatusCode) result = JsonConvert.DeserializeObject<Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>>(response.Content ?? string.Empty) ?? new Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>();
-                else result = JsonConvert.DeserializeObject<Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>>(response.Content ?? string.Empty) ?? new Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>();
-            }
-            catch (Exception e)
-            {
-                return result = new Root<Models.Fingerprint.RegistValidate.RegistValidateRoot>
                 {
                     errors = [e.Message, e.InnerException?.Message ?? string.Empty]
                 };
@@ -155,15 +133,6 @@ namespace AvaloniaFingerprint.Services
         /// <summary>Verify budget in ms, surfaced for the UI layer (mirrors <see cref="BaseService.verifyTimeoutMs"/>).</summary>
         public int VerifyTimeoutMs => verifyTimeoutMs;
 
-        /// <summary>Fingers captured per hand, surfaced for the UI layer.</summary>
-        public int FingersPerHand => fingersPerHand;
-
-        /// <summary>First index of the right hand, surfaced for the UI layer.</summary>
-        public int RightHandIndex => rightHandIndex;
-
-        /// <summary>First index of the left hand, surfaced for the UI layer.</summary>
-        public int LeftHandIndex => leftHandIndex;
-
         /// <summary>Scans one finger. Throws <see cref="FingerprintExceptions"/> on any reader problem.</summary>
         public Task<Models.Fingerprint.Capture> CaptureAsync(int? timeoutMs = null, CancellationToken ct = default)
         {
@@ -206,25 +175,6 @@ namespace AvaloniaFingerprint.Services
             }
         }
         #endif
-
-        /// <summary>Merges the pre-registration FMDs of one hand into a single registration template.</summary>
-        public string CreateEnrollmentTemplate(IReadOnlyList<object> preRegistrationFmds)
-        {
-        #if HAS_DPURUNET
-            var fmds = preRegistrationFmds.OfType<Fmd>().ToList();
-            if (fmds.Count == 0)
-                throw new FingerprintExceptions("Belum ada hasil pindai untuk didaftarkan.");
-
-            var result = Enrollment.CreateEnrollmentFmd(Constants.Formats.Fmd.DP_REGISTRATION, fmds);
-            if (result.ResultCode != Constants.ResultCode.DP_SUCCESS || result.Data is null)
-                throw new FingerprintExceptions($"Gagal membuat template registrasi ({result.ResultCode}).");
-
-            return Convert.ToBase64String(result.Data.Bytes);
-        #else
-            _ = preRegistrationFmds;
-            throw new FingerprintExceptions(SdkMissingMessage);
-        #endif
-        }
 
         /// <summary>
         /// Human-readable message shown when the DigitalPersona SDK is missing at build time.
@@ -492,10 +442,6 @@ namespace AvaloniaFingerprint.Services
                 if (verification.ResultCode != Constants.ResultCode.DP_SUCCESS || verification.Data is null)
                     throw new FingerprintExceptions($"Gagal mengekstrak sidik jari ({verification.ResultCode}).");
 
-                var preRegistration = FeatureExtraction.CreateFmdFromFid(result.Data, Constants.Formats.Fmd.DP_PRE_REGISTRATION);
-                if (preRegistration.ResultCode != Constants.ResultCode.DP_SUCCESS || preRegistration.Data is null)
-                    throw new FingerprintExceptions($"Gagal mengekstrak sidik jari ({preRegistration.ResultCode}).");
-
                 byte[]? raw = null;
                 int width = 0, height = 0;
                 using (var views = result.Data.Views.GetEnumerator())
@@ -513,7 +459,6 @@ namespace AvaloniaFingerprint.Services
                 {
                     ImageBase64 = raw is null ? string.Empty : BaseService.GrayscaleToJpegBase64(raw, width, height),
                     VerificationTemplate = Convert.ToBase64String(verification.Data.Bytes),
-                    PreRegistrationFmd = preRegistration.Data,
                     RawImage = raw,
                     Width = width,
                     Height = height

@@ -20,9 +20,6 @@ namespace AvaloniaFingerprint.Services
             "Install U.are.U RTE atau salin DPUruNet.dll ke folder lib\\, lalu build ulang.";
         protected int captureTimeoutMs { get; set; } = int.Parse(config["Apps:CaptureTimeOut"] ?? "7000");
         protected int verifyTimeoutMs { get; set; } = int.Parse(config["Apps:VerifyTimeoutMs"] ?? "5000");
-        protected int fingersPerHand { get; set; } = 4;
-        protected int rightHandIndex { get; set; } = 1;
-        protected int leftHandIndex { get; set; } = 6;
         protected int pollIntervalSeconds { get; set; } = 2;
         protected string[] matchKeywords { get; set; } = { "U.are.U", "DigitalPersona", "Fingerprint", "Biometric" };
         protected string[] cameraKeywords { get; set; } =

@@ -17,7 +17,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _services = services;
 
         Verifikasi = new VerifikasiViewModel(services);
-        Registrasi = new RegistrasiFingerprintViewModel(services);
         KodeBooking = new KodeBookingViewModel(services);
 
         services.Session.Changed += OnSessionChanged;
@@ -41,7 +40,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// dipilih di dalam halaman itu sendiri.
     /// </summary>
     public VerifikasiViewModel Verifikasi { get; }
-    public RegistrasiFingerprintViewModel Registrasi { get; }
     public KodeBookingViewModel KodeBooking { get; }
 
     // ---- login state ---------------------------------------------------------
@@ -99,7 +97,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         Verifikasi.OnSessionChanged(session.IsLoggedIn);
-        Registrasi.OnSessionChanged(session.IsLoggedIn);
         KodeBooking.OnSessionChanged(session.IsLoggedIn);
 
         // Kamera mengikuti sesi: dibuka setelah login, ditutup saat logout supaya device tidak
@@ -259,7 +256,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         DeviceDetail = fingerprint.ResolveDetail();
 
         Verifikasi.OnDeviceStatusChanged(DeviceConnected);
-        Registrasi.OnDeviceStatusChanged(DeviceConnected);
     }
 }
 
