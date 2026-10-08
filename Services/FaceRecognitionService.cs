@@ -24,9 +24,9 @@ namespace AvaloniaFingerprint.Services;
 /// <summary>
 /// Menghasilkan vektor embedding wajah 128 dimensi memakai FaceRecognitionDotNet (dlib).
 /// <para>
-/// Service ini berdiri sendiri dan TIDAK menyentuh alur verifikasi wajah yang sudah ada
-/// (<see cref="ViewModels.VerifikasiWajahViewModel"/>, perintah <c>VerifyFace</c>) maupun
-/// <see cref="FingerprintServices"/> yang khusus sidik jari.
+/// Service ini berdiri sendiri dan TIDAK menyentuh alur verifikasi yang sudah ada
+/// (<see cref="ViewModels.VerifikasiViewModel"/>, metode Wajah dengan perintah <c>VerifyFace</c>)
+/// maupun <see cref="FingerprintServices"/> yang khusus sidik jari.
 /// Ia hanya membaca gambar dan mengembalikan <see cref="List{T}"/> berisi 128 <see cref="double"/>;
 /// integrasi ke alur BPJS diserahkan ke pemanggil.
 /// </para>

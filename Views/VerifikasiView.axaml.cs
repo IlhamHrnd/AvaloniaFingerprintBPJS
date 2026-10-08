@@ -3,9 +3,9 @@ using AvaloniaFingerprint.ViewModels;
 
 namespace AvaloniaFingerprint.Views;
 
-public partial class VerifikasiWajahView : UserControl
+public partial class VerifikasiView : UserControl
 {
-    public VerifikasiWajahView()
+    public VerifikasiView()
     {
         InitializeComponent();
 
@@ -18,7 +18,7 @@ public partial class VerifikasiWajahView : UserControl
 
     private void AttachTopLevel()
     {
-        if (DataContext is VerifikasiWajahViewModel viewModel)
+        if (DataContext is VerifikasiViewModel viewModel)
             viewModel.TopLevel = TopLevel.GetTopLevel(this);
     }
 }

@@ -1,10 +1,11 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using AvaloniaFingerprint.Converters;
 using AvaloniaFingerprint.Exceptions;
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -15,20 +16,40 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Telerik.Reporting;
 
 namespace AvaloniaFingerprint.ViewModels;
 
 /// <summary>
-/// Halaman Verifikasi Wajah. Menampilkan gambar yang akan diverifikasi, yang bisa berasal dari live
-/// view kamera (<see cref="CameraServices"/>) atau dari foto yang diupload pengguna, dan menyiapkan
-/// tempat untuk hasil verifikasi. Tombol "Verifikasi Wajah" memproses gambar yang sedang aktif
-/// menjadi face encoding 128 nilai lewat <see cref="IFaceRecognitionService"/>; deteksi wajah dan
-/// encoding sudah termasuk, sedangkan pengiriman ke API Frista belum.
+/// Halaman <b>Verifikasi</b> — penggabungan "Verifikasi Fingerprint" dan "Verifikasi Wajah" dalam
+/// satu tab. Operator mengisi NIK sekali di bagian atas, memilih metode, dan panel input berubah
+/// mengikuti metode itu; kartu "Hasil Verifikasi" di kanan dipakai bersama oleh keduanya.
+///
+/// Metode <b>Fingerprint</b> adalah port WinForms <c>VerifikasiFingerprint</c>: capture lewat
+/// <see cref="FingerprintServices"/> lalu <c>POST /frista/verify</c> (endpoint, payload, dan model
+/// respon tidak berubah), diikuti cetak barcode / thermal / laser bila diaktifkan appsettings.
+///
+/// Metode <b>Wajah</b> menampilkan gambar dari live view kamera (<see cref="CameraServices"/>) atau
+/// foto yang diupload, lalu memprosesnya menjadi face encoding 128 nilai lewat
+/// <see cref="IFaceRecognitionService"/>; pengiriman ke API Frista belum termasuk.
+///
+/// Kedua metode memakai service yang sudah ada — tidak ada service maupun endpoint baru. Tidak ada
+/// data biometrik yang disimpan: sidik jari, foto, dan encoding wajah hanya hidup di memori dan
+/// dilepas saat reset, ganti metode, atau logout.
 /// </summary>
-public sealed partial class VerifikasiWajahViewModel : ViewModelBase
+public sealed partial class VerifikasiViewModel : ViewModelBase
 {
-    // Dipakai untuk kamera, sesi, dan pengenalan wajah (FaceRecognition); pengiriman ke API Frista
-    // belum termasuk tahap ini.
+    /// <summary>Panjang NIK yang diterima — 16 digit (keterangan "NIK 16 digit").</summary>
+    private const int NikLength = 16;
+
+    /// <summary>Panjang No. BPJS yang diterima — 13 digit (keterangan "No. BPJS 13 digit").</summary>
+    private const int BpjsLength = 13;
+
+    /// <summary>Satu-satunya waktu tunggu yang diperkenalkan di halaman ini: capture sidik jari.</summary>
+    private static readonly TimeSpan VerifyTimeoutMs = TimeSpan.FromSeconds(15);
+
+    // Dipakai untuk fingerprint, kamera, sesi, dan pengenalan wajah (FaceRecognition); pengiriman
+    // face encoding ke API Frista belum termasuk tahap ini.
     private readonly AppServices _services;
     private WriteableBitmap? _frameA;
     private WriteableBitmap? _frameB;
@@ -40,41 +61,156 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     private int _stagingStride;
     private int _renderPending;
 
-    public VerifikasiWajahViewModel(AppServices services)
+    public VerifikasiViewModel(AppServices services)
     {
         _services = services;
-        IsLoggedIn = _services.Session.IsLoggedIn;
+        IsLoggedIn = services.Session.IsLoggedIn;
+        DeviceConnected = services.Fingerprint.IsDeviceConnected;
+
+        // Frame kamera dilanggani langsung dari service karena datang per frame. Status perangkat
+        // fingerprint dan sesi TIDAK dilanggani di sini: MainWindowViewModel adalah satu-satunya
+        // pelanggan keduanya dan meneruskannya lewat OnDeviceStatusChanged / OnSessionChanged,
+        // jadi tidak pernah ada dua jalur yang saling menimpa.
         _services.Camera.FrameReady += OnFrameReady;
+
         OnCameraStatusChanged(
             _services.Camera.IsConnected,
             _services.Camera.ResolveStatus(),
             _services.Camera.ResolveDetail());
     }
 
+    /// <summary>
+    /// Dinaikkan saat kondisi pemakaian kamera berubah, yaitu saat operator berpindah metode.
+    /// Kamera hanya boleh menyala selama metode Wajah yang dipilih, dan
+    /// <see cref="MainWindowViewModel"/> adalah satu-satunya pemilik siklus hidup stream — jadi
+    /// halaman ini memberi tahu lewat event, bukan menyalakan/mematikan kamera sendiri.
+    /// </summary>
+    public event Action? CameraUsageChanged;
+
+    // ---- metode verifikasi ----------------------------------------------------
+
+    /// <summary>
+    /// Metode yang sedang dipilih; default <b>Fingerprint</b>. Kedua flag dibuat saling meniadakan
+    /// memakai pola yang sama dengan <see cref="IsNik"/>/<see cref="IsNoBpjs"/>, sehingga dua
+    /// RadioButton di AXAML cukup terikat dua arah tanpa logika tambahan di view.
+    /// </summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
+    [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConnectCameraCommand))]
+    private bool _isFingerprintMode = true;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
+    [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConnectCameraCommand))]
+    private bool _isWajahMode;
+
+    partial void OnIsFingerprintModeChanged(bool value)
+    {
+        if (!value)
+            return;
+
+        if (IsWajahMode) IsWajahMode = false;
+        EnterFingerprintMode();
+    }
+
+    partial void OnIsWajahModeChanged(bool value)
+    {
+        if (!value)
+            return;
+
+        if (IsFingerprintMode) IsFingerprintMode = false;
+        EnterWajahMode();
+    }
+
+    /// <summary>
+    /// Operator berpindah ke Fingerprint: seluruh state khusus wajah dibuang dan stream kamera
+    /// dimatikan (lewat <see cref="CameraUsageChanged"/>), supaya tidak ada capture yang tetap
+    /// berjalan di belakang layar. NIK sengaja dipertahankan karena field NIK dipakai bersama oleh
+    /// kedua metode — identitas peserta tidak perlu diketik ulang.
+    /// </summary>
+    private void EnterFingerprintMode()
+    {
+        // Encoding wajah tidak boleh tertinggal dianggap valid setelah metodenya ditinggalkan.
+        FaceEncoding = null;
+        CapturedPhoto = null;
+        UploadedPhoto = null;
+        _uploadedPhotoBytes = null;
+        IsShowingUploadedPhoto = false;
+        ClearFrames();
+
+        // Hasil verifikasi wajah tidak boleh terbaca sebagai hasil fingerprint.
+        ResetResult();
+        SetStatus(string.Empty, false);
+
+        CameraUsageChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Operator berpindah ke Wajah: gambar dan hasil sidik jari dibuang, dan status pemindaian
+    /// dihentikan supaya panel progres tidak tertinggal menyala. Perangkat pembaca sengaja TIDAK
+    /// diputus — <see cref="DeviceConnected"/> juga dipakai indikator Header, dan memutus reader
+    /// hanya karena operator berpindah metode bukan perilaku yang diinginkan.
+    /// </summary>
+    private void EnterWajahMode()
+    {
+        FingerImage = null;
+        IsScanning = false;
+        ScanStatus = string.Empty;
+
+        ResetResult();
+        SetStatus(string.Empty, false);
+
+        CameraUsageChanged?.Invoke();
+    }
+
+    // ---- state bersama ---------------------------------------------------------
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
     private bool _isLoggedIn;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
+    private bool _deviceConnected;
+
+    /// <summary>
+    /// True selama verifikasi sidik jari berjalan. Bersama <see cref="IsVerifyingFace"/> dan
+    /// <see cref="IsConnecting"/> inilah penjaga "tidak ada dua proses berjalan bersamaan": tiap
+    /// CanExecute memeriksa ketiganya, sehingga tombol metode lain ikut mati selama satu metode
+    /// sedang bekerja.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
+    [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConnectCameraCommand))]
+    private bool _isBusy;
+
+    [ObservableProperty] private string _scanStatus = string.Empty;
+    [ObservableProperty] private bool _isScanning;
+
+    [ObservableProperty] private string _statusMessage = string.Empty;
+    [ObservableProperty] private bool _hasStatus;
+    [ObservableProperty] private bool _statusIsError;
 
     // ---- input peserta -------------------------------------------------------
 
     /// <summary>
-    /// NIK peserta yang wajahnya akan diverifikasi. Diisi operator sebelum menekan "Verifikasi
-    /// Wajah" dan divalidasi di awal <see cref="VerifyFaceAsync"/>. Untuk tahap ini hanya disimpan
-    /// sebagai state: belum diteruskan ke endpoint mana pun, menyusul bersama
-    /// <see cref="FaceEncoding"/> saat pengiriman ke API Frista dikerjakan.
+    /// NIK peserta — <b>field bersama</b> untuk kedua metode. Di metode Wajah inilah nomor peserta
+    /// yang divalidasi sebelum encoding; di metode Fingerprint dengan metode nomor "NIK" inilah
+    /// nomor yang dikirim ke <c>POST /frista/verify</c>. Karena dipakai bersama, NIK dipertahankan
+    /// saat operator berpindah metode dan hanya dikosongkan saat reset atau logout.
     /// </summary>
     /// <remarks>
     /// Sengaja tanpa <c>[NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]</c>: tombol harus
     /// tetap bisa ditekan saat NIK kosong supaya pesan validasinya benar-benar tampil, bukan tombol
-    /// yang mati tanpa penjelasan.
+    /// yang mati tanpa penjelasan. <c>VerifyCommand</c> (fingerprint) tetap diberi tahu, karena di
+    /// metode nomor "NIK" isi field inilah yang menentukan tombol boleh hidup atau tidak.
     /// </remarks>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
     private string _nik = string.Empty;
-
-    /// <summary>
-    /// Panjang NIK yang diterima — 16 digit, sama dengan keterangan "NIK 16 digit" di halaman
-    /// Verifikasi Fingerprint.
-    /// </summary>
-    private const int NikLength = 16;
 
     /// <summary>
     /// Menyaring masukan NIK: hanya angka ASCII dan maksimal <see cref="NikLength"/> karakter,
@@ -87,6 +223,70 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
         var cleaned = new string(value.Where(char.IsAsciiDigit).Take(NikLength).ToArray());
         if (cleaned != value)
             Nik = cleaned;
+    }
+
+    // ---- input fingerprint ------------------------------------------------------
+
+    /// <summary>
+    /// Nomor yang dikirim ke API saat metode nomor "No. BPJS" dipilih. Saat "NIK" yang dipilih
+    /// field ini tidak tampil dan <see cref="Nik"/> di atas yang dipakai.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
+    private string _number = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
+    [NotifyPropertyChangedFor(nameof(NumberMaxLength))]
+    private bool _isNik = true;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
+    [NotifyPropertyChangedFor(nameof(NumberMaxLength))]
+    private bool _isNoBpjs;
+
+    /// <summary>
+    /// Batas panjang field "Nomor". Dihitung dari metode nomor yang aktif sehingga berubah saat
+    /// operator berpindah NIK ↔ No. BPJS; perubahan itu diberitahukan lewat
+    /// <c>NotifyPropertyChangedFor</c> di kedua flag di atas.
+    /// </summary>
+    public int NumberMaxLength => IsNoBpjs ? BpjsLength : NikLength;
+
+    /// <summary>
+    /// Nomor yang benar-benar dikirim ke <c>POST /frista/verify</c>: NIK bersama bila metode nomor
+    /// "NIK" yang dipilih, atau isi field "Nomor" bila "No. BPJS".
+    /// </summary>
+    private string EffectiveNumber => (IsNik ? Nik : Number).Trim();
+
+    /// <summary>
+    /// Aturan panjang existing dipertahankan apa adanya — tidak ada aturan baru: halaman
+    /// fingerprint lama memakai "lebih dari 12 digit" (≥13) untuk No. BPJS, dan halaman wajah
+    /// memakai tepat <see cref="NikLength"/> digit untuk NIK.
+    /// </summary>
+    private int RequiredNumberLength => IsNik ? NikLength : BpjsLength;
+
+    partial void OnIsNikChanged(bool value)
+    {
+        if (value && IsNoBpjs) IsNoBpjs = false;
+
+        // Hasil yang diperoleh dengan metode nomor sebelumnya tidak boleh tetap tampil: nomor yang
+        // akan diverifikasi berikutnya sudah berbeda jenis.
+        if (value)
+        {
+            ResetResult();
+            SetStatus(string.Empty, false);
+        }
+    }
+
+    partial void OnIsNoBpjsChanged(bool value)
+    {
+        if (value && IsNik) IsNik = false;
+
+        if (value)
+        {
+            ResetResult();
+            SetStatus(string.Empty, false);
+        }
     }
 
     [ObservableProperty]
@@ -115,6 +315,7 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     /// </summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCameraCommand))]
+    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
     private bool _isConnecting;
 
     /// <summary>
@@ -124,16 +325,8 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     /// </summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
+    [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
     private bool _isVerifyingFace;
-
-    [ObservableProperty]
-    private string _statusMessage = string.Empty;
-
-    [ObservableProperty]
-    private bool _hasStatus;
-
-    [ObservableProperty]
-    private bool _statusIsError;
 
     /// <summary>
     /// Daftar nama kamera yang terdeteksi (debugging). Ditampilkan di halaman Verifikasi Wajah
@@ -216,21 +409,22 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     /// </summary>
     public TopLevel? TopLevel { get; set; }
 
-    // ---- hasil verifikasi ----------------------------------------------------
-    // Nilai default "-" (belum ada data). Pengambilan data peserta akan
-    // diimplementasikan pada tahap berikutnya.
+    // ---- hasil verifikasi (satu kartu untuk kedua metode) ----------------------
+    // Nilai default "-" berarti belum ada data; diisi dari respon API oleh metode yang sedang
+    // aktif. Kartu hasil hanya satu, jadi kedua metode menulis ke properti yang sama.
 
-    [ObservableProperty]
-    private string _resultNama = "-";
+    [ObservableProperty] private string _resultNama = "-";
+    [ObservableProperty] private string _resultNoKartu = "-";
+    [ObservableProperty] private string _resultUsia = "-";
+    [ObservableProperty] private string _resultKeterangan = "-";
+    [ObservableProperty] private bool _hasResult;
 
-    [ObservableProperty]
-    private string _resultNoKartu = "-";
-
-    [ObservableProperty]
-    private string _resultUsia = "-";
-
-    [ObservableProperty]
-    private string _resultKeterangan = "-";
+    /// <summary>
+    /// Foto sidik jari hasil capture berupa base64 PNG dari <see cref="FingerprintServices"/>,
+    /// diubah menjadi gambar oleh Base64Image converter di AXAML; null berarti placeholder.
+    /// Hanya hidup di memori — dibuang saat reset, ganti metode, atau logout.
+    /// </summary>
+    [ObservableProperty] private string? _fingerImage;
 
     /// <summary>
     /// Vektor embedding wajah 128 nilai hasil <see cref="IFaceRecognitionService"/>, disimpan untuk
@@ -240,30 +434,53 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     /// </summary>
     private List<double>? FaceEncoding { get; set; }
 
+    /// <summary>
+    /// Mengembalikan kartu hasil ke keadaan kosong, termasuk gambar sidik jari. Dipakai tombol
+    /// Bersihkan, saat metode atau metode nomor berpindah, dan saat logout — satu jalur supaya
+    /// tidak ada data peserta yang tertinggal di layar.
+    /// </summary>
+    private void ResetResult()
+    {
+        ResultNama = "-";
+        ResultNoKartu = "-";
+        ResultUsia = "-";
+        ResultKeterangan = "-";
+        FingerImage = null;
+        HasResult = false;
+    }
+
     public void OnSessionChanged(bool loggedIn)
     {
         IsLoggedIn = loggedIn;
-        if (!loggedIn)
-        {
-            // Siklus hidup stream diatur MainWindowViewModel (satu pemilik). Di sini cukup
-            // memastikan tidak ada frame basi yang tertinggal setelah logout.
-            ClearFrames();
+        if (loggedIn)
+            return;
 
-            // Foto upload dan hasil verifikasi ikut dibuang supaya data peserta tidak tertinggal
-            // di layar untuk pengguna berikutnya.
-            CapturedPhoto = null;
-            UploadedPhoto = null;
-            _uploadedPhotoBytes = null;
-            IsShowingUploadedPhoto = false;
+        // Siklus hidup stream diatur MainWindowViewModel (satu pemilik). Di sini cukup
+        // memastikan tidak ada frame basi yang tertinggal setelah logout.
+        ClearFrames();
 
-            // Encoding wajah peserta sebelumnya tidak boleh tertinggal untuk pengguna berikutnya.
-            FaceEncoding = null;
+        // Foto upload dan hasil verifikasi ikut dibuang supaya data peserta tidak tertinggal
+        // di layar untuk pengguna berikutnya.
+        CapturedPhoto = null;
+        UploadedPhoto = null;
+        _uploadedPhotoBytes = null;
+        IsShowingUploadedPhoto = false;
 
-            // NIK peserta sebelumnya juga dibuang, supaya tidak ikut terverifikasi untuk pasien lain.
-            Nik = string.Empty;
+        // Encoding wajah peserta sebelumnya tidak boleh tertinggal untuk pengguna berikutnya.
+        FaceEncoding = null;
 
-            SetStatus(string.Empty, false);
-        }
+        // Gambar sidik jari, nomor yang sudah diketik, dan hasil verifikasinya juga dibuang:
+        // semuanya milik peserta sebelumnya dan tidak boleh terbawa ke sesi berikutnya.
+        FingerImage = null;
+        Number = string.Empty;
+        ResetResult();
+        IsScanning = false;
+        ScanStatus = string.Empty;
+
+        // NIK peserta sebelumnya juga dibuang, supaya tidak ikut terverifikasi untuk pasien lain.
+        Nik = string.Empty;
+
+        SetStatus(string.Empty, false);
     }
 
     /// <summary>
@@ -481,7 +698,11 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
         }
     }
 
-    private bool CanConnectCamera() => !IsConnecting;
+    /// <summary>
+    /// Tombol "Hubungkan Kamera" hanya berguna selama metode Wajah yang dipilih, dan tidak boleh
+    /// menumpuk dengan scan kamera lain maupun dengan verifikasi sidik jari yang sedang berjalan.
+    /// </summary>
+    private bool CanConnectCamera() => IsWajahMode && !IsConnecting && !IsBusy;
 
     /// <summary>
     /// Tombol "Upload Foto": memakai foto dari file sebagai sumber gambar, menggantikan live
@@ -676,6 +897,15 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
                 return;
             }
 
+            // Operator bisa saja berpindah ke metode Fingerprint selama encoding berjalan. Encoding
+            // yang baru selesai sesudah itu sudah tidak relevan, jadi dibuang alih-alih disimpan —
+            // pola penjaga yang sama dengan pemeriksaan DeviceConnected sesudah capture sidik jari.
+            if (!IsWajahMode)
+            {
+                FaceEncoding = null;
+                return;
+            }
+
             FaceEncoding = encoding;
             SetStatus("Wajah berhasil diproses.", false);
         }
@@ -720,12 +950,13 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Tombol verifikasi hanya aktif bila ada yang bisa diverifikasi (kamera berjalan atau ada foto
-    /// upload) dan tidak ada proses encoding yang sedang berjalan. <see cref="IsVerifyingFace"/>
-    /// dihubungkan lewat <c>NotifyCanExecuteChangedFor</c>, jadi tombol nonaktif sendiri selama
-    /// proses berjalan tanpa perlu mekanisme loading baru di AXAML.
+    /// Tombol verifikasi wajah hanya aktif selama metode Wajah yang dipilih, ada gambar yang bisa
+    /// diverifikasi (kamera berjalan atau ada foto upload), dan tidak ada proses lain yang sedang
+    /// berjalan. <see cref="IsVerifyingFace"/> dihubungkan lewat <c>NotifyCanExecuteChangedFor</c>,
+    /// jadi tombol nonaktif sendiri selama proses berjalan tanpa perlu mekanisme loading baru di
+    /// AXAML.
     /// </summary>
-    private bool CanVerifyFace() => IsPreviewVisible && !IsVerifyingFace;
+    private bool CanVerifyFace() => IsWajahMode && IsPreviewVisible && !IsVerifyingFace && !IsBusy;
 
     /// <summary>
     /// Menyalin gambar yang sedang jadi sumber verifikasi menjadi <see cref="ImageSnapshot"/>.
@@ -841,6 +1072,387 @@ public sealed partial class VerifikasiWajahViewModel : ViewModelBase
         }
 
         return bitmap;
+    }
+
+    // ==========================================================================
+    //  METODE FINGERPRINT
+    // ==========================================================================
+    //
+    // Port apa adanya dari WinForms VerifikasiFingerprint. Seluruh alur dipertahankan: capture
+    // sidik jari -> POST /frista/verify -> validasi nomor antrean -> generate nomor registrasi ->
+    // cetak SEP -> cetak Label -> isi kartu hasil. Endpoint, payload, model respon, template
+    // laporan, dan nama printer semuanya dipakai kembali tanpa perubahan.
+    //
+    // Hanya ada penyesuaian yang menjadi konsekuensi langsung penggabungan halaman:
+    //   1. nomor yang dikirim diambil dari EffectiveNumber (NIK bersama atau field "Nomor"),
+    //      karena field NIK sekarang dimiliki bersama dengan metode Wajah;
+    //   2. ClearResult() menjadi ResetResult() dan ResultMeta menjadi ResultKeterangan, karena
+    //      kartu hasil kini hanya satu dan dipakai bersama oleh kedua metode;
+    //   3. dua penjaga IsFingerprintMode ditambahkan agar hasil yang datang sesudah operator
+    //      berpindah metode tidak menulis ke kartu hasil milik metode lain.
+
+    /// <summary>
+    /// Status perangkat pembaca, diteruskan oleh <see cref="MainWindowViewModel"/> - satu-satunya
+    /// pelanggan <c>DeviceStateChanged</c> - memakai nilai yang sama dengan indikator Header.
+    /// </summary>
+    public void OnDeviceStatusChanged(bool connected)
+    {
+        DeviceConnected = connected;
+        if (!connected && IsScanning)
+        {
+            IsScanning = false;
+            ScanStatus = string.Empty;
+            SetStatus("Perangkat fingerprint terputus saat memindai.", true);
+        }
+    }
+
+    /// <summary>
+    /// Tombol "Verifikasi" (fingerprint) hanya aktif selama metode Fingerprint yang dipilih,
+    /// operator sudah login, reader siap, tidak ada proses lain berjalan, dan nomor yang aktif
+    /// sudah memenuhi panjang minimumnya. <see cref="IsVerifyingFace"/> dan
+    /// <see cref="IsConnecting"/> ikut diperiksa supaya verifikasi wajah tidak pernah berjalan
+    /// berbarengan dengan capture jari.
+    /// </summary>
+    private bool CanVerify() =>
+        IsFingerprintMode
+        && IsLoggedIn
+        && DeviceConnected
+        && !IsBusy
+        && !IsVerifyingFace
+        && !IsConnecting
+        && EffectiveNumber.Length >= RequiredNumberLength;
+
+    [RelayCommand(CanExecute = nameof(CanVerify))]
+    private async Task VerifyAsync()
+    {
+        IsBusy = true;
+        IsScanning = true;
+        ScanStatus = "Letakkan jari pada perangkat...";
+        SetStatus(string.Empty, false);
+
+        try
+        {
+            var capture = await _services.Fingerprint.CaptureAsync(_services.Fingerprint.VerifyTimeoutMs);
+
+            // Operator bisa berpindah ke metode Wajah selama capture berjalan. Hasil yang baru
+            // datang sesudah itu sudah tidak relevan, jadi dibuang sebelum menyentuh kartu hasil
+            // maupun memicu cetak SEP/Label untuk metode yang sudah ditinggalkan.
+            if (!IsFingerprintMode)
+                return;
+
+            ScanStatus = "Memverifikasi ke BPJS...";
+            FingerImage = capture.ImageBase64;
+            var result = await Task.Run(() => _services.Fingerprint.Verify(new Filters.Fingerprint.Verify
+            {
+                finger = capture.VerificationTemplate,
+                keyword = EffectiveNumber,
+                jnsFilter = IsNoBpjs ? "psnoka" : "nik"
+            }));
+
+            if (!result.succeeded)
+            {
+                ResetResult();
+                SetStatus($"Verifikasi gagal: {string.Join(' ', result.errors)}", true);
+                return;
+            }
+
+            if (!result.succeeded || (result.errors != null && result.errors.Length > 0))
+            {
+                ResetResult();
+                string message = result.errors.Length > 0 ? string.Join(", ", result.errors) : result.message;
+                SetStatus(message, true);
+                return;
+            }
+
+            ScanStatus = "Memverifikasi kode booking pasien...";
+            var validateApt = await Task.Run(() => _services.Appointment.AppointmentNoFromFinger(new Filters.Appointment.AppointmentNoFromFinger
+            {
+                dateTime = DateTime.Now,
+                nik = result.data?.response.nik ?? string.Empty,
+                noKartu = result.data?.response.noKartu ?? string.Empty,
+                patientName = result.data?.response.nama ?? string.Empty
+            }));
+
+            if (!validateApt.succeeded || (validateApt.errors != null && validateApt.errors.Length > 0))
+            {
+                ResetResult();
+                string message = validateApt.errors.Length > 0 ? string.Join(", ", validateApt.errors) : validateApt.message;
+                SetStatus(message, true);
+                return;
+            }
+
+            //Proses Generate Nomor Registrasi
+            ScanStatus = "Memproses SEP ke BPJS...";
+            var generateReg = await Task.Run(() => _services.Appointment.GenerateRegistration(validateApt.data ?? string.Empty));
+            if (!generateReg.succeeded || (generateReg.errors != null && generateReg.errors.Length > 0))
+            {
+                ResetResult();
+                string message = generateReg.errors.Length > 0 ? string.Join(", ", generateReg.errors) : generateReg.message;
+                SetStatus(message, true);
+                return;
+            }
+
+            var dateTime = DateTime.Now;
+            var printerNormal = _services.Settings.Configuration["Apps:PrinterNormal"] ?? string.Empty;
+            var printerLaser = _services.Settings.Configuration["Apps:PrinterLaser"] ?? string.Empty;
+
+            // Proses cetak SEP
+            ScanStatus = "Memproses cetak SEP...";
+            var sep = await Task.Run(() => _services.Printout.Sep(validateApt.data ?? string.Empty, true, dateTime));
+            if (sep.succeeded && sep.errors == null && sep.data != null)
+            {
+                try
+                {
+                    var data = sep.data;
+                    List<InstanceReportSource> rptSource = [];
+                    List<Models.Master.Parameter> parameters = [];
+
+                    rptSource.Add(new InstanceReportSource
+                    {
+                        ReportDocument = new ReportLibrary.Sep()
+                    });
+
+                    parameters =
+                    [
+                        new()
+                    {
+                        name = "sep",
+                        value = data.sep
+                    },
+                    new()
+                    {
+                        name = "tglsep",
+                        value = data.tglsep
+                    },
+                    new()
+                    {
+                        name = "nokartu",
+                        value = data.nokartu
+                    },
+                    new()
+                    {
+                        name = "nama",
+                        value = data.nama
+                    },
+                    new()
+                    {
+                        name = "tgllahir",
+                        value = data.tgllahir
+                    },
+                    new()
+                    {
+                        name = "sex",
+                        value = data.sex
+                    },
+                    new()
+                    {
+                        name = "politujuan",
+                        value = data.politujuan
+                    },
+                    new()
+                    {
+                        name = "polirujukan",
+                        value = data.polirujukan
+                    },
+                    new()
+                    {
+                        name = "dokterpemeriksa",
+                        value = data.dokterpemeriksa
+                    },
+                    new()
+                    {
+                        name = "dpjp",
+                        value = data.dpjp
+                    },
+                    new()
+                    {
+                        name = "asalfaskes",
+                        value = data.asalfaskes
+                    },
+                    new()
+                    {
+                        name = "diagnosa",
+                        value = data.diagnosa
+                    },
+                    new()
+                    {
+                        name = "antrian",
+                        value = Converter.IntToString(data.antrian)
+                    },
+                    new()
+                    {
+                        name = "jenispeserta",
+                        value = data.jenispeserta
+                    },
+                    new()
+                    {
+                        name = "rm",
+                        value = data.rm
+                    },
+                    new()
+                    {
+                        name = "jenisrawat",
+                        value = data.jenisrawat
+                    },
+                    new()
+                    {
+                        name = "kelasrawat",
+                        value = data.kelasrawat
+                    },
+                    new()
+                    {
+                        name = "cetakby",
+                        value = data.cetakby
+                    },
+                    new()
+                    {
+                        name = "notlp",
+                        value = data.notlp
+                    },
+                    new()
+                    {
+                        name = "urlqrcode",
+                        value = data.linkqrcode
+                    },
+                    new()
+                    {
+                        name = "queueqr",
+                        value = data.queueqr
+                    }
+                    ];
+
+                    printProcess(new Filters.Printout.Print
+                    {
+                        rptSource = rptSource,
+                        parameters = parameters,
+                        printerName = printerNormal,
+                        copies = 3
+                    });
+                }
+                catch (Exception e)
+                {
+                    ResetResult();
+                    SetStatus(e.Message, true);
+                    return;
+                }
+            }
+
+            // Proses cetak Label
+            ScanStatus = "Memproses cetak Label...";
+            string aptNo = $"APT/{Converter.DateFormat(dateTime, DateFormat.Shortyearpattern)}-{validateApt.data}";
+            var regNo = await Task.Run(() => _services.Appointment.AppointmentToRegistrationNumber(aptNo));
+            if (!regNo.succeeded && regNo.errors != null)
+            {
+                ResetResult();
+                string message = regNo.errors.Length > 0 ? string.Join(", ", regNo.errors) : regNo.message;
+                SetStatus(message, true);
+                return;
+            }
+
+            var label = await Task.Run(() => _services.Printout.Label(regNo.data ?? string.Empty, dateTime));
+            if (label.succeeded && label.errors == null && label.data != null)
+            {
+                try
+                {
+                    var data = label.data;
+                    List<InstanceReportSource> rptSource = [];
+                    List<Models.Master.Parameter> parameters = [];
+
+                    rptSource.Add(new InstanceReportSource
+                    {
+                        ReportDocument = new ReportLibrary.Barcode()
+                    });
+
+                    parameters =
+                    [
+                        new()
+                        {
+                            name = "nama",
+                            value = data.nama
+                        },
+                        new()
+                        {
+                            name = "tgllahir",
+                            value = data.tgllhr
+                        },
+                        new()
+                        {
+                            name = "sex",
+                            value = data.lahirjk.Equals("m", StringComparison.CurrentCultureIgnoreCase) ? "Laki - Laki" : "Perempuan"
+                        },
+                        new()
+                        {
+                            name = "rm",
+                            value = data.mr
+                        },
+                        new()
+                        {
+                            name = "noreg",
+                            value = $"{data.mr} / {data.noreg}"
+                        },
+                        new()
+                        {
+                            name = "noantrian",
+                            value = Converter.IntToString(data.noantrian)
+                        }
+                    ];
+
+                    printProcess(new Filters.Printout.Print
+                    {
+                        rptSource = rptSource,
+                        parameters = parameters,
+                        printerName = printerLaser
+                    });
+                }
+                catch (Exception e)
+                {
+                    ResetResult();
+                    SetStatus(e.Message, true);
+                    return;
+                }
+            }
+
+            // Penjaga yang sama sebelum kartu hasil ditulis: rangkaian cetak di atas bisa
+            // memakan waktu, dan metode bisa saja sudah berpindah saat itu terjadi.
+            if (!IsFingerprintMode)
+                return;
+
+            ResultNama = result.data?.response.nama ?? "-";
+            ResultNoKartu = result.data?.response.noKartu ?? "-";
+            ResultUsia = $"{result.data?.response.usia} Tahun";
+            ResultKeterangan = $"Code {result.data?.metaData?.code} · {result.data?.metaData?.message}";
+            HasResult = true;
+            SetStatus("Verifikasi berhasil.", false);
+        }
+        catch (FingerprintExceptions ex)
+        {
+            SetStatus(ex.Message, true);
+            await _services.Fingerprint.RefreshDeviceAsync();
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex.Message, true);
+        }
+        finally
+        {
+            IsScanning = false;
+            ScanStatus = string.Empty;
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Tombol "Bersihkan" di panel fingerprint: mengosongkan nomor, gambar sidik jari, dan kartu
+    /// hasil. <see cref="Nik"/> ikut dikosongkan karena di metode nomor "NIK" field itulah nomor
+    /// yang diverifikasi - persis isi field yang dibersihkan tombol ini di halaman lama.
+    /// </summary>
+    [RelayCommand]
+    private void Clear()
+    {
+        Nik = string.Empty;
+        Number = string.Empty;
+        ResetResult();
+        SetStatus(string.Empty, false);
     }
 
     private void SetStatus(string message, bool isError)

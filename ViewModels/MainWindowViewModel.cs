@@ -16,14 +16,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         _services = services;
 
-        Verifikasi = new VerifikasiFingerprintViewModel(services);
+        Verifikasi = new VerifikasiViewModel(services);
         Registrasi = new RegistrasiFingerprintViewModel(services);
         KodeBooking = new KodeBookingViewModel(services);
-        VerifikasiWajah = new VerifikasiWajahViewModel(services);
 
         services.Session.Changed += OnSessionChanged;
         services.Fingerprint.DeviceStateChanged += OnDeviceStateChanged;
         services.Camera.DeviceStatusChanged += OnCameraStatusChanged;
+
+        // Halaman Verifikasi memberi tahu saat operator berpindah metode, karena kamera hanya boleh
+        // menyala selama metode Wajah yang dipilih. Siklus hidup stream tetap milik kelas ini.
+        Verifikasi.CameraUsageChanged += OnVerifikasiCameraUsageChanged;
 
         Trace.WriteLine($"[MainWindowViewModel] Initialized. ReaderState={_services.Fingerprint.DeviceState.State}, IsDeviceConnected={_services.Fingerprint.IsDeviceConnected}, DeviceName={_services.Fingerprint.DeviceName}");
         Trace.WriteLine($"[MainWindowViewModel] Initialized. IsCameraConnected={_services.Camera.IsDeviceConnected}, CameraName={_services.Camera.DeviceName}");
@@ -33,10 +36,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         UpdateCameraState();
     }
 
-    public VerifikasiFingerprintViewModel Verifikasi { get; }
+    /// <summary>
+    /// Halaman Verifikasi gabungan (fingerprint + wajah). Satu tab, satu ViewModel: metode
+    /// dipilih di dalam halaman itu sendiri.
+    /// </summary>
+    public VerifikasiViewModel Verifikasi { get; }
     public RegistrasiFingerprintViewModel Registrasi { get; }
     public KodeBookingViewModel KodeBooking { get; }
-    public VerifikasiWajahViewModel VerifikasiWajah { get; }
 
     // ---- login state ---------------------------------------------------------
 
@@ -95,7 +101,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Verifikasi.OnSessionChanged(session.IsLoggedIn);
         Registrasi.OnSessionChanged(session.IsLoggedIn);
         KodeBooking.OnSessionChanged(session.IsLoggedIn);
-        VerifikasiWajah.OnSessionChanged(session.IsLoggedIn);
 
         // Kamera mengikuti sesi: dibuka setelah login, ditutup saat logout supaya device tidak
         // terus dipakai saat tabnya tidak aktif.
@@ -150,6 +155,29 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private void OnCameraStatusChanged(object? sender, DeviceStatusEventArgs e) =>
         Dispatcher.UIThread.Post(UpdateCameraState);
 
+    /// <summary>
+    /// Dipanggil saat operator berpindah metode di halaman Verifikasi. Kamera hanya boleh menyala
+    /// selama metode Wajah yang dipilih: perpindahan ke Fingerprint menutup stream saat itu juga,
+    /// dan perpindahan ke Wajah membukanya kembali bila device tersedia dan operator sudah login.
+    /// </summary>
+    private void OnVerifikasiCameraUsageChanged() =>
+        Dispatcher.UIThread.Post(async () =>
+        {
+            if (!Verifikasi.IsWajahMode && _services.Camera.IsConnected)
+            {
+                try
+                {
+                    await _services.Camera.StopPreviewAsync();
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine($"[MainWindowViewModel] Camera preview stop failed: {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+
+            UpdateCameraState();
+        });
+
     private void UpdateCameraState()
     {
         var isStreaming = _services.Camera.IsConnected;
@@ -157,21 +185,26 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         Trace.WriteLine($"[MainWindowViewModel] UpdateCameraState. Streaming={isStreaming}, State={_services.Camera.StreamState}, Name={cameraName}");
 
-        // Indikator Header hijau hanya bila stream benar-benar terbuka, bukan sekadar device
-        // terdeteksi — kamera yang gagal dibuka tetap dihitung belum terhubung.
-        CameraConnected = isStreaming;
+        // Indikator Header memakai kehadiran device, bukan keadaan stream. Sejak kamera hanya
+        // dinyalakan selama metode Wajah, stream yang idle di metode Fingerprint bukan berarti
+        // kameranya tidak ada. Kegagalan membuka device tetap terlihat lewat CameraDetail, dan
+        // keadaan stream tetap dilaporkan apa adanya ke halaman Verifikasi lewat CameraStatus.
+        CameraConnected = _services.Camera.IsDeviceConnected;
         CameraStatus = _services.Camera.ResolveStatus();
 
         // Detail (termasuk nama device) diambil dari CameraServices supaya Header dan halaman
-        // Verifikasi Wajah memakai teks yang persis sama.
+        // Verifikasi memakai teks yang persis sama.
         var detail = _services.Camera.ResolveDetail();
         CameraDetail = detail;
 
-        // Satu sumber status untuk Header dan halaman Verifikasi Wajah, supaya keduanya
-        // tidak pernah menampilkan kondisi kamera yang berbeda.
-        VerifikasiWajah.OnCameraStatusChanged(isStreaming, CameraStatus, detail);
+        // Satu sumber status untuk Header dan halaman Verifikasi, supaya keduanya tidak pernah
+        // menampilkan kondisi kamera yang berbeda. Yang dikirim adalah keadaan stream: panel
+        // Wajah memang perlu tahu apakah frame benar-benar datang.
+        Verifikasi.OnCameraStatusChanged(isStreaming, CameraStatus, detail);
 
-        // Stream dibuka otomatis begitu device terdeteksi dan sesi sudah login.
+        // Stream dibuka otomatis begitu device terdeteksi, sesi sudah login, dan metode Wajah
+        // yang dipilih. Di metode Fingerprint pemanggilan ini langsung kembali tanpa berbuat apa
+        // pun, jadi kamera tidak pernah menyala untuk halaman yang tidak memakainya.
         _ = EnsureCameraPreviewAsync();
     }
 
@@ -186,6 +219,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return;
 
         if (!_services.Camera.IsDeviceConnected)
+            return;
+
+        // Kamera hanya dipakai metode Wajah. Selama metode Fingerprint yang dipilih, stream tidak
+        // boleh dibuka sama sekali: tidak ada yang menampilkannya dan device jadi terus terpakai.
+        if (!Verifikasi.IsWajahMode)
             return;
 
         _previewStarting = true;

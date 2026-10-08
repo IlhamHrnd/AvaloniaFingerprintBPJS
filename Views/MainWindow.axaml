@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -66,7 +66,7 @@
         <!-- title: mengisi sisa ruang, menyusut lebih dulu dan memakai ellipsis -->
         <StackPanel Spacing="2" VerticalAlignment="Center">
           <TextBlock Classes="h1" Text="Fingerprint BPJS" TextTrimming="CharacterEllipsis" />
-          <TextBlock Classes="caption" Text="Verifikasi · Registrasi · Kode Booking · Verifikasi Wajah"
+          <TextBlock Classes="caption" Text="Verifikasi · Registrasi · Kode Booking"
                      TextTrimming="CharacterEllipsis" />
         </StackPanel>
       </DockPanel>
@@ -84,17 +84,14 @@
     <!-- ============ tabs (disabled until login) ============ -->
     <Grid Margin="20">
       <TabControl>
-        <TabItem Header="Verifikasi Fingerprint" IsEnabled="{Binding IsLoggedIn}">
-          <views:VerifikasiFingerprintView DataContext="{Binding Verifikasi}" />
+        <TabItem Header="Verifikasi" IsEnabled="{Binding IsLoggedIn}">
+          <views:VerifikasiView DataContext="{Binding Verifikasi}" />
         </TabItem>
         <TabItem Header="Registrasi Fingerprint" IsEnabled="{Binding IsLoggedIn}">
           <views:RegistrasiFingerprintView DataContext="{Binding Registrasi}" />
         </TabItem>
         <TabItem Header="Kode Booking" IsEnabled="{Binding IsLoggedIn}">
           <views:KodeBookingView DataContext="{Binding KodeBooking}" />
-        </TabItem>
-        <TabItem Header="Verifikasi Wajah" IsEnabled="{Binding IsLoggedIn}">
-          <views:VerifikasiWajahView DataContext="{Binding VerifikasiWajah}" />
         </TabItem>
       </TabControl>
 
@@ -106,7 +103,7 @@
           <TextBlock Text="🔒" FontSize="40" HorizontalAlignment="Center" />
           <TextBlock Classes="h2" HorizontalAlignment="Center" Text="Semua tab terkunci" />
           <TextBlock TextWrapping="Wrap" TextAlignment="Center" Classes="caption"
-                     Text="Login petugas terlebih dahulu melalui tombol Login di kanan atas untuk mengaktifkan tab Verifikasi, Registrasi, Kode Booking, dan Verifikasi Wajah." />
+                     Text="Login petugas terlebih dahulu melalui tombol Login di kanan atas untuk mengaktifkan tab Verifikasi, Registrasi, dan Kode Booking." />
           <Button Content="Login sekarang" Command="{Binding ToggleLoginCommand}"
                   HorizontalAlignment="Center" Margin="0,8,0,0" Height="36" MinWidth="140"
                   HorizontalContentAlignment="Center"
