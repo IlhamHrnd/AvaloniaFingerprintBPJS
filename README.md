@@ -1,11 +1,10 @@
 # AvaloniaFingerprint
 
-Aplikasi Avalonia (.NET 8, Windows) hasil ekstraksi tiga form fingerprint dari
+Aplikasi Avalonia (.NET 8, Windows) hasil ekstraksi dua form fingerprint dari
 project WinForms `KonfirmasiPendaftaranOnline`:
 
 | Tab WinForms | Tab Avalonia |
 |---|---|
-| `DaftarFingerprint` | **Daftar Fingerprint** |
 | `VerifikasiFingerprint` | **Verifikasi Fingerprint** |
 | `RegistrasiFingerprint` | **Registrasi Fingerprint** |
 | — | **Kode Booking** |
@@ -145,7 +144,6 @@ project WinForms `KonfirmasiPendaftaranOnline`:
   "Fingerprint": { "CaptureTimeoutMs": 7000, "VerifyTimeoutMs": 5000, "FingersPerHand": 4,
                    "RightHandIndex": 1, "LeftHandIndex": 6 },
   "Device":      { "PollIntervalSeconds": 2, "MatchKeywords": [ "U.are.U", "DigitalPersona", ... ] },
-  "Storage":     { "RegistrationsFile": "registrations.json" },
   "FaceRecognition": { "ModelDirectory": "FaceModels", "Detector": "Cnn", "Upsample": 0,
                        "LandmarkModel": "Small", "NumJitterings": 1, "MaxEdge": 800 }
 }
@@ -381,13 +379,38 @@ melainkan ke `runtimes\win-x64\native\` (layout RID standar) dan diselesaikan le
 > `[Face] Platform 'AnyCPU' tidak didukung...` yang menjelaskan sebabnya — bukan MSB3030
 > "Could not copy the file" yang membingungkan.
 
+## Keamanan data biometrik
+
+Aplikasi ini **tidak menyimpan data biometrik pasien sama sekali** — tidak ke database,
+file permanen, cache, session, maupun log.
+
+* **Sidik jari.** Template dan gambar jari hanya hidup di memori ViewModel selama satu
+  siklus kerja: `Capture → memori → kirim ke API → terima respons → release`.
+  `VerifikasiFingerprintViewModel` mengirim ke `Finger/Verify`,
+  `RegistrasiFingerprintViewModel` mengirim ke `Finger/AddPeserta` (BPJS), lalu keduanya
+  membersihkan template/gambar lewat reset. Tidak ada salinan lokal yang tertinggal.
+* **Wajah.** Foto yang dipilih/di-capture dibaca ke `MemoryStream`, dan face encoding
+  128 nilai disimpan sebagai field in-memory yang di-`null`-kan saat reset, logout, atau
+  proses ulang. Encoding tidak pernah ditulis ke disk.
+* **Log.** `Trace.WriteLine` hanya mencatat nama/status device, jumlah percobaan, dan
+  pesan error — tidak pernah payload biometrik (template, encoding, atau base64 gambar).
+* **Pembersihan sisa versi lama.** Versi sebelumnya punya tab *Daftar Fingerprint* yang
+  menulis `registrations.json` (berisi gambar sidik jari base64) di folder aplikasi.
+  Fitur itu sudah dihapus **beserta store-nya** (`Services/RegistrationServices.cs`,
+  `Models/Fingerprint/FingerprintRecord.cs`). Saat startup `AppServices` menjalankan
+  `PurgeLegacyBiometricStore()` sekali untuk menghapus file warisan itu bila masih ada,
+  sehingga workstation yang sudah terlanjur menyimpan data ikut bersih. Penghapusan
+  bersifat best-effort dan tidak pernah membaca/melog isi file.
+
 ## Catatan perbedaan dari versi WinForms
 
-* `DaftarFingerprint` di WinForms masih form kosong. Di sini tab tersebut diisi daftar
-  registrasi yang dikirim dari komputer ini (`registrations.json`), lengkap dengan
-  pencarian dan pratinjau gambar sidik jari.
+* Tab `DaftarFingerprint` **sengaja tidak diporting**. WinForms-nya form kosong; versi
+  Avalonia sempat mengisinya dengan daftar registrasi lokal (`registrations.json`), tetapi
+  fitur beserta penyimpanan biometriknya dihapus total — lihat
+  [Keamanan data biometrik](#keamanan-data-biometrik).
 * Kredensial petugas tidak lagi di-hardcode di `LoginPetugas.cs`; diisi lewat dialog login.
 * RestSharp diganti `HttpClient`, `System.Drawing` diganti SkiaSharp
   (lihat `Services/ImageCodec.cs`), dan `AutoClosingMessageBox` diganti pesan inline.
 * Verifikasi tidak lagi menulis ke tabel `PatientBiometric` — kode itu sudah dikomentari
-  di form aslinya dan membutuhkan EntitySpaces/.NET Framework.
+  di form aslinya dan membutuhkan EntitySpaces/.NET Framework. Aplikasi ini juga tidak
+  memakai ORM/database apa pun, jadi tidak ada skema yang perlu dimigrasi.

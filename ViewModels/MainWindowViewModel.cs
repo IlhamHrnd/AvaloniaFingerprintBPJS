@@ -16,9 +16,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         _services = services;
 
-        Daftar = new DaftarFingerprintViewModel(services);
         Verifikasi = new VerifikasiFingerprintViewModel(services);
-        Registrasi = new RegistrasiFingerprintViewModel(services, Daftar);
+        Registrasi = new RegistrasiFingerprintViewModel(services);
         KodeBooking = new KodeBookingViewModel(services);
         VerifikasiWajah = new VerifikasiWajahViewModel(services);
 
@@ -34,7 +33,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         UpdateCameraState();
     }
 
-    public DaftarFingerprintViewModel Daftar { get; }
     public VerifikasiFingerprintViewModel Verifikasi { get; }
     public RegistrasiFingerprintViewModel Registrasi { get; }
     public KodeBookingViewModel KodeBooking { get; }
@@ -94,7 +92,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             PetugasDetail = "Silakan login untuk mengaktifkan tab";
         }
 
-        Daftar.OnSessionChanged(session.IsLoggedIn);
         Verifikasi.OnSessionChanged(session.IsLoggedIn);
         Registrasi.OnSessionChanged(session.IsLoggedIn);
         KodeBooking.OnSessionChanged(session.IsLoggedIn);

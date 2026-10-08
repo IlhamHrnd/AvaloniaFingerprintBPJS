@@ -21,8 +21,8 @@
 
         <!-- NIK peserta: input utama sebelum verifikasi wajah, divalidasi di awal
              VerifyFaceAsync. Pola label+TextBox mengikuti halaman Verifikasi Fingerprint
-             (label SemiBold 12; TextBox Height 36 FontSize 15 — sama dengan TextBox di
-             DaftarFingerprintView, sengaja compact agar area kamera tidak perlu mengecil).
+             (label SemiBold 12; TextBox Height 36 FontSize 15, sengaja compact agar area
+             kamera tidak perlu mengecil).
              PlaceholderText dipakai karena Watermark sudah obsolete (memicu AVLN5001). -->
         <StackPanel Spacing="4">
           <TextBlock Text="NIK" FontWeight="SemiBold" FontSize="12" />

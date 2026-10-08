@@ -1,6 +1,5 @@
 using AvaloniaFingerprint.Exceptions;
 using AvaloniaFingerprint.Filters.Fingerprint;
-using AvaloniaFingerprint.Models.Fingerprint;
 using AvaloniaFingerprint.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,17 +14,15 @@ namespace AvaloniaFingerprint.ViewModels;
 public sealed partial class RegistrasiFingerprintViewModel : ViewModelBase
 {
     private readonly AppServices _services;
-    private readonly DaftarFingerprintViewModel _daftar;
 
     private readonly List<object> _rightFmds = new();
     private readonly List<object> _leftFmds = new();
     private string? _rightTemplate;
     private string? _leftTemplate;
 
-    public RegistrasiFingerprintViewModel(AppServices services, DaftarFingerprintViewModel daftar)
+    public RegistrasiFingerprintViewModel(AppServices services)
     {
         _services = services;
-        _daftar = daftar;
         DeviceConnected = services.Fingerprint.IsDeviceConnected;
     }
 
@@ -178,8 +175,11 @@ public sealed partial class RegistrasiFingerprintViewModel : ViewModelBase
     private bool CanRegist() =>
         IsLoggedIn && !IsBusy && RightDone && LeftDone && NoKapst.Trim().Length > 0;
 
+    // Sinkron: satu-satunya await di sini dulu menyalin sidik jari ke store lokal, dan itu
+    // sudah dihapus karena aplikasi dilarang menyimpan data biometrik pasien. AddFinger sendiri
+    // panggilan RestSharp yang blocking, jadi tidak ada lagi yang perlu di-await.
     [RelayCommand(CanExecute = nameof(CanRegist))]
-    private async Task RegistAsync()
+    private void Regist()
     {
         IsBusy = true;
         SetStatus("Mengirim data ke BPJS...", false);
@@ -209,22 +209,14 @@ public sealed partial class RegistrasiFingerprintViewModel : ViewModelBase
             var result = _services.Fingerprint.AddFinger(payload);
             if (!result.succeeded || result.data == null)
             {
-                SetStatus($"Fingerprint gagal disimpan: {result.message} - {result.data?.metaData?.message}", true);
+                SetStatus($"Fingerprint gagal dikirim: {result.message} - {result.data?.metaData?.message}", true);
                 return;
             }
 
-            await _daftar.AddAsync(new FingerprintRecord
-            {
-                NoKapst = payload.nokapst,
-                Tanggal = DateTime.Now,
-                JumlahJari = _rightFmds.Count + _leftFmds.Count,
-                Petugas = _services.Session.Username,
-                Status = "Terkirim",
-                ImgRight = RightImage,
-                ImgLeft = LeftImage
-            });
-
-            SetStatus("Fingerprint berhasil disimpan.", false);
+            // Template dan gambar sidik jari hanya diproses sementara: dipegang di memori,
+            // dikirim ke BPJS lewat AddFinger, lalu dilepas oleh ResetInternal(). Tidak ada
+            // penyalinan ke database, file lokal, cache, session, maupun log.
+            SetStatus("Registrasi fingerprint berhasil dikirim ke BPJS.", false);
             ResetInternal();
         }
         catch (Exception ex)

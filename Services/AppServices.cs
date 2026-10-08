@@ -1,4 +1,7 @@
 using System;
+using System.Diagnostics;
+using System.IO;
+using Microsoft.Extensions.Configuration;
 
 namespace AvaloniaFingerprint.Services;
 
@@ -15,11 +18,16 @@ public sealed class AppServices : IDisposable
     private AppServices()
     {
         Settings = AppSettings.Load();
+
+        // Fitur "Daftar Fingerprint" dihapus karena aplikasi dilarang menyimpan data biometrik
+        // pasien. Versi lama menulisnya ke registrations.json di folder aplikasi; sisa file itu
+        // dibersihkan sekali di sini supaya workstation yang terlanjur menyimpan data ikut bersih.
+        PurgeLegacyBiometricStore(Settings.Configuration);
+
         Session = new SessionService();
         AppUser = new AppUserServices(Settings.Configuration, Session);
         Fingerprint = new FingerprintServices(Settings.Configuration, Session);
         Camera = new CameraServices(Settings.Configuration, Session);
-        Registrations = new RegistrationServices(Settings.Configuration, Session);
         Appointment = new AppointmentServices(Settings.Configuration, Session);
         Printout = new PrintoutServices(Settings.Configuration, Session);
 
@@ -28,12 +36,35 @@ public sealed class AppServices : IDisposable
         FaceRecognition = new FaceRecognitionService(Settings.Configuration, Session);
     }
 
+    /// <summary>
+    /// Menghapus jejak penyimpanan biometrik dari versi lama: file JSON berisi gambar sidik jari
+    /// pasien (base64) beserta identitas pemiliknya. Bersifat best-effort — kegagalan (file
+    /// terkunci / folder read-only) tidak boleh menghalangi aplikasi berjalan. Isi file tidak
+    /// pernah dibaca, dipindahkan, maupun ditulis ke log; hanya nama filenya yang dicatat.
+    /// </summary>
+    private static void PurgeLegacyBiometricStore(IConfiguration config)
+    {
+        try
+        {
+            var name = config["Storage:RegistrationsFile"] ?? "registrations.json";
+            var path = Path.IsPathRooted(name) ? name : Path.Combine(AppContext.BaseDirectory, name);
+            if (!File.Exists(path))
+                return;
+
+            File.Delete(path);
+            Trace.WriteLine($"[AppServices] Legacy biometric store removed: {Path.GetFileName(path)}");
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[AppServices] Legacy biometric store removal failed: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
     public AppSettings Settings { get; }
     public SessionService Session { get; }
     public AppUserServices AppUser { get; }
     public FingerprintServices Fingerprint { get; }
     public CameraServices Camera { get; }
-    public RegistrationServices Registrations { get; }
     public AppointmentServices Appointment { get; }
     public PrintoutServices Printout { get; }
 

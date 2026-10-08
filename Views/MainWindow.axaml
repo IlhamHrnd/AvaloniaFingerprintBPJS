@@ -66,7 +66,7 @@
         <!-- title: mengisi sisa ruang, menyusut lebih dulu dan memakai ellipsis -->
         <StackPanel Spacing="2" VerticalAlignment="Center">
           <TextBlock Classes="h1" Text="Fingerprint BPJS" TextTrimming="CharacterEllipsis" />
-          <TextBlock Classes="caption" Text="Daftar · Verifikasi · Registrasi · Kode Booking · Verifikasi Wajah"
+          <TextBlock Classes="caption" Text="Verifikasi · Registrasi · Kode Booking · Verifikasi Wajah"
                      TextTrimming="CharacterEllipsis" />
         </StackPanel>
       </DockPanel>
@@ -84,9 +84,6 @@
     <!-- ============ tabs (disabled until login) ============ -->
     <Grid Margin="20">
       <TabControl>
-        <TabItem Header="Daftar Fingerprint" IsEnabled="{Binding IsLoggedIn}">
-          <views:DaftarFingerprintView DataContext="{Binding Daftar}" />
-        </TabItem>
         <TabItem Header="Verifikasi Fingerprint" IsEnabled="{Binding IsLoggedIn}">
           <views:VerifikasiFingerprintView DataContext="{Binding Verifikasi}" />
         </TabItem>
@@ -109,7 +106,7 @@
           <TextBlock Text="🔒" FontSize="40" HorizontalAlignment="Center" />
           <TextBlock Classes="h2" HorizontalAlignment="Center" Text="Semua tab terkunci" />
           <TextBlock TextWrapping="Wrap" TextAlignment="Center" Classes="caption"
-                     Text="Login petugas terlebih dahulu melalui tombol Login di kanan atas untuk mengaktifkan tab Daftar, Verifikasi, Registrasi, dan Kode Booking." />
+                     Text="Login petugas terlebih dahulu melalui tombol Login di kanan atas untuk mengaktifkan tab Verifikasi, Registrasi, Kode Booking, dan Verifikasi Wajah." />
           <Button Content="Login sekarang" Command="{Binding ToggleLoginCommand}"
                   HorizontalAlignment="Center" Margin="0,8,0,0" Height="36" MinWidth="140"
                   HorizontalContentAlignment="Center"

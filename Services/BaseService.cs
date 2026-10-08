@@ -47,7 +47,6 @@ namespace AvaloniaFingerprint.Services
             "Laptop Camera",
             "Laptop Webcam"
         };
-        protected string registrationsFile { get; set; } = config["Storage:RegistrationsFile"] ?? "registrations.json";
         protected string printerName = config["Apps:PrinterNormal"] ?? string.Empty;
         protected string printerLaser = config["Apps:PrinterLaser"] ?? string.Empty;
         #endregion
