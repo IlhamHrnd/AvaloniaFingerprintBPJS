@@ -85,13 +85,15 @@ public sealed partial class LoginViewModel : ViewModelBase
     [RelayCommand]
     private void OpenSettingKoneksi()
     {
-        // Placeholder or action for Setting Koneksi if needed
+        // Menu ini belum punya aksi: pengaturan koneksi masih dibaca dari appsettings.json,
+        // jadi belum ada nilai yang bisa diubah dari UI.
     }
 
     [RelayCommand]
     private void AddAction()
     {
-        // Placeholder or action for floating plus button
+        // Pintasan yang direncanakan. Dibiarkan kosong supaya binding di LoginWindow.axaml
+        // tetap valid sampai alurnya ditentukan.
     }
 
     private void SetMessage(string text)

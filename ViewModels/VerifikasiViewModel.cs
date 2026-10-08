@@ -1053,9 +1053,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
         return bitmap;
     }
 
-    // ==========================================================================
-    //  METODE FINGERPRINT
-    // ==========================================================================
+    // ---- METODE FINGERPRINT ---------------------------------------------------
     //
     // Port apa adanya dari WinForms VerifikasiFingerprint. Seluruh alur dipertahankan: capture
     // sidik jari -> POST /frista/verify -> validasi nomor antrean -> generate nomor registrasi ->
@@ -1160,7 +1158,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
                 return;
             }
 
-            //Proses Generate Nomor Registrasi
+            // Nomor registrasi diminta sebelum cetak SEP karena nomor itu yang dipakai endpoint
+            // cetak; kegagalan di sini membatalkan sisa alur.
             ScanStatus = "Memproses SEP ke BPJS...";
             var generateReg = await Task.Run(() => _services.Appointment.GenerateRegistration(validateApt.data ?? string.Empty));
             if (!generateReg.succeeded || (generateReg.errors != null && generateReg.errors.Length > 0))
@@ -1175,7 +1174,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
             var printerNormal = _services.Settings.Configuration["Apps:PrinterNormal"] ?? string.Empty;
             var printerLaser = _services.Settings.Configuration["Apps:PrinterLaser"] ?? string.Empty;
 
-            // Proses cetak SEP
+            // Tahap 1: cetak SEP. Kegagalan di sini hanya dilaporkan lewat SetStatus; cetak Label
+            // di bawah tetap dijalankan.
             ScanStatus = "Memproses cetak SEP...";
             var sep = await Task.Run(() => _services.Printout.Sep(validateApt.data ?? string.Empty, true, dateTime));
             if (sep.succeeded && sep.errors == null && sep.data != null)
@@ -1316,7 +1316,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
                 }
             }
 
-            // Proses cetak Label
+            // Tahap 2: cetak Label. Berbeda dari SEP, kegagalan di sini menghentikan seluruh proses.
             ScanStatus = "Memproses cetak Label...";
             string aptNo = $"APT/{Converter.DateFormat(dateTime, DateFormat.Shortyearpattern)}-{validateApt.data}";
             var regNo = await Task.Run(() => _services.Appointment.AppointmentToRegistrationNumber(aptNo));

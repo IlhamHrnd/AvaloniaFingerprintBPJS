@@ -20,7 +20,7 @@ namespace AvaloniaFingerprint.Services
         SessionService session,
         FingerprintSdkProbe? sdkProbe = null) : BaseService(config, session), IDisposable
     {
-        private const string DeviceQuery = "SELECT Name, DeviceID, PNPClass, Status, Present, ConfigManagerErrorCode FROM Win32_PnPEntity " + 
+        private const string DeviceQuery = "SELECT Name, DeviceID, PNPClass, Status, Present, ConfigManagerErrorCode FROM Win32_PnPEntity " +
             "WHERE PNPClass = 'Biometric' OR DeviceID LIKE '%VID_05BA%' " +
             "OR Name LIKE '%Fingerprint%' OR Name LIKE '%U.are.U%' OR Name LIKE '%Biometric%'";
         /// <summary>
@@ -109,7 +109,7 @@ namespace AvaloniaFingerprint.Services
             }
             catch (OperationCanceledException)
             {
-                // shutting down
+                // Pembatalan normal: aplikasi sedang ditutup, bukan kegagalan probe.
             }
             finally
             {
@@ -281,7 +281,8 @@ namespace AvaloniaFingerprint.Services
             }
             catch (Exception)
             {
-                // ignore teardown failures
+                // Teardown tidak boleh melempar keluar Dispose(): langkah pembersihan berikutnya
+                // (_cts.Dispose) tetap harus dijalankan.
             }
             _cts.Dispose();
         }

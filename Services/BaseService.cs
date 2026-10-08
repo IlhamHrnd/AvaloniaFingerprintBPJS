@@ -73,12 +73,14 @@ namespace AvaloniaFingerprint.Services
             return headers;
         }
 
-        // Noted
-        // 1. Unit -> untuk konversi timeout dalam detik, menit atau jam
-        // 2. Method -> untuk proses pengiriman berupa Get, Put, Patch, Delete atau yang lain
-        // 3. Method wajib diisi
-        // 4. Jika file tidak null berarti dia akan upload file entah gambar atau dokumen
-        // 5. Dan field diletakkan didalam body
+        /// <summary>
+        /// Pemanggil wajib mengisi <paramref name="endpoint"/> dan <paramref name="method"/>; keduanya
+        /// kosong berarti permintaan dibatalkan tanpa memanggil API.
+        /// <paramref name="unit"/> memilih satuan <paramref name="timeOut"/> (1=detik, 2=menit,
+        /// 3=jam, 4=hari, lainnya=ms). Bila <paramref name="file"/> terisi, isinya diunggah sebagai
+        /// multipart; <paramref name="body"/> hanya dipakai untuk method selain GET, dan di sanalah
+        /// field biasa diletakkan.
+        /// </summary>
         protected RestResponse RestResponse(string url, string endpoint, int timeOut, List<Models.Master.Parameter> headers, int unit, int method, object? body = null, IFormFile? file = null, List<Models.Master.Parameter>? param = null)
         {
             if (string.IsNullOrEmpty(endpoint)) return new RestResponse();

@@ -101,7 +101,8 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
         var printerNormal = _services.Settings.Configuration["Apps:PrinterNormal"] ?? string.Empty;
         var printerLaser = _services.Settings.Configuration["Apps:PrinterLaser"] ?? string.Empty;
 
-        // Proses cetak SEP
+        // Tahap 1: cetak SEP. Kegagalan di sini hanya dilaporkan lewat SetStatus; cetak Label
+        // di bawah tetap dijalankan.
         var sep = await Task.Run(() => _services.Printout.Sep(kdBooking, true, dateTime));
         if (sep.succeeded && sep.errors == null && sep.data != null)
         {
@@ -239,7 +240,7 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
             }
         }
 
-        // Proses cetak Label
+        // Tahap 2: cetak Label. Berbeda dari SEP, kegagalan di sini menghentikan seluruh proses.
         string aptNo = $"APT/{Converter.DateFormat(dateTime, DateFormat.Shortyearpattern)}-{kdBooking}";
         var regNo = await Task.Run(() => _services.Appointment.AppointmentToRegistrationNumber(aptNo));
         if (!regNo.succeeded && regNo.errors != null)

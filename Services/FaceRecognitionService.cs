@@ -1,3 +1,8 @@
+using AvaloniaFingerprint.Exceptions;
+using FaceRecognitionDotNet;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using OpenCvSharp;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -6,11 +11,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using AvaloniaFingerprint.Exceptions;
-using FaceRecognitionDotNet;
-using Microsoft.Extensions.Configuration;
-using OpenCvSharp;
-
 // Alias dipakai karena FaceRecognitionDotNet punya tipe bernama generik (Image, Model,
 // Mode, Location, Point) yang gampang bertabrakan dengan OpenCvSharp / System.Drawing /
 // namespace AvaloniaFingerprint.Models di file yang sama.
@@ -81,11 +81,11 @@ public sealed class FaceRecognitionService : BaseService, IFaceRecognitionServic
         : base(configuration, session)
     {
         _modelDirectory = ResolveModelDirectory(configuration["FaceRecognition:ModelDirectory"]);
-        _detector       = ParseDetector(configuration["FaceRecognition:Detector"]);
-        _upSample       = ParsePositiveInt(configuration["FaceRecognition:Upsample"], 0, 0, 4);
-        _landmarkModel  = ParseLandmarkModel(configuration["FaceRecognition:LandmarkModel"]);
-        _numJitterings  = ParsePositiveInt(configuration["FaceRecognition:NumJitterings"], 1, 0, 8);
-        _maxEdge        = ParsePositiveInt(configuration["FaceRecognition:MaxEdge"], 800, 0, 8192);
+        _detector = ParseDetector(configuration["FaceRecognition:Detector"]);
+        _upSample = ParsePositiveInt(configuration["FaceRecognition:Upsample"], 0, 0, 4);
+        _landmarkModel = ParseLandmarkModel(configuration["FaceRecognition:LandmarkModel"]);
+        _numJitterings = ParsePositiveInt(configuration["FaceRecognition:NumJitterings"], 1, 0, 8);
+        _maxEdge = ParsePositiveInt(configuration["FaceRecognition:MaxEdge"], 800, 0, 8192);
     }
 
     /// <inheritdoc/>
@@ -579,5 +579,47 @@ public sealed class FaceRecognitionService : BaseService, IFaceRecognitionServic
         _faceRecognition = null;
         _gate.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    public Root<Models.FaceRecognition.Verify.Root> Verify(Filters.FaceRecognition.Verify verify)
+    {
+        var result = new Root<Models.FaceRecognition.Verify.Root>();
+        var header = headers(Session.UserId);
+
+        var response = RestResponse(url, "Frista/Verify", timeout, header, 1, 2, verify);
+        try
+        {
+            if (response.IsSuccessStatusCode) result = JsonConvert.DeserializeObject<Root<Models.FaceRecognition.Verify.Root>>(response.Content ?? string.Empty) ?? new Root<Models.FaceRecognition.Verify.Root>();
+            else result = JsonConvert.DeserializeObject<Root<Models.FaceRecognition.Verify.Root>>(response.Content ?? string.Empty) ?? new Root<Models.FaceRecognition.Verify.Root>();
+        }
+        catch (Exception e)
+        {
+            return result = new Root<Models.FaceRecognition.Verify.Root>
+            {
+                errors = [e.Message, e.InnerException?.Message ?? string.Empty]
+            };
+        }
+        return result;
+    }
+
+    public Root<Models.FaceRecognition.NIK.Root> Nik(Filters.FaceRecognition.NIK nik)
+    {
+        var result = new Root<Models.FaceRecognition.NIK.Root>();
+        var header = headers(Session.UserId);
+
+        var response = RestResponse(url, "Frista/Nik", timeout, header, 1, 2, nik);
+        try
+        {
+            if (response.IsSuccessStatusCode) result = JsonConvert.DeserializeObject<Root<Models.FaceRecognition.NIK.Root>>(response.Content ?? string.Empty) ?? new Root<Models.FaceRecognition.NIK.Root>();
+            else result = JsonConvert.DeserializeObject<Root<Models.FaceRecognition.NIK.Root>>(response.Content ?? string.Empty) ?? new Root<Models.FaceRecognition.NIK.Root>();
+        }
+        catch (Exception e)
+        {
+            return result = new Root<Models.FaceRecognition.NIK.Root>
+            {
+                errors = [e.Message, e.InnerException?.Message ?? string.Empty]
+            };
+        }
+        return result;
     }
 }

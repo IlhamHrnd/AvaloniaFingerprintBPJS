@@ -141,7 +141,7 @@ namespace AvaloniaFingerprint.Services
             }
             catch (OperationCanceledException)
             {
-                // shutting down
+                // Pembatalan normal: aplikasi sedang ditutup, bukan kegagalan pemindaian.
             }
             finally
             {
@@ -255,7 +255,8 @@ namespace AvaloniaFingerprint.Services
             }
             catch (Exception)
             {
-                // ignore teardown failures
+                // Teardown tidak boleh melempar keluar Dispose(): langkah pembersihan berikutnya
+                // (_cts.Dispose) tetap harus dijalankan.
             }
             _cts.Dispose();
         }

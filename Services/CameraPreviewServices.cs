@@ -71,7 +71,8 @@ namespace AvaloniaFingerprint.Services
     /// </summary>
     public sealed class CameraPreviewServices : BaseService, IDisposable
     {
-        // Backend yang dicoba berurutan.
+        // Dicoba berurutan sesuai urutan larik: MSMF lebih dulu karena kamera virtual
+        // (Link to Windows / Phone Link) diekspos lewat Media Foundation, DSHOW sebagai fallback.
         private static readonly (string Name, VideoCaptureAPIs Api)[] Backends =
         [
             ("MSMF", VideoCaptureAPIs.MSMF),
@@ -265,7 +266,7 @@ namespace AvaloniaFingerprint.Services
             }
             catch (Exception)
             {
-                // ignore
+                // Release bisa gagal saat device sudah dicabut; Dispose di bawah tetap dijalankan.
             }
 
             try
@@ -274,7 +275,7 @@ namespace AvaloniaFingerprint.Services
             }
             catch (Exception)
             {
-                // ignore
+                // Device sudah tidak ada, jadi tidak ada lagi yang bisa dibersihkan.
             }
         }
 

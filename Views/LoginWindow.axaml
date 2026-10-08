@@ -56,7 +56,7 @@
   </Window.Styles>
 
   <Grid RowDefinitions="Auto,*">
-    <!-- Header -->
+    <!-- header: judul aplikasi + menu Setting Koneksi (aksi belum diimplementasikan) -->
     <Border Grid.Row="0" Background="#5C2D91" Height="50" Padding="16,0">
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock Grid.Column="0"
@@ -75,7 +75,7 @@
       </Grid>
     </Border>
 
-    <!-- Body -->
+    <!-- body: form login (username, password, aksi) -->
     <Grid Grid.Row="1">
       <Border HorizontalAlignment="Center" VerticalAlignment="Center" Width="310" Background="White" CornerRadius="8"
               BorderBrush="#E2E8F0" BorderThickness="1" BoxShadow="0 4 16 0 #1E000000" Padding="24,20">
