@@ -52,8 +52,7 @@ public sealed class AppServices : IDisposable
     public CameraServices Camera { get; }
     public AppointmentServices Appointment { get; }
     public PrintoutServices Printout { get; }
-
-    public IFaceRecognitionService FaceRecognition { get; }
+    public FaceRecognitionService FaceRecognition { get; }
 
     public void Dispose()
     {

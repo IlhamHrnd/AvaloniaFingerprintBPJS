@@ -18,7 +18,7 @@ using ImageMode = FaceRecognitionDotNet.Mode;
 
 namespace AvaloniaFingerprint.Services;
 
-public sealed class FaceRecognitionService : BaseService, IFaceRecognitionService
+public sealed class FaceRecognitionService : BaseService, IDisposable
 {
     public const int EncodingLength = 128;
 
