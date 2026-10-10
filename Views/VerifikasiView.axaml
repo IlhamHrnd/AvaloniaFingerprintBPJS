@@ -92,6 +92,12 @@
                   HorizontalContentAlignment="Center"
                   Background="{StaticResource AccentBrush}" Foreground="White" />
 
+          <StackPanel IsVisible="{Binding IsVerifyingFace}" Spacing="6">
+            <TextBlock Text="{Binding FaceStatus}" FontWeight="SemiBold" TextWrapping="Wrap"
+                       Foreground="{StaticResource AccentBrush}" />
+            <ProgressBar IsIndeterminate="True" Height="4" />
+          </StackPanel>
+
           <Border IsVisible="{Binding HasCameraDeviceList}" CornerRadius="6" Padding="10" Background="#F9FAFB"
                   BorderBrush="#E5E7EB" BorderThickness="1">
             <TextBlock Text="{Binding CameraDeviceList}" TextWrapping="Wrap" FontSize="12"

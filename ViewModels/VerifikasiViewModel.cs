@@ -39,6 +39,10 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     private int _stagingStride;
     private int _renderPending;
 
+    // Naik setiap sumber foto berubah atau verifikasi baru dimulai; dipakai agar hasil
+    // proses lama tidak menimpa status/hasil dari foto terbaru.
+    private int _facePhotoGeneration;
+
     public VerifikasiViewModel(AppServices services)
     {
         _services = services;
@@ -89,12 +93,13 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
 
     private void EnterFingerprintMode()
     {
-        FaceEncoding = null;
         CapturedPhoto = null;
         UploadedPhoto = null;
         _uploadedPhotoBytes = null;
         IsShowingUploadedPhoto = false;
         ClearFrames();
+
+        ResetFaceProgress();
 
         ResetResult();
         SetStatus(string.Empty, false);
@@ -108,8 +113,10 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
         IsScanning = false;
         ScanStatus = string.Empty;
 
+        ResetFaceProgress();
+
         ResetResult();
-        SetStatus(string.Empty, false);
+        SetStatus(ResolveIdleFaceStatus(), false);
 
         CameraUsageChanged?.Invoke();
     }
@@ -130,6 +137,10 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
 
     [ObservableProperty] private string _scanStatus = string.Empty;
     [ObservableProperty] private bool _isScanning;
+
+    // Teks tahapan Verifikasi Wajah. Dipisah dari ScanStatus (milik Fingerprint) supaya
+    // status kedua metode tidak saling menimpa ketika petugas berpindah mode.
+    [ObservableProperty] private string _faceStatus = string.Empty;
 
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private bool _hasStatus;
@@ -238,8 +249,6 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
 
     public bool HasResultImage => FingerImage is not null || CapturedPhoto is not null;
 
-    private List<double>? FaceEncoding { get; set; }
-
     private void ResetResult()
     {
         ResultNama = "-";
@@ -263,12 +272,12 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
         _uploadedPhotoBytes = null;
         IsShowingUploadedPhoto = false;
 
-        FaceEncoding = null;
-
         FingerImage = null;
         ResetResult();
         IsScanning = false;
         ScanStatus = string.Empty;
+
+        ResetFaceProgress();
 
         IdentityNumber = string.Empty;
 
@@ -414,8 +423,13 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanConnectCamera))]
     private async Task ConnectCameraAsync()
     {
+        // Jangan menyentuh kamera saat verifikasi wajah sedang berjalan; frame yang
+        // sedang diproses bisa hilang di tengah jalan.
+        if (IsVerifyingFace)
+            return;
+
         IsConnecting = true;
-        SetStatus(string.Empty, false);
+        SetStatus("Menghubungkan kamera...", false);
 
         try
         {
@@ -424,11 +438,15 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
             OnCameraStatusChanged(result.Connected, _services.Camera.ResolveStatus(), result.Detail);
 
             if (result.Connected)
-                SetStatus($"Kamera berhasil terhubung: {result.Detail}", false);
+                SetStatus("Kamera siap, silakan arahkan wajah", false);
             else if (_services.Camera.IsDeviceConnected)
                 SetStatus(CameraServices.DetailOpenFailed, true);
             else
                 SetStatus(CameraServices.DetailDeviceNotFound, true);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Gagal menghubungkan kamera: {SafeDetail(ex.Message)}", true);
         }
         finally
         {
@@ -436,7 +454,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
         }
     }
 
-    private bool CanConnectCamera() => IsWajahMode && !IsConnecting && !IsBusy;
+    private bool CanConnectCamera() => IsWajahMode && !IsConnecting && !IsBusy && !IsVerifyingFace;
 
     [RelayCommand]
     private async Task UploadPhotoAsync()
@@ -480,6 +498,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
             return;
         }
 
+        SetStatus("Memuat foto...", false);
+
         try
         {
             using var stream = await file.OpenReadAsync();
@@ -491,7 +511,10 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
             _uploadedPhotoBytes = bytes;
             IsShowingUploadedPhoto = true;
 
-            SetStatus($"Foto berhasil dipilih: {file.Name}", false);
+            // Sumber foto berganti -> proses/encoding dari foto lama tidak boleh dipakai lagi.
+            InvalidateFacePhoto();
+
+            SetStatus($"Foto siap diverifikasi: {SafeDetail(file.Name)}", false);
         }
         catch (Exception ex)
         {
@@ -499,7 +522,9 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
             _uploadedPhotoBytes = null;
             IsShowingUploadedPhoto = false;
 
-            SetStatus($"Gagal membaca file foto: {ex.Message}", true);
+            InvalidateFacePhoto();
+
+            SetStatus($"Gagal membaca file foto: {SafeDetail(ex.Message)}", true);
         }
     }
 
@@ -513,7 +538,14 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void TogglePhotoSource() => IsShowingUploadedPhoto = !IsShowingUploadedPhoto;
+    private void TogglePhotoSource()
+    {
+        IsShowingUploadedPhoto = !IsShowingUploadedPhoto;
+
+        // Sumber gambar berganti, jadi hasil proses sebelumnya sudah tidak relevan.
+        InvalidateFacePhoto();
+        SetStatus(ResolveIdleFaceStatus(), false);
+    }
 
     [RelayCommand]
     private void ClearPhoto()
@@ -523,118 +555,173 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
         _uploadedPhotoBytes = null;
         IsShowingUploadedPhoto = false;
 
-        FaceEncoding = null;
+        InvalidateFacePhoto();
 
-        SetStatus("Foto dan hasil verifikasi dihapus.", false);
+        ResetResult();
+        SetStatus("Menunggu foto wajah", false);
     }
 
     [RelayCommand(CanExecute = nameof(CanVerifyFace))]
     private async Task VerifyFaceAsync()
     {
-        var identity = IdentityNumber.Trim();
+        // Status transaksi sebelumnya dibersihkan lebih dulu supaya pesan sukses/gagal lama
+        // tidak tertinggal ketika petugas memulai verifikasi baru.
+        ResetResult();
+        SetStatus(string.Empty, false);
+        FaceStatus = string.Empty;
 
-        if (identity.Length == 0)
-        {
-            SetStatus("NIK / No. BPJS masih kosong. Silakan masukkan NIK atau No. BPJS terlebih dahulu.", true);
-            return;
-        }
-
-        if (!identity.All(char.IsAsciiDigit))
-        {
-            SetStatus("NIK / No. BPJS hanya boleh berisi angka.", true);
-            return;
-        }
-
-        if (identity.Length != NikLength && identity.Length != BpjsLength)
-        {
-            SetStatus(
-                $"NIK / No. BPJS harus {NikLength} atau {BpjsLength} digit. " +
-                $"Jumlah digit saat ini: {identity.Length}.", true);
-            return;
-        }
-
-        var snapshot = CaptureCurrentImage();
-
-        if (snapshot is null || !snapshot.HasInput)
-        {
-            SetStatus("Belum ada gambar untuk diverifikasi. Hubungkan kamera atau upload foto terlebih dahulu.", true);
-            return;
-        }
-
-        CapturedPhoto = snapshot.Display;
-
-        if (!_services.FaceRecognition.IsReady)
-        {
-            FaceEncoding = null;
-            SetStatus(
-                "Model wajah belum tersedia sehingga encoding tidak bisa diproses. " +
-                $"Folder yang dicari: {_services.FaceRecognition.ModelDirectory}", true);
-            return;
-        }
-
+        // Dinaikkan di awal: verifikasi lama yang masih berjalan langsung dianggap basi
+        // sehingga tidak bisa menimpa status/hasil dari foto terbaru.
         IsVerifyingFace = true;
-        SetStatus("Memproses wajah...", false);
+        var generation = ++_facePhotoGeneration;
 
         try
         {
+            FaceStatus = "Memeriksa data...";
+
+            var identity = IdentityNumber.Trim();
+
+            if (identity.Length == 0)
+            {
+                SetStatus("NIK / No. BPJS masih kosong. Silakan masukkan NIK atau No. BPJS terlebih dahulu.", true);
+                return;
+            }
+
+            if (!identity.All(char.IsAsciiDigit))
+            {
+                SetStatus("NIK / No. BPJS hanya boleh berisi angka.", true);
+                return;
+            }
+
+            if (identity.Length != NikLength && identity.Length != BpjsLength)
+            {
+                SetStatus(
+                    $"NIK / No. BPJS harus {NikLength} atau {BpjsLength} digit. " +
+                    $"Jumlah digit saat ini: {identity.Length}.", true);
+                return;
+            }
+
+            if (!IsLoggedIn)
+            {
+                SetStatus("Sesi login belum aktif. Silakan login ulang sebelum verifikasi wajah.", true);
+                return;
+            }
+
+            if (IsConnecting)
+            {
+                SetStatus("Kamera masih sedang dihubungkan. Tunggu sampai kamera siap.", true);
+                return;
+            }
+
+            FaceStatus = "Menyiapkan foto...";
+
+            var snapshot = CaptureCurrentImage();
+
+            if (snapshot is null || !snapshot.HasInput)
+            {
+                SetStatus("Belum ada gambar untuk diverifikasi. Hubungkan kamera atau upload foto terlebih dahulu.", true);
+                return;
+            }
+
+            if (!_services.FaceRecognition.IsReady)
+            {
+                SetStatus(
+                    "Model wajah belum tersedia sehingga encoding tidak bisa diproses. " +
+                    $"Folder yang dicari: {SafeDetail(_services.FaceRecognition.ModelDirectory)}", true);
+                return;
+            }
+
+            CapturedPhoto = snapshot.Display;
+
+            FaceStatus = "Memproses wajah...";
+
             var encoding = snapshot.EncodedBytes is { Length: > 0 }
                 ? await _services.FaceRecognition.GetFaceEncodingAsync(snapshot.EncodedBytes)
                 : await _services.FaceRecognition.GetFaceEncodingAsync(
                       snapshot.BgraPixels!, snapshot.Width, snapshot.Height, snapshot.Stride);
 
-            if (encoding is null || encoding.Count != 128)
+            if (IsStaleFacePhoto(generation))
+                return;
+
+            if (encoding is null || encoding.Count != FaceRecognitionService.EncodingLength)
             {
-                FaceEncoding = null;
-                SetStatus("Encoding wajah tidak valid. Jumlah data harus 128.", true);
+                SetStatus(
+                    $"Encoding wajah tidak valid. Jumlah data harus {FaceRecognitionService.EncodingLength}, " +
+                    $"diterima {encoding?.Count ?? 0}.", true);
                 return;
             }
 
-            var verify = _services.FaceRecognition.Verify(new Filters.FaceRecognition.Verify
+            // Encoding hanya dipakai untuk request ini dan sengaja tidak disimpan ke field,
+            // agar data biometrik tidak tertahan di memori setelah verifikasi selesai.
+            FaceStatus = "Mengirim data untuk verifikasi wajah...";
+
+            // Verify()/Nik() melakukan HTTP secara sinkron, jadi dijalankan di thread pool
+            // agar UI tidak beku dan teks tahapan sempat ter-render.
+            var verify = await Task.Run(() => _services.FaceRecognition.Verify(new Filters.FaceRecognition.Verify
             {
                 encoding = encoding,
                 id = identity,
                 token = _services.Session.Token ?? string.Empty
-            });
+            }));
+
+            if (IsStaleFacePhoto(generation))
+                return;
+
+            FaceStatus = "Memproses hasil verifikasi wajah...";
 
             // Response berhasil
             // 1. Data -> status = true
             // 2. Data -> status = false, message = "Peserta telah terdaftar hari ini."
-            if (verify.errors != null)
+            // Catatan: Root<T>.errors default-nya array kosong (bukan null), jadi panjangnya
+            // wajib dicek. Bila hanya null yang dicek, respons sukses pun terbaca gagal.
+            if (verify.errors is { Length: > 0 })
             {
-                SetStatus(string.Join(", ", verify.errors), true);
-                return;
-            }
-            else if (verify.data == null)
-            {
-                SetStatus("Gagal terhubung ke server frista", true);
-                return;
-            }
-            else if (!verify.data.status && !string.Equals(verify.data.message.ToLower(), "peserta telah terdaftar hari ini.", StringComparison.OrdinalIgnoreCase))
-            {
-                SetStatus(verify.data.message, true);
+                SetStatus($"Verifikasi wajah gagal: {SafeDetail(string.Join(", ", verify.errors))}", true);
                 return;
             }
 
-            var nik = _services.FaceRecognition.Nik(new Filters.FaceRecognition.NIK
+            if (verify.data is null)
+            {
+                SetStatus(FaceServerNoResponseMessage, true);
+                return;
+            }
+
+            if (!verify.data.status && !IsAlreadyRegisteredToday(verify.data.message))
+            {
+                SetStatus($"Verifikasi wajah gagal: {SafeDetail(verify.data.message)}", true);
+                return;
+            }
+
+            FaceStatus = "Memverifikasi data peserta...";
+
+            var nik = await Task.Run(() => _services.FaceRecognition.Nik(new Filters.FaceRecognition.NIK
             {
                 nik = identity,
                 token = _services.Session.Token ?? string.Empty
-            });
-            if (nik.errors != null)
+            }));
+
+            if (IsStaleFacePhoto(generation))
+                return;
+
+            if (nik.errors is { Length: > 0 })
             {
-                SetStatus(string.Join(", ", nik.errors), true);
+                SetStatus($"Verifikasi wajah gagal: {SafeDetail(string.Join(", ", nik.errors))}", true);
                 return;
             }
-            else if (nik.data == null)
+
+            if (nik.data is null)
             {
-                SetStatus("Gagal terhubung ke server frista", true);
+                SetStatus(FaceServerNoResponseMessage, true);
                 return;
             }
-            else if (!nik.data.status)
+
+            if (!nik.data.status)
             {
-                SetStatus(verify.data.message, true);
+                SetStatus($"Verifikasi wajah gagal: {SafeDetail(nik.data.message)}", true);
                 return;
             }
+
+            FaceStatus = "Memverifikasi kode booking pasien...";
 
             var validateApt = await Task.Run(() => _services.Appointment.AppointmentNoFromFinger(new Filters.Appointment.AppointmentNoFromFinger
             {
@@ -644,18 +731,23 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
                 patientName = nik.data?.nama ?? string.Empty
             }));
 
+            if (IsStaleFacePhoto(generation))
+                return;
+
             if (!validateApt.succeeded || (validateApt.errors != null && validateApt.errors.Length > 0))
             {
                 string message = validateApt.errors.Length > 0 ? string.Join(", ", validateApt.errors) : validateApt.message;
-                SetStatus(message, true);
+                SetStatus($"Verifikasi wajah gagal: {SafeDetail(message)}", true);
                 return;
             }
+
+            FaceStatus = "Memproses SEP ke BPJS...";
 
             var generateReg = await Task.Run(() => _services.Appointment.GenerateRegistration(validateApt.data ?? string.Empty));
             if (!generateReg.succeeded || (generateReg.errors != null && generateReg.errors.Length > 0))
             {
                 string message = generateReg.errors.Length > 0 ? string.Join(", ", generateReg.errors) : generateReg.message;
-                SetStatus(message, true);
+                SetStatus($"Verifikasi wajah gagal: {SafeDetail(message)}", true);
                 return;
             }
 
@@ -663,7 +755,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
             var printerNormal = _services.Settings.Configuration["Apps:PrinterNormal"] ?? string.Empty;
             var printerLaser = _services.Settings.Configuration["Apps:PrinterLaser"] ?? string.Empty;
 
-            ScanStatus = "Memproses cetak SEP...";
+            FaceStatus = "Memproses cetak SEP...";
             var sep = await Task.Run(() => _services.Printout.Sep(validateApt.data ?? string.Empty, true, dateTime));
             if (sep.succeeded && sep.errors == null && sep.data != null)
             {
@@ -802,7 +894,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
                 }
             }
 
-            ScanStatus = "Memproses cetak Label...";
+            FaceStatus = "Memproses cetak Label...";
             string aptNo = $"APT/{Converter.DateFormat(dateTime, DateFormat.Shortyearpattern)}-{validateApt.data}";
             var regNo = await Task.Run(() => _services.Appointment.AppointmentToRegistrationNumber(aptNo));
             if (!regNo.succeeded && regNo.errors != null)
@@ -875,61 +967,68 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
                 }
             }
 
-            if (!IsFingerprintMode)
+            if (IsStaleFacePhoto(generation))
                 return;
+
+            FaceStatus = "Menyiapkan hasil verifikasi...";
 
             ResultNama = nik.data?.nama ?? "-";
             ResultNoKartu = nik.data?.nokartu ?? "-";
             ResultKeterangan = $"Code {(nik.data?.status == true ? "200" : "404")} · {nik.data?.message}";
             HasResult = true;
-            SetStatus("Verifikasi berhasil.", false);
-
-            if (!IsWajahMode)
-            {
-                FaceEncoding = null;
-                return;
-            }
-
-            FaceEncoding = encoding;
-            SetStatus("Wajah berhasil diproses.", false);
+            SetStatus("Verifikasi wajah berhasil.", false);
         }
-        catch (NoFaceDetectedExceptions)
+        catch (TaskCanceledException)
         {
-            FaceEncoding = null;
-            SetStatus("Wajah tidak ditemukan pada foto.", true);
-        }
-        catch (MultipleFacesDetectedExceptions)
-        {
-            FaceEncoding = null;
-            SetStatus("Terdapat lebih dari satu wajah pada foto. Pastikan hanya satu wajah yang terlihat.", true);
-        }
-        catch (FaceEncodingExceptions)
-        {
-            FaceEncoding = null;
-            SetStatus("Encoding wajah gagal diproses.", true);
+            ReportFaceFailure(generation, "Verifikasi wajah gagal: waktu tunggu habis saat menghubungi server. Silakan coba lagi.");
         }
         catch (OperationCanceledException)
         {
-            FaceEncoding = null;
-            SetStatus("Proses wajah dibatalkan.", true);
+            ReportFaceFailure(generation, "Verifikasi wajah dibatalkan.");
+        }
+        catch (NoFaceDetectedExceptions)
+        {
+            ReportFaceFailure(generation, "Wajah tidak ditemukan pada foto.");
+        }
+        catch (MultipleFacesDetectedExceptions)
+        {
+            ReportFaceFailure(generation, "Terdapat lebih dari satu wajah pada foto. Pastikan hanya satu wajah yang terlihat.");
+        }
+        catch (FaceEncodingExceptions)
+        {
+            ReportFaceFailure(generation, "Encoding wajah gagal diproses.");
+        }
+        catch (FaceImageExceptions ex)
+        {
+            ReportFaceFailure(generation, $"Foto wajah tidak dapat diproses: {SafeDetail(ex.Message)}");
+        }
+        catch (FaceModelMissingExceptions ex)
+        {
+            ReportFaceFailure(generation, $"Model wajah belum tersedia: {SafeDetail(ex.Message)}");
         }
         catch (FaceRecognitionExceptions ex)
         {
-            FaceEncoding = null;
-            SetStatus($"Pengenalan wajah gagal: {ex.Message}", true);
+            ReportFaceFailure(generation, $"Pengenalan wajah gagal: {SafeDetail(ex.Message)}");
         }
         catch (Exception ex)
         {
-            FaceEncoding = null;
-            SetStatus($"Pengenalan wajah gagal: {ex.Message}", true);
+            ReportFaceFailure(generation, $"Pengenalan wajah gagal: {SafeDetail(ex.Message)}");
         }
         finally
         {
+            // Selalu dilepas, termasuk saat exception atau pembatalan, supaya tombol
+            // Verifikasi Wajah tidak pernah tersangkut dalam keadaan nonaktif.
             IsVerifyingFace = false;
+            FaceStatus = string.Empty;
         }
     }
 
-    private bool CanVerifyFace() => IsWajahMode && IsPreviewVisible && !IsVerifyingFace && !IsBusy;
+    private bool CanVerifyFace() =>
+        IsWajahMode
+        && IsPreviewVisible
+        && !IsVerifyingFace
+        && !IsBusy
+        && !IsConnecting;
 
     private ImageSnapshot? CaptureCurrentImage()
     {
@@ -1345,7 +1444,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     {
         IdentityNumber = string.Empty;
         ResetResult();
-        SetStatus(string.Empty, false);
+        ResetFaceProgress();
+        SetStatus(IsWajahMode ? ResolveIdleFaceStatus() : string.Empty, false);
     }
 
     private void SetStatus(string message, bool isError)
@@ -1353,5 +1453,80 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
         StatusMessage = message;
         StatusIsError = isError;
         HasStatus = !string.IsNullOrEmpty(message);
+    }
+
+    /// <summary>
+    /// Tampilkan kegagalan Verifikasi Wajah hanya bila proses yang bersangkutan masih
+    /// relevan (foto/sumber gambar belum diganti petugas di tengah proses).
+    /// </summary>
+    private void ReportFaceFailure(int generation, string message)
+    {
+        if (IsStaleFacePhoto(generation))
+            return;
+
+        SetStatus(message, true);
+    }
+
+    private bool IsStaleFacePhoto(int generation) => generation != _facePhotoGeneration;
+
+    /// <summary>
+    /// Tandai bahwa sumber foto berubah, sehingga proses verifikasi lama tidak boleh
+    /// lagi menimpa status maupun hasil.
+    /// </summary>
+    private int InvalidateFacePhoto() => ++_facePhotoGeneration;
+
+    private void ResetFaceProgress()
+    {
+        // IsVerifyingFace sengaja tidak dipaksa false di sini: flag itu milik tunggal
+        // VerifyFaceAsync dan selalu dilepas di blok finally agar tombol tidak tersangkut.
+        _facePhotoGeneration++;
+        FaceStatus = string.Empty;
+    }
+
+    /// <summary>
+    /// Pesan idle Verifikasi Wajah, mengikuti kondisi kamera/foto yang sebenarnya.
+    /// </summary>
+    private string ResolveIdleFaceStatus()
+    {
+        if (IsConnecting)
+            return "Menghubungkan kamera...";
+
+        if (IsPreviewActive)
+            return "Kamera siap, silakan arahkan wajah";
+
+        if (IsShowingUploadedPhoto && UploadedPhoto is not null)
+            return "Foto siap diverifikasi";
+
+        if (HasUploadedPhoto)
+            return "Menunggu foto wajah";
+
+        return "Silakan hubungkan kamera atau upload foto";
+    }
+
+    private const int MaxStatusDetailLength = 240;
+
+    private const string FaceServerNoResponseMessage =
+        "Verifikasi wajah gagal: server FRISTA tidak memberikan respons yang valid. " +
+        "Periksa koneksi jaringan atau coba lagi beberapa saat.";
+
+    private const string AlreadyRegisteredTodayMessage = "peserta telah terdaftar hari ini.";
+
+    private static bool IsAlreadyRegisteredToday(string? message) =>
+        string.Equals(message?.Trim(), AlreadyRegisteredTodayMessage, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Rapikan dan batasi panjang detail teknis sebelum ditampilkan ke petugas, supaya
+    /// payload besar (mis. body request yang memuat encoding wajah) tidak bocor ke UI.
+    /// </summary>
+    private static string SafeDetail(string? detail)
+    {
+        if (string.IsNullOrWhiteSpace(detail))
+            return "-";
+
+        var cleaned = string.Join(' ', detail.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+        return cleaned.Length <= MaxStatusDetailLength
+            ? cleaned
+            : cleaned[..MaxStatusDetailLength].TrimEnd() + "...";
     }
 }
