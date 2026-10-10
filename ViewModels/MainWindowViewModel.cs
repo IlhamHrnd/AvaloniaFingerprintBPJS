@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using AvaloniaFingerprint.Services;
@@ -19,11 +20,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Verifikasi = new VerifikasiViewModel(services);
         KodeBooking = new KodeBookingViewModel(services);
 
+        var assembly = typeof(MainWindowViewModel).Assembly;
+        ApplicationVersion = assembly.GetName().Version?.ToString(3) ?? "1.0.0";
+        BuildTimestamp = File.Exists(assembly.Location)
+            ? File.GetLastWriteTime(assembly.Location).ToString("yyyy-MM-dd HH:mm")
+            : DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
         services.Session.Changed += OnSessionChanged;
         services.Fingerprint.DeviceStateChanged += OnDeviceStateChanged;
         services.Camera.DeviceStatusChanged += OnCameraStatusChanged;
 
         Verifikasi.CameraUsageChanged += OnVerifikasiCameraUsageChanged;
+        Verifikasi.RequestLogin = RequestLoginFromPage;
+        KodeBooking.RequestLogin = RequestLoginFromPage;
+
+        CurrentPage = Verifikasi;
 
         Trace.WriteLine($"[MainWindowViewModel] Initialized. ReaderState={_services.Fingerprint.DeviceState.State}, IsDeviceConnected={_services.Fingerprint.IsDeviceConnected}, DeviceName={_services.Fingerprint.DeviceName}");
         Trace.WriteLine($"[MainWindowViewModel] Initialized. IsCameraConnected={_services.Camera.IsDeviceConnected}, CameraName={_services.Camera.DeviceName}");
@@ -39,10 +50,54 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private bool _isLoggedIn;
     [ObservableProperty] private string _loginButtonText = "Login";
     [ObservableProperty] private string _petugasName = "Belum login";
-    [ObservableProperty] private string _petugasDetail = "Silakan login untuk mengaktifkan tab";
+    [ObservableProperty] private string _petugasDetail = "Silakan login untuk mengaktifkan verifikasi";
     [ObservableProperty] private bool _isLoginBusy;
 
     public Func<Task>? ShowLoginDialog { get; set; }
+
+    /// <summary>Dipasang oleh MainWindow untuk membuka dialog Pengaturan Tema (§9.7).</summary>
+    public Func<Task>? ShowThemeDialog { get; set; }
+
+    // ===== Navigasi sidebar: halaman aktif + judul header (§8.1, §8.3) =====
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PageTitle))]
+    [NotifyPropertyChangedFor(nameof(PageSubtitle))]
+    [NotifyPropertyChangedFor(nameof(IsVerifikasiSelected))]
+    [NotifyPropertyChangedFor(nameof(IsKodeBookingSelected))]
+    private ViewModelBase? _currentPage;
+
+    public string PageTitle => CurrentPage is KodeBookingViewModel ? "Kode Booking" : "Verifikasi Sidik Jari";
+
+    public string PageSubtitle => CurrentPage is KodeBookingViewModel
+        ? "Cetak SEP & barcode kode booking"
+        : "Verifikasi peserta melalui sidik jari atau wajah";
+
+    public bool IsVerifikasiSelected => !ReferenceEquals(CurrentPage, KodeBooking);
+
+    public bool IsKodeBookingSelected => ReferenceEquals(CurrentPage, KodeBooking);
+
+    [RelayCommand]
+    private void ShowVerifikasiPage() => CurrentPage = Verifikasi;
+
+    [RelayCommand]
+    private void ShowKodeBookingPage() => CurrentPage = KodeBooking;
+
+    // ===== Info versi (footer sidebar & status bar, §8.2/§8.4) =====
+    public string ApplicationVersion { get; }
+
+    public string BuildTimestamp { get; }
+
+    public string VersionInfo => $"v{ApplicationVersion} · build {BuildTimestamp}";
+
+    [RelayCommand]
+    private Task OpenThemeDialogAsync() => ShowThemeDialog?.Invoke() ?? Task.CompletedTask;
+
+    /// <summary>Tombol "Login Sekarang" pada overlay login di halaman (§10.3).</summary>
+    private void RequestLoginFromPage()
+    {
+        if (!IsLoggedIn && ToggleLoginCommand.CanExecute(null))
+            ToggleLoginCommand.Execute(null);
+    }
 
     [RelayCommand]
     private async Task ToggleLoginAsync()
@@ -84,7 +139,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         else
         {
             PetugasName = "Belum login";
-            PetugasDetail = "Silakan login untuk mengaktifkan tab";
+            PetugasDetail = "Silakan login untuk mengaktifkan verifikasi";
         }
 
         Verifikasi.OnSessionChanged(session.IsLoggedIn);

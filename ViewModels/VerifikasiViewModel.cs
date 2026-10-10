@@ -59,6 +59,12 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
 
     public event Action? CameraUsageChanged;
 
+    /// <summary>Diisi MainWindowViewModel; tombol "Login Sekarang" pada overlay login (§10.3).</summary>
+    public Action? RequestLogin { get; set; }
+
+    [RelayCommand]
+    private void RequestLoginNow() => RequestLogin?.Invoke();
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
     [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
@@ -84,6 +90,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
 
     partial void OnIsWajahModeChanged(bool value)
     {
+        NotifyResultState();
+
         if (!value)
             return;
 
@@ -133,6 +141,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
     [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConnectCameraCommand))]
+    [NotifyPropertyChangedFor(nameof(IsVerifying))]
     private bool _isBusy;
 
     [ObservableProperty] private string _scanStatus = string.Empty;
@@ -189,6 +198,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(VerifyFaceCommand))]
     [NotifyCanExecuteChangedFor(nameof(VerifyCommand))]
+    [NotifyPropertyChangedFor(nameof(IsVerifying))]
     private bool _isVerifyingFace;
 
     [ObservableProperty]
@@ -235,26 +245,82 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
 
     public TopLevel? TopLevel { get; set; }
 
-    [ObservableProperty] private string _resultNama = "-";
-    [ObservableProperty] private string _resultNoKartu = "-";
-    [ObservableProperty] private string _resultUsia = "-";
-    [ObservableProperty] private string _resultKeterangan = "-";
+    [ObservableProperty] private string _resultNama = string.Empty;
+    [ObservableProperty] private string _resultNoKartu = string.Empty;
+    [ObservableProperty] private string _resultUsia = string.Empty;
+    [ObservableProperty] private string _resultKeterangan = string.Empty;
     [ObservableProperty] private bool _hasResult;
+
+    // State NoData (§10.1 state 5, resolusi A8): pesan memuat "tidak ditemukan" →
+    // dibedakan dari Failure generik agar petugas tidak menyimpulkan kerusakan sistem.
+    [ObservableProperty] private bool _isNoDataResult;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasResultImage))]
     private string? _fingerImage;
 
-    public string ResultPlaceholderLabel => IsWajahMode ? "Wajah" : "Sidik jari";
+    public string ResultPlaceholderLabel => IsWajahMode
+        ? "Hasil verifikasi wajah akan muncul di sini."
+        : "Hasil verifikasi sidik jari akan muncul di sini.";
 
     public bool HasResultImage => FingerImage is not null || CapturedPhoto is not null;
 
+    /// <summary>Sedang memproses verifikasi (sidik jari/wajah) — state Processing (§10.1).</summary>
+    public bool IsVerifying => IsBusy || IsVerifyingFace;
+
+    // ===== Lima state panel "Hasil Verifikasi" (§10.1) =====
+    // Dihitung di VM agar view tidak menyusun kondisi multi-binding; perubahan
+    // diberitakan lewat NotifyResultState() pada partial OnChanged di bawah.
+
+    /// <summary>State 2 — Processing: verifikasi sidik jari/wajah sedang berjalan.</summary>
+    public bool IsResultProcessing => IsVerifying;
+
+    /// <summary>State 3 — Success: hasil verifikasi tersedia.</summary>
+    public bool IsResultSuccess => !IsVerifying && HasResult;
+
+    /// <summary>State 4 — Failure: status error tanpa hasil (ResetResult sudah dipanggil di alur gagal).</summary>
+    public bool IsResultFailure =>
+        !IsVerifying && !HasResult && HasStatus && StatusIsError && !IsNoDataResult;
+
+    /// <summary>State 5 — NoData: API sukses tetapi data peserta tidak ditemukan.</summary>
+    public bool IsResultNoData => !IsVerifying && !HasResult && IsNoDataResult;
+
+    /// <summary>State 1 — Empty: tidak ada proses, hasil, maupun status error/no-data.</summary>
+    public bool IsResultEmpty =>
+        !IsVerifying && !HasResult && !IsResultFailure && !IsResultNoData;
+
+    /// <summary>Teks status idle mode wajah (non-error) ditampilkan sebagai caption di kartu kiri.</summary>
+    public bool IsIdleFaceHint =>
+        IsWajahMode && !IsVerifying && HasStatus && !StatusIsError && !IsNoDataResult && !HasResult;
+
+    private void NotifyResultState()
+    {
+        OnPropertyChanged(nameof(IsResultProcessing));
+        OnPropertyChanged(nameof(IsResultSuccess));
+        OnPropertyChanged(nameof(IsResultFailure));
+        OnPropertyChanged(nameof(IsResultNoData));
+        OnPropertyChanged(nameof(IsResultEmpty));
+        OnPropertyChanged(nameof(IsIdleFaceHint));
+    }
+
+    partial void OnIsBusyChanged(bool value) => NotifyResultState();
+
+    partial void OnIsVerifyingFaceChanged(bool value) => NotifyResultState();
+
+    partial void OnHasResultChanged(bool value) => NotifyResultState();
+
+    partial void OnHasStatusChanged(bool value) => NotifyResultState();
+
+    partial void OnStatusIsErrorChanged(bool value) => NotifyResultState();
+
+    partial void OnIsNoDataResultChanged(bool value) => NotifyResultState();
+
     private void ResetResult()
     {
-        ResultNama = "-";
-        ResultNoKartu = "-";
-        ResultUsia = "-";
-        ResultKeterangan = "-";
+        ResultNama = string.Empty;
+        ResultNoKartu = string.Empty;
+        ResultUsia = string.Empty;
+        ResultKeterangan = string.Empty;
         FingerImage = null;
         HasResult = false;
     }
@@ -972,8 +1038,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
 
             FaceStatus = "Menyiapkan hasil verifikasi...";
 
-            ResultNama = nik.data?.nama ?? "-";
-            ResultNoKartu = nik.data?.nokartu ?? "-";
+            ResultNama = nik.data?.nama ?? string.Empty;
+            ResultNoKartu = nik.data?.nokartu ?? string.Empty;
             ResultKeterangan = $"Code {(nik.data?.status == true ? "200" : "404")} · {nik.data?.message}";
             HasResult = true;
             SetStatus("Verifikasi wajah berhasil.", false);
@@ -1415,8 +1481,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
             if (!IsFingerprintMode)
                 return;
 
-            ResultNama = result.data?.response.nama ?? "-";
-            ResultNoKartu = result.data?.response.noKartu ?? "-";
+            ResultNama = result.data?.response.nama ?? string.Empty;
+            ResultNoKartu = result.data?.response.noKartu ?? string.Empty;
             ResultUsia = $"{result.data?.response.usia} Tahun";
             ResultKeterangan = $"Code {result.data?.metaData?.code} · {result.data?.metaData?.message}";
             HasResult = true;
@@ -1453,6 +1519,11 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
         StatusMessage = message;
         StatusIsError = isError;
         HasStatus = !string.IsNullOrEmpty(message);
+
+        // Penanda NoData (§10.1 state 5): hasil API dengan pesan "tidak ditemukan"
+        // ditampilkan sebagai banner Warning, bukan Danger.
+        IsNoDataResult = HasStatus &&
+            message.Contains("tidak ditemukan", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

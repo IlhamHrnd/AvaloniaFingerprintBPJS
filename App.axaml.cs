@@ -17,6 +17,8 @@ public partial class App : Application
         {
             var services = AppServices.Current;
             desktop.ShutdownRequested += (_, _) => services.Dispose();
+            services.Theme.Load();
+            services.Theme.Apply();
             services.Fingerprint.Start();
             services.Camera.Start();
 

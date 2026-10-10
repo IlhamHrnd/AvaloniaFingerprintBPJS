@@ -1,103 +1,160 @@
-﻿<Window xmlns="https://github.com/avaloniaui"
+<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:AvaloniaFingerprint.ViewModels"
         xmlns:views="using:AvaloniaFingerprint.Views"
-        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+        mc:Ignorable="d" d:DesignWidth="1120" d:DesignHeight="760"
         x:Class="AvaloniaFingerprint.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Width="1040" Height="720"
-        MinWidth="880" MinHeight="620"
+        Width="1120" Height="760"
+        MinWidth="880" MinHeight="620" MaxWidth="1280"
+        CanResize="True"
         WindowStartupLocation="CenterScreen"
-        Background="#F9FAFB"
-        Title="Avalonia Fingerprint">
+        FontFamily="{StaticResource App.Font.Default}"
+        Background="{DynamicResource App.Background.Base.Brush}"
+        Title="Aplikasi Verifikasi dan Registrasi Sidik Jari">
 
-  <DockPanel>
+  <Window.DataTemplates>
+    <DataTemplate x:DataType="vm:VerifikasiViewModel">
+      <views:VerifikasiView />
+    </DataTemplate>
+    <DataTemplate x:DataType="vm:KodeBookingViewModel">
+      <views:KodeBookingView />
+    </DataTemplate>
+  </Window.DataTemplates>
 
-    <Border DockPanel.Dock="Top" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="20,8">
-      <DockPanel LastChildFill="True">
+  <Grid RowDefinitions="*,Auto">
 
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10"
-                    VerticalAlignment="Center">
-          <StackPanel HorizontalAlignment="Right" MaxWidth="180"
-                      ToolTip.Tip="{Binding PetugasName}">
-            <TextBlock Text="{Binding PetugasName}" FontWeight="SemiBold"
-                       HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" />
-            <TextBlock Text="{Binding PetugasDetail}" Classes="caption"
-                       HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" />
+    <!-- ===== Area utama: sidebar + header/konten (§8.1) ===== -->
+    <Grid Grid.Row="0" ColumnDefinitions="240,*">
+
+      <!-- ===== Sidebar (§8.2) ===== -->
+      <Border Grid.Column="0" Background="{DynamicResource App.Surface.Sidebar.Brush}" Padding="16,16,16,12">
+        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+
+          <!-- Brand -->
+          <StackPanel Grid.Row="0" Margin="0,0,0,24">
+            <TextBlock Classes="glyph" Text="&#xE928;" FontSize="24"
+                       Foreground="{DynamicResource App.Text.OnSidebar.Brush}" Margin="0,0,0,12" />
+            <TextBlock Text="Aplikasi Verifikasi dan Registrasi Sidik Jari"
+                       FontSize="{StaticResource App.Type.Title}" FontWeight="SemiBold"
+                       Foreground="{DynamicResource App.Text.OnSidebar.Brush}"
+                       TextWrapping="Wrap" />
+            <TextBlock Text="Verifikasi Peserta BPJS" Classes="caption"
+                       Foreground="{DynamicResource App.Text.OnSidebarMuted.Brush}" Margin="0,4,0,0" />
           </StackPanel>
-          <Button Content="{Binding LoginButtonText}"
-                  Command="{Binding ToggleLoginCommand}"
-                  IsEnabled="{Binding !IsLoginBusy}"
-                  MinWidth="96" Height="34"
-                  HorizontalContentAlignment="Center"
-                  Background="{StaticResource AccentBrush}" Foreground="White" />
-        </StackPanel>
 
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="0,0,16,0"
-                    VerticalAlignment="Center">
+          <!-- Navigasi halaman -->
+          <StackPanel Grid.Row="1" Spacing="4">
+            <Button Classes="nav" Classes.selected="{Binding IsVerifikasiSelected}"
+                    Command="{Binding ShowVerifikasiPageCommand}" HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="Verifikasi Sidik Jari">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Classes="glyph" Text="&#xE928;" VerticalAlignment="Center" />
+                <TextBlock Text="Verifikasi Sidik Jari" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button Classes="nav" Classes.selected="{Binding IsKodeBookingSelected}"
+                    Command="{Binding ShowKodeBookingPageCommand}" HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="Kode Booking">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Classes="glyph" Text="&#xE7C8;" VerticalAlignment="Center" />
+                <TextBlock Text="Kode Booking" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
 
-          <Border Padding="10,5" CornerRadius="14" Background="{StaticResource HeaderBrush}"
+          <!-- Kartu petugas (§8.2) -->
+          <Border Grid.Row="3" Background="{DynamicResource App.Surface.SidebarHover.Brush}"
+                  BorderBrush="#14FFFFFF" BorderThickness="1"
+                  CornerRadius="{StaticResource App.Radius.L}" Padding="12" Margin="0,0,0,8">
+            <StackPanel Spacing="4">
+              <TextBlock Text="{Binding PetugasName}" FontWeight="SemiBold"
+                         Foreground="{DynamicResource App.Text.OnSidebar.Brush}"
+                         TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding PetugasName}" />
+              <TextBlock Text="{Binding PetugasDetail}" Classes="caption"
+                         Foreground="{DynamicResource App.Text.OnSidebarMuted.Brush}"
+                         TextWrapping="Wrap" ToolTip.Tip="{Binding PetugasDetail}" />
+            </StackPanel>
+          </Border>
+
+          <!-- Login / Logout: busy → ProgressBar ringkas menggantikan teks (§9.1) -->
+          <Button Grid.Row="4" Classes="primary" Classes.on-dark="{Binding IsLoggedIn}"
+                  Command="{Binding ToggleLoginCommand}" IsEnabled="{Binding !IsLoginBusy}"
+                  HorizontalAlignment="Stretch">
+            <Panel MinHeight="16">
+              <TextBlock Text="{Binding LoginButtonText}" IsVisible="{Binding !IsLoginBusy}"
+                         VerticalAlignment="Center" />
+              <ProgressBar Classes="busy" Width="48" IsVisible="{Binding IsLoginBusy}"
+                           HorizontalAlignment="Center" />
+            </Panel>
+          </Button>
+        </Grid>
+      </Border>
+
+
+      <!-- ===== Header halaman + konten (§8.1, §8.3) ===== -->
+      <Grid Grid.Column="1" RowDefinitions="Auto,*">
+        <Border Grid.Row="0" Background="{DynamicResource App.Surface.Card.Brush}"
+                BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="0,0,0,1"
+                Padding="24,14,24,12">
+          <StackPanel Spacing="2">
+            <TextBlock Classes="h1" Text="{Binding PageTitle}" />
+            <TextBlock Classes="caption" Text="{Binding PageSubtitle}" />
+          </StackPanel>
+        </Border>
+
+        <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" />
+      </Grid>
+    </Grid>
+
+    <!-- ===== Status bar perangkat (§8.4) ===== -->
+    <Border Grid.Row="1" Background="{DynamicResource App.Surface.Card.Brush}"
+            BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="0,1,0,0"
+            Padding="20,8">
+      <DockPanel LastChildFill="False">
+
+        <!-- Chip perangkat: dot warna + teks status (warna bukan satu-satunya sinyal) -->
+        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8">
+          <Border Background="{DynamicResource App.Surface.StatusChip.Brush}"
+                  BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="1"
+                  CornerRadius="{StaticResource App.Radius.M}" Padding="10,4"
                   ToolTip.Tip="{Binding DeviceTooltip}">
-            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="6">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                       Fill="{Binding DeviceConnected, Converter={StaticResource StatusBrush}}" />
-              <TextBlock Text="Fingerprint" FontSize="12" FontWeight="SemiBold" />
+                       Fill="{Binding DeviceStatus, Converter={StaticResource StatusDotBrush}}" />
+              <TextBlock Text="{Binding DeviceStatus, StringFormat='Fingerprint: {0}'}"
+                         FontSize="{StaticResource App.Type.Body}"
+                         Foreground="{DynamicResource App.Text.Secondary.Brush}"
+                         VerticalAlignment="Center" />
             </StackPanel>
           </Border>
 
-          <Border Padding="10,5" CornerRadius="14" Background="{StaticResource HeaderBrush}"
+          <Border Background="{DynamicResource App.Surface.StatusChip.Brush}"
+                  BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="1"
+                  CornerRadius="{StaticResource App.Radius.M}" Padding="10,4"
                   ToolTip.Tip="{Binding CameraTooltip}">
-            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="6">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                       Fill="{Binding CameraConnected, Converter={StaticResource StatusBrush}}" />
-              <TextBlock Text="Kamera" FontSize="12" FontWeight="SemiBold" />
+                       Fill="{Binding CameraStatus, Converter={StaticResource StatusDotBrush}}" />
+              <TextBlock Text="{Binding CameraStatus, StringFormat='Kamera: {0}'}"
+                         FontSize="{StaticResource App.Type.Body}"
+                         Foreground="{DynamicResource App.Text.Secondary.Brush}"
+                         VerticalAlignment="Center" />
             </StackPanel>
           </Border>
         </StackPanel>
 
-        <StackPanel Spacing="2" VerticalAlignment="Center">
-          <TextBlock Classes="h1" Text="Fingerprint BPJS" TextTrimming="CharacterEllipsis" />
-          <TextBlock Classes="caption" Text="Verifikasi · Registrasi · Kode Booking"
-                     TextTrimming="CharacterEllipsis" />
+        <!-- Versi build + gear Pengaturan Tema (§8.4, §9.7) -->
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <TextBlock Classes="caption" Text="{Binding VersionInfo}" VerticalAlignment="Center" />
+          <Button Classes="icon" Command="{Binding OpenThemeDialogCommand}"
+                  ToolTip.Tip="Pengaturan Tema" AutomationProperties.Name="Pengaturan Tema">
+            <TextBlock Classes="glyph" Text="&#xE713;" />
+          </Button>
         </StackPanel>
       </DockPanel>
     </Border>
-
-    <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="20,8">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Grid.Column="0" Classes="caption"
-                   Text="{Binding DeviceDetail}" TextTrimming="CharacterEllipsis" />
-        <TextBlock Grid.Column="1" Classes="caption" Text="AvaloniaFingerprint" />
-      </Grid>
-    </Border>
-
-    <Grid Margin="20">
-      <TabControl>
-        <TabItem Header="Verifikasi" IsEnabled="{Binding IsLoggedIn}">
-          <views:VerifikasiView DataContext="{Binding Verifikasi}" />
-        </TabItem>
-        <TabItem Header="Kode Booking" IsEnabled="{Binding IsLoggedIn}">
-          <views:KodeBookingView DataContext="{Binding KodeBooking}" />
-        </TabItem>
-      </TabControl>
-
-      <Border IsVisible="{Binding !IsLoggedIn}"
-              Background="#F9FAFB" CornerRadius="8"
-              Margin="0,44,0,0">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="420">
-          <TextBlock Text="🔒" FontSize="40" HorizontalAlignment="Center" />
-          <TextBlock Classes="h2" HorizontalAlignment="Center" Text="Semua tab terkunci" />
-          <TextBlock TextWrapping="Wrap" TextAlignment="Center" Classes="caption"
-                     Text="Login petugas terlebih dahulu melalui tombol Login di kanan atas untuk mengaktifkan tab Verifikasi, Registrasi, dan Kode Booking." />
-          <Button Content="Login sekarang" Command="{Binding ToggleLoginCommand}"
-                  HorizontalAlignment="Center" Margin="0,8,0,0" Height="36" MinWidth="140"
-                  HorizontalContentAlignment="Center"
-                  Background="{StaticResource AccentBrush}" Foreground="White" />
-        </StackPanel>
-      </Border>
-    </Grid>
-
-  </DockPanel>
+  </Grid>
 </Window>

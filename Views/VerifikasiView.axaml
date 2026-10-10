@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -7,160 +7,301 @@
              x:Class="AvaloniaFingerprint.Views.VerifikasiView"
              x:DataType="vm:VerifikasiViewModel">
 
-  <Grid ColumnDefinitions="360,*" Margin="16">
+  <Panel>
 
-    <Border Grid.Column="0" Classes="card" VerticalAlignment="Top" Margin="0,0,16,0">
-      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-      <StackPanel Spacing="10">
-        <TextBlock Classes="h2" Text="Verifikasi" />
+    <!-- ===== Konten utama: dua kolom (§8.5), kedua kartu stretch setinggi kolom ===== -->
+    <Grid ColumnDefinitions="360,*" Margin="16">
 
-        <StackPanel Spacing="4">
-          <TextBlock Text="NIK / No. BPJS" FontWeight="SemiBold" FontSize="12" />
-          <TextBox Text="{Binding IdentityNumber}"
-                   MaxLength="16"
-                   PlaceholderText="Masukkan NIK atau No. BPJS"
-                   Height="36" FontSize="15" />
-          <TextBlock Classes="caption" Text="NIK 16 digit / No. BPJS 13 digit" />
-        </StackPanel>
+      <!-- ===== Kolom kiri: Identitas & Verifikasi ===== -->
+      <Border Grid.Column="0" Classes="card" VerticalAlignment="Stretch" Margin="0,0,16,0">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="{StaticResource App.Space.M}">
 
-        <StackPanel Spacing="4">
-          <TextBlock Text="Metode Verifikasi" FontWeight="SemiBold" FontSize="12" />
-          <StackPanel Orientation="Horizontal" Spacing="16">
-            <RadioButton GroupName="metode" Content="Fingerprint" IsChecked="{Binding IsFingerprintMode}" />
-            <RadioButton GroupName="metode" Content="Wajah" IsChecked="{Binding IsWajahMode}" />
-          </StackPanel>
-        </StackPanel>
+            <TextBlock Classes="h2" Text="Identitas &amp; Verifikasi" />
 
-        <StackPanel IsVisible="{Binding IsFingerprintMode}" Spacing="14">
+            <!-- NIK / No. BPJS (§9.2) -->
+            <StackPanel Spacing="{StaticResource App.Space.XS}">
+              <TextBlock Classes="field-label" Text="NIK / No. BPJS" />
+              <TextBox Text="{Binding IdentityNumber}"
+                       MaxLength="16" Height="36"
+                       PlaceholderText="Masukkan NIK (16 digit)"
+                       IsEnabled="{Binding !IsResultProcessing}" />
+              <TextBlock Classes="caption" Text="NIK 16 digit / No. BPJS 13 digit" />
+            </StackPanel>
 
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content="Verifikasi" Command="{Binding VerifyCommand}"
-                    Height="38" MinWidth="120" HorizontalContentAlignment="Center"
-                    Background="{StaticResource AccentBrush}" Foreground="White" />
-            <Button Content="Bersihkan" Command="{Binding ClearCommand}"
-                    Height="38" MinWidth="100" HorizontalContentAlignment="Center" />
-          </StackPanel>
-
-          <StackPanel IsVisible="{Binding IsScanning}" Spacing="6">
-            <TextBlock Text="{Binding ScanStatus}" FontWeight="SemiBold" TextWrapping="Wrap"
-                       Foreground="{StaticResource AccentBrush}" />
-            <ProgressBar IsIndeterminate="True" Height="4" />
-          </StackPanel>
-
-          <Border IsVisible="{Binding !DeviceConnected}" CornerRadius="6" Padding="10" Background="#FEF3C7">
-            <TextBlock Text="Perangkat fingerprint tidak terhubung. Verifikasi dinonaktifkan."
-                       TextWrapping="Wrap" FontSize="12" Foreground="#92400E" />
-          </Border>
-        </StackPanel>
-
-        <StackPanel IsVisible="{Binding IsWajahMode}" Spacing="10">
-          <Border CornerRadius="6" Height="240"
-                  Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1"
-                  HorizontalAlignment="Stretch">
-            <Panel>
-              <Image Source="{Binding PreviewImage}"
-                     Stretch="Uniform"
-                     IsVisible="{Binding IsPreviewVisible}" />
-
-              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6"
-                          IsVisible="{Binding !IsPreviewVisible}">
-                <TextBlock Text="📷" FontSize="32" HorizontalAlignment="Center" />
-                <TextBlock Text="{Binding CameraTitle}" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                <TextBlock Text="{Binding CameraStatus}" Classes="caption" HorizontalAlignment="Center" />
+            <!-- Metode verifikasi -->
+            <StackPanel Spacing="{StaticResource App.Space.XS}">
+              <TextBlock Classes="field-label" Text="Metode Verifikasi" />
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.L}">
+                <RadioButton GroupName="metode" Content="Sidik Jari"
+                             IsChecked="{Binding IsFingerprintMode}"
+                             IsEnabled="{Binding !IsResultProcessing}" />
+                <RadioButton GroupName="metode" Content="Wajah"
+                             IsChecked="{Binding IsWajahMode}"
+                             IsEnabled="{Binding !IsResultProcessing}" />
               </StackPanel>
-            </Panel>
-          </Border>
+            </StackPanel>
 
-          <Button Content="Hubungkan Kamera" Command="{Binding ConnectCameraCommand}"
-                  Height="38" HorizontalAlignment="Stretch"
-                  HorizontalContentAlignment="Center"
-                  IsEnabled="{Binding !IsConnecting}"
-                  Background="{StaticResource AccentBrush}" Foreground="White" />
+            <!-- ===== Aksi sidik jari ===== -->
+            <StackPanel IsVisible="{Binding IsFingerprintMode}" Spacing="{StaticResource App.Space.M}">
 
-          <Button Content="Upload Foto" Command="{Binding UploadPhotoCommand}"
-                  Height="38" HorizontalAlignment="Stretch"
-                  HorizontalContentAlignment="Center"
-                  Background="{StaticResource AccentBrush}" Foreground="White" />
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <Button Classes="primary large" Command="{Binding VerifyCommand}"
+                        AutomationProperties.Name="Ambil dan Verifikasi sidik jari">
+                  <Panel MinWidth="120">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
+                                HorizontalAlignment="Center" IsVisible="{Binding !IsBusy}">
+                      <TextBlock Classes="glyph" Text="&#xE928;"
+                                 Foreground="{DynamicResource App.Text.OnAccent.Brush}" />
+                      <TextBlock Text="Ambil &amp; Verifikasi" />
+                    </StackPanel>
+                    <ProgressBar Classes="busy" IsVisible="{Binding IsBusy}"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 Foreground="{DynamicResource App.Text.OnAccent.Brush}"
+                                 Background="Transparent" />
+                  </Panel>
+                </Button>
+                <Button Classes="secondary" Content="Verifikasi Ulang" MinWidth="80"
+                        Command="{Binding VerifyCommand}"
+                        IsVisible="{Binding HasResult}" />
+                <Button Classes="secondary" Content="Reset" MinWidth="80"
+                        Command="{Binding ClearCommand}" />
+              </StackPanel>
 
-          <Button Content="{Binding PhotoSourceActionLabel}" Command="{Binding TogglePhotoSourceCommand}"
-                  IsVisible="{Binding HasUploadedPhoto}"
-                  Height="38" HorizontalAlignment="Stretch"
-                  HorizontalContentAlignment="Center" />
+              <!-- Progress pemindaian (§9.9) -->
+              <StackPanel IsVisible="{Binding IsScanning}" Spacing="{StaticResource App.Space.XS}">
+                <ProgressBar Classes="busy" Width="NaN" HorizontalAlignment="Stretch" />
+                <TextBlock Classes="caption" Text="{Binding ScanStatus}" TextWrapping="Wrap" />
+              </StackPanel>
 
-          <Button Content="Verifikasi Wajah" Command="{Binding VerifyFaceCommand}"
-                  Height="38" HorizontalAlignment="Stretch"
-                  HorizontalContentAlignment="Center"
-                  Background="{StaticResource AccentBrush}" Foreground="White" />
+              <!-- Perangkat tidak terhubung (§10.2) -->
+              <Border Classes="banner warning" IsVisible="{Binding !DeviceConnected}">
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                  <TextBlock Classes="glyph" Text="&#xE7BA;" VerticalAlignment="Center" />
+                  <TextBlock Text="Perangkat sidik jari tidak terhubung. Verifikasi dinonaktifkan sampai perangkat siap."
+                             TextWrapping="Wrap" VerticalAlignment="Center" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
 
-          <StackPanel IsVisible="{Binding IsVerifyingFace}" Spacing="6">
-            <TextBlock Text="{Binding FaceStatus}" FontWeight="SemiBold" TextWrapping="Wrap"
-                       Foreground="{StaticResource AccentBrush}" />
-            <ProgressBar IsIndeterminate="True" Height="4" />
-          </StackPanel>
+            <!-- ===== Aksi verifikasi wajah (§8.5) ===== -->
+            <StackPanel IsVisible="{Binding IsWajahMode}" Spacing="{StaticResource App.Space.M}">
 
-          <Border IsVisible="{Binding HasCameraDeviceList}" CornerRadius="6" Padding="10" Background="#F9FAFB"
-                  BorderBrush="#E5E7EB" BorderThickness="1">
-            <TextBlock Text="{Binding CameraDeviceList}" TextWrapping="Wrap" FontSize="12"
-                       Foreground="#374151" />
-          </Border>
-        </StackPanel>
-
-        <Border IsVisible="{Binding HasStatus}" CornerRadius="6" Padding="10" Background="#F3F4F6">
-          <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12"
-                     Foreground="{Binding !StatusIsError, Converter={StaticResource StatusBrush}}" />
-        </Border>
-
-        <Button Content="Hapus Foto" Command="{Binding ClearPhotoCommand}"
-                IsVisible="{Binding HasAnyPhoto}"
-                HorizontalAlignment="Stretch" Height="34"
-                HorizontalContentAlignment="Center" />
-      </StackPanel>
-      </ScrollViewer>
-    </Border>
-
-    <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
-      <StackPanel Spacing="14">
-        <TextBlock Classes="h2" Text="Hasil Verifikasi" />
-
-        <Grid ColumnDefinitions="Auto,*">
-
-          <Border Grid.Column="0" Width="140" Height="180" CornerRadius="6" Margin="0,0,20,0"
-                  Background="#F3F4F6" BorderBrush="#E5E7EB" BorderThickness="1"
-                  VerticalAlignment="Top">
-            <Panel>
-              <TextBlock Text="{Binding ResultPlaceholderLabel}" Classes="caption"
+              <!-- Preview kamera / foto -->
+              <Border Height="240" ClipToBounds="True"
+                      CornerRadius="{StaticResource App.Radius.M}"
+                      Background="{DynamicResource App.Surface.PhotoPlaceholder.Brush}"
+                      BorderBrush="{DynamicResource App.Border.Default.Brush}"
+                      BorderThickness="1">
+                <Panel>
+                  <Image Source="{Binding PreviewImage}" Stretch="Uniform"
                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                         IsVisible="{Binding !HasResultImage}" />
+                         IsVisible="{Binding IsPreviewVisible}" />
+                  <StackPanel IsVisible="{Binding !IsPreviewVisible}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Spacing="{StaticResource App.Space.XS}">
+                    <TextBlock Classes="glyph" Text="&#xE722;" FontSize="24"
+                               Foreground="{DynamicResource App.Text.Muted.Brush}"
+                               HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding CameraTitle}"
+                               FontSize="{StaticResource App.Type.Body}" FontWeight="SemiBold"
+                               Foreground="{DynamicResource App.Text.Secondary.Brush}"
+                               HorizontalAlignment="Center" />
+                    <TextBlock Classes="caption" Text="{Binding CameraStatus}"
+                               HorizontalAlignment="Center" TextAlignment="Center"
+                               TextWrapping="Wrap" Margin="16,0,16,0" />
+                  </StackPanel>
+                </Panel>
+              </Border>
 
-              <Image Source="{Binding FingerImage, Converter={StaticResource Base64Image}}"
-                     Stretch="Uniform" Margin="6"
-                     IsVisible="{Binding IsFingerprintMode}" />
+              <Border Classes="banner info" IsVisible="{Binding HasCameraDeviceList}">
+                <TextBlock Text="{Binding CameraDeviceList}" TextWrapping="Wrap" />
+              </Border>
 
-              <Image Source="{Binding CapturedPhoto}"
-                     Stretch="Uniform" Margin="6"
-                     IsVisible="{Binding IsWajahMode}" />
-            </Panel>
-          </Border>
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <Button Classes="secondary" Command="{Binding ConnectCameraCommand}"
+                        MinWidth="80" AutomationProperties.Name="Hubungkan Kamera">
+                  <Panel MinWidth="120">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
+                                HorizontalAlignment="Center" IsVisible="{Binding !IsConnecting}">
+                      <TextBlock Classes="glyph" Text="&#xE722;" />
+                      <TextBlock Text="Hubungkan Kamera" />
+                    </StackPanel>
+                    <ProgressBar Classes="busy" IsVisible="{Binding IsConnecting}"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Panel>
+                </Button>
+                <Button Classes="secondary" Content="Upload Foto" MinWidth="80"
+                        Command="{Binding UploadPhotoCommand}" />
+              </StackPanel>
 
-          <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="130,*">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Nama" Classes="caption" Margin="0,0,0,12" />
-            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ResultNama}"
-                       FontWeight="SemiBold" FontSize="15" Margin="0,0,0,12" />
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <Button Classes="ghost" Content="{Binding PhotoSourceActionLabel}"
+                        Command="{Binding TogglePhotoSourceCommand}"
+                        IsVisible="{Binding HasUploadedPhoto}" />
+                <Button Classes="ghost" Content="Hapus Foto"
+                        Command="{Binding ClearPhotoCommand}"
+                        IsVisible="{Binding HasAnyPhoto}" />
+                <Button Classes="ghost" Content="Reset" Command="{Binding ClearCommand}" />
+              </StackPanel>
 
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="No. Kartu" Classes="caption" Margin="0,0,0,12" />
-            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ResultNoKartu}"
-                       FontSize="15" Margin="0,0,0,12" />
+              <Button Classes="primary large" Command="{Binding VerifyFaceCommand}"
+                      HorizontalAlignment="Stretch"
+                      AutomationProperties.Name="Verifikasi Wajah">
+                <Panel>
+                  <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
+                              HorizontalAlignment="Center" IsVisible="{Binding !IsVerifyingFace}">
+                    <TextBlock Classes="glyph" Text="&#xE722;"
+                               Foreground="{DynamicResource App.Text.OnAccent.Brush}" />
+                    <TextBlock Text="Verifikasi Wajah" />
+                  </StackPanel>
+                  <ProgressBar Classes="busy" IsVisible="{Binding IsVerifyingFace}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="{DynamicResource App.Text.OnAccent.Brush}"
+                               Background="Transparent" />
+                </Panel>
+              </Button>
 
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Usia" Classes="caption" Margin="0,0,0,12" />
-            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ResultUsia}"
-                       FontSize="15" Margin="0,0,0,12" />
+              <TextBlock Classes="caption" Text="{Binding FaceStatus}" TextWrapping="Wrap"
+                         IsVisible="{Binding IsVerifyingFace}" />
+              <TextBlock Classes="caption" Text="{Binding StatusMessage}" TextWrapping="Wrap"
+                         IsVisible="{Binding IsIdleFaceHint}" />
+            </StackPanel>
 
-            <TextBlock Grid.Row="3" Grid.Column="0" Text="Keterangan" Classes="caption" />
-            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ResultKeterangan}"
-                       TextWrapping="Wrap" FontSize="12" />
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+      <!-- ===== Kolom kanan: Hasil Verifikasi — lima state (§10.1) ===== -->
+      <Border Grid.Column="1" Classes="result-panel" VerticalAlignment="Stretch"
+              MaxWidth="560" HorizontalAlignment="Stretch">
+        <Grid RowDefinitions="Auto,*">
+
+          <TextBlock Grid.Row="0" Classes="h2" Text="Hasil Verifikasi" />
+
+          <Grid Grid.Row="1">
+
+            <!-- State 1 — Empty: belum ada proses/hasil -->
+            <StackPanel IsVisible="{Binding IsResultEmpty}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Spacing="{StaticResource App.Space.M}">
+              <Border Classes="photo-slot">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Spacing="{StaticResource App.Space.XS}">
+                  <TextBlock Classes="glyph" Text="&#xE722;" FontSize="20"
+                             Foreground="{DynamicResource App.Text.Muted.Brush}"
+                             HorizontalAlignment="Center" />
+                  <TextBlock Classes="caption" Text="Foto" HorizontalAlignment="Center" />
+                </StackPanel>
+              </Border>
+              <TextBlock Classes="caption" Text="{Binding ResultPlaceholderLabel}"
+                         TextWrapping="Wrap" TextAlignment="Center"
+                         MaxWidth="360" HorizontalAlignment="Center" />
+            </StackPanel>
+
+            <!-- State 2 — Processing (§9.9: indeterminate) -->
+            <StackPanel IsVisible="{Binding IsResultProcessing}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Spacing="{StaticResource App.Space.M}">
+              <ProgressBar Classes="busy" HorizontalAlignment="Center" />
+              <TextBlock Text="Memverifikasi..." FontWeight="SemiBold"
+                         FontSize="{StaticResource App.Type.BodyLarge}"
+                         Foreground="{DynamicResource App.Text.Primary.Brush}"
+                         HorizontalAlignment="Center" />
+              <TextBlock Classes="caption" Text="{Binding ScanStatus}"
+                         TextWrapping="Wrap" TextAlignment="Center"
+                         IsVisible="{Binding IsFingerprintMode}" />
+              <TextBlock Classes="caption" Text="{Binding FaceStatus}"
+                         TextWrapping="Wrap" TextAlignment="Center"
+                         IsVisible="{Binding IsWajahMode}" />
+            </StackPanel>
+
+            <!-- State 3 — Success: banner + foto hasil + field identitas -->
+            <StackPanel IsVisible="{Binding IsResultSuccess}" VerticalAlignment="Top"
+                        Spacing="{StaticResource App.Space.M}">
+              <Border Classes="banner success" IsVisible="{Binding HasStatus}">
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                  <TextBlock Classes="glyph" Text="&#xE73E;" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
+                             VerticalAlignment="Center" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="photo-slot" HorizontalAlignment="Center"
+                      IsVisible="{Binding HasResultImage}">
+                <Panel>
+                  <Image Source="{Binding FingerImage, Converter={StaticResource Base64Image}}"
+                         Stretch="Uniform" IsVisible="{Binding IsFingerprintMode}" />
+                  <Image Source="{Binding CapturedPhoto}"
+                         Stretch="Uniform" IsVisible="{Binding IsWajahMode}" />
+                </Panel>
+              </Border>
+
+              <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="field-label" Text="Nama" Margin="0,0,0,12" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" Text="{Binding ResultNama}"
+                           FontSize="{StaticResource App.Type.BodyLarge}" FontWeight="SemiBold"
+                           TextWrapping="Wrap" Margin="0,0,0,12" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Classes="field-label" Text="No. Kartu" Margin="0,0,0,12" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding ResultNoKartu}"
+                           TextWrapping="Wrap" Margin="0,0,0,12" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Classes="field-label" Text="Usia" Margin="0,0,0,12" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding ResultUsia}" Margin="0,0,0,12" />
+                <TextBlock Grid.Row="3" Grid.Column="0" Classes="field-label" Text="Keterangan" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Classes="value" Text="{Binding ResultKeterangan}" TextWrapping="Wrap" />
+              </Grid>
+            </StackPanel>
+
+            <!-- State 4 — Failure: banner Danger + saran aksi -->
+            <Border Classes="banner danger" IsVisible="{Binding IsResultFailure}" VerticalAlignment="Top">
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <TextBlock Classes="glyph" Text="&#xE783;" VerticalAlignment="Center" />
+                <StackPanel Spacing="{StaticResource App.Space.XS}" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                  <TextBlock Text="Periksa perangkat dan koneksi, lalu coba lagi."
+                             TextWrapping="Wrap" FontSize="{StaticResource App.Type.Small}" Opacity="0.9" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <!-- State 5 — NoData (§14 A8): Warning, dibedakan dari Failure -->
+            <Border Classes="banner warning" IsVisible="{Binding IsResultNoData}" VerticalAlignment="Top">
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <TextBlock Classes="glyph" Text="&#xE783;" VerticalAlignment="Center" />
+                <StackPanel Spacing="{StaticResource App.Space.XS}" VerticalAlignment="Center">
+                  <TextBlock Text="Data tidak ditemukan untuk NIK/kode tersebut."
+                             TextWrapping="Wrap" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
+                             FontSize="{StaticResource App.Type.Small}" Opacity="0.9" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
           </Grid>
         </Grid>
-      </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- ===== Overlay "Login Required" (§8.5, §10.3) ===== -->
+    <Border IsVisible="{Binding !IsLoggedIn}"
+            Background="{DynamicResource App.Background.Overlay.Brush}">
+      <Border Width="420" HorizontalAlignment="Center" VerticalAlignment="Center"
+              Background="{DynamicResource App.Surface.Card.Brush}"
+              BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="1"
+              CornerRadius="{StaticResource App.Radius.XL}"
+              BoxShadow="{StaticResource App.Shadow.Popup}"
+              Padding="20">
+        <StackPanel Spacing="{StaticResource App.Space.M}" HorizontalAlignment="Center">
+          <TextBlock Classes="glyph" Text="&#xE72E;" FontSize="32"
+                     Foreground="{DynamicResource App.Text.Muted.Brush}"
+                     HorizontalAlignment="Center" />
+          <TextBlock Classes="h1" Text="Login Required" HorizontalAlignment="Center" />
+          <TextBlock Classes="caption" Text="Silakan login untuk mengaktifkan verifikasi."
+                     TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" />
+          <Button Classes="primary large" Content="Login Sekarang"
+                  Command="{Binding RequestLoginNowCommand}"
+                  HorizontalAlignment="Center" Margin="0,4,0,0" />
+        </StackPanel>
+      </Border>
     </Border>
-  </Grid>
+  </Panel>
 </UserControl>

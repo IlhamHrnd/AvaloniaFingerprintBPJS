@@ -14,6 +14,7 @@ public sealed class AppServices : IDisposable
     private AppServices()
     {
         Settings = AppSettings.Load();
+        Theme = new ThemeService();
 
         PurgeLegacyBiometricStore(Settings.Configuration);
 
@@ -46,6 +47,7 @@ public sealed class AppServices : IDisposable
     }
 
     public AppSettings Settings { get; }
+    public ThemeService Theme { get; }
     public SessionService Session { get; }
     public AppUserServices AppUser { get; }
     public FingerprintServices Fingerprint { get; }

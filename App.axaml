@@ -6,39 +6,465 @@
              RequestedThemeVariant="Light">
 
   <Application.Resources>
-    <conv:Base64ImageConverter x:Key="Base64Image" />
-    <conv:BoolToBrushConverter x:Key="StatusBrush" />
-    <conv:InverseBoolConverter x:Key="InverseBool" />
+    <ResourceDictionary>
 
-    <SolidColorBrush x:Key="AccentBrush" Color="#0F6CBD" />
-    <SolidColorBrush x:Key="OkBrush" Color="#107C10" />
-    <SolidColorBrush x:Key="ErrorBrush" Color="#C42B1C" />
-    <SolidColorBrush x:Key="MutedBrush" Color="#6B7280" />
-    <SolidColorBrush x:Key="HeaderBrush" Color="#F3F4F6" />
+      <!-- ============================================================
+           Token warna per tema (DESIGN.md §5.3). Dark Primary memakai
+           #2E6FF3 (resolusi item A4: kontras ≥4.5:1 dengan teks putih).
+           ============================================================ -->
+      <ResourceDictionary.ThemeDictionaries>
+
+        <ResourceDictionary x:Key="Light">
+          <!-- Latar & permukaan -->
+          <Color x:Key="App.Background.Base">#F4F5F7</Color>
+          <Color x:Key="App.Background.Overlay">#80FFFFFF</Color>
+          <Color x:Key="App.Surface.Card">#FFFFFF</Color>
+          <Color x:Key="App.Surface.Header">#F3F4F6</Color>
+          <Color x:Key="App.Surface.Sidebar">#101828</Color>
+          <Color x:Key="App.Surface.SidebarHover">#1D2A3F</Color>
+          <Color x:Key="App.Surface.SidebarActive">#155EEF</Color>
+          <Color x:Key="App.Surface.Control">#FFFFFF</Color>
+          <Color x:Key="App.Surface.Banner">#F3F4F6</Color>
+          <Color x:Key="App.Surface.PhotoPlaceholder">#E5E7EB</Color>
+          <Color x:Key="App.Surface.StatusChip">#FFFFFF</Color>
+
+          <!-- Garis & focus ring -->
+          <Color x:Key="App.Border.Default">#E5E7EB</Color>
+          <Color x:Key="App.Border.Control">#D1D5DB</Color>
+          <Color x:Key="App.Border.Strong">#9CA3AF</Color>
+          <Color x:Key="App.Border.Focus">#155EEF</Color>
+
+          <!-- Teks -->
+          <Color x:Key="App.Text.Primary">#111827</Color>
+          <Color x:Key="App.Text.Secondary">#374151</Color>
+          <Color x:Key="App.Text.Muted">#6B7280</Color>
+          <Color x:Key="App.Text.Placeholder">#9CA3AF</Color>
+          <Color x:Key="App.Text.OnAccent">#FFFFFF</Color>
+          <Color x:Key="App.Text.OnSidebar">#E6EDF7</Color>
+          <Color x:Key="App.Text.OnSidebarMuted">#94A3B8</Color>
+
+          <!-- Primary / accent / status -->
+          <Color x:Key="App.Primary.Default">#155EEF</Color>
+          <Color x:Key="App.Primary.Hover">#3B76F5</Color>
+          <Color x:Key="App.Primary.Pressed">#0F4BD1</Color>
+          <Color x:Key="App.Primary.Subtle">#E8F0FE</Color>
+          <Color x:Key="App.Accent.Default">#0F766E</Color>
+          <Color x:Key="App.Accent.Subtle">#E6F4F2</Color>
+          <Color x:Key="App.Success.Default">#107C10</Color>
+          <Color x:Key="App.Success.Subtle">#E7F4E7</Color>
+          <Color x:Key="App.Danger.Default">#C42B1C</Color>
+          <Color x:Key="App.Danger.Subtle">#FBEAE8</Color>
+          <Color x:Key="App.Warning.Default">#B26B00</Color>
+          <Color x:Key="App.Warning.Subtle">#FFF4E5</Color>
+          <Color x:Key="App.Info.Default">#155EEF</Color>
+          <Color x:Key="App.Info.Subtle">#E8F0FE</Color>
+
+          <!-- Elevasi (light: shadow kartu halus) -->
+          <BoxShadows x:Key="App.Shadow.Card">0 1 2 #0F101828, 0 1 3 #1A101828</BoxShadows>
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Dark">
+          <!-- Latar & permukaan -->
+          <Color x:Key="App.Background.Base">#0F172A</Color>
+          <Color x:Key="App.Background.Overlay">#99000000</Color>
+          <Color x:Key="App.Surface.Card">#1E293B</Color>
+          <Color x:Key="App.Surface.Header">#263244</Color>
+          <Color x:Key="App.Surface.Sidebar">#0B1220</Color>
+          <Color x:Key="App.Surface.SidebarHover">#1E293B</Color>
+          <Color x:Key="App.Surface.SidebarActive">#1D4ED8</Color>
+          <Color x:Key="App.Surface.Control">#0F172A</Color>
+          <Color x:Key="App.Surface.Banner">#263244</Color>
+          <Color x:Key="App.Surface.PhotoPlaceholder">#334155</Color>
+          <Color x:Key="App.Surface.StatusChip">#1E293B</Color>
+
+          <!-- Garis & focus ring -->
+          <Color x:Key="App.Border.Default">#334155</Color>
+          <Color x:Key="App.Border.Control">#475569</Color>
+          <Color x:Key="App.Border.Strong">#64748B</Color>
+          <Color x:Key="App.Border.Focus">#4C8DFF</Color>
+
+          <!-- Teks -->
+          <Color x:Key="App.Text.Primary">#F1F5F9</Color>
+          <Color x:Key="App.Text.Secondary">#CBD5E1</Color>
+          <Color x:Key="App.Text.Muted">#94A3B8</Color>
+          <Color x:Key="App.Text.Placeholder">#64748B</Color>
+          <Color x:Key="App.Text.OnAccent">#FFFFFF</Color>
+          <Color x:Key="App.Text.OnSidebar">#E6EDF7</Color>
+          <Color x:Key="App.Text.OnSidebarMuted">#94A3B8</Color>
+
+          <!-- Primary / accent / status -->
+          <Color x:Key="App.Primary.Default">#2E6FF3</Color>
+          <Color x:Key="App.Primary.Hover">#3B76F5</Color>
+          <Color x:Key="App.Primary.Pressed">#1D4ED8</Color>
+          <Color x:Key="App.Primary.Subtle">#16275E</Color>
+          <Color x:Key="App.Accent.Default">#2DD4BF</Color>
+          <Color x:Key="App.Accent.Subtle">#134E4A</Color>
+          <Color x:Key="App.Success.Default">#54B054</Color>
+          <Color x:Key="App.Success.Subtle">#1B3A22</Color>
+          <Color x:Key="App.Danger.Default">#F87171</Color>
+          <Color x:Key="App.Danger.Subtle">#45262A</Color>
+          <Color x:Key="App.Warning.Default">#FBBF24</Color>
+          <Color x:Key="App.Warning.Subtle">#4A3410</Color>
+          <Color x:Key="App.Info.Default">#4C8DFF</Color>
+          <Color x:Key="App.Info.Subtle">#16275E</Color>
+
+          <!-- Elevasi (dark: andalkan border, shadow minimal — §7.3) -->
+          <BoxShadows x:Key="App.Shadow.Card">0 0 0 #00000000</BoxShadows>
+        </ResourceDictionary>
+
+      </ResourceDictionary.ThemeDictionaries>
+
+
+      <!-- ============================================================
+           Brush semantik: Color memakai DynamicResource agar otomatis
+           mengikuti Light/Dark (DESIGN.md §5.1).
+           ============================================================ -->
+      <SolidColorBrush x:Key="App.Background.Base.Brush" Color="{DynamicResource App.Background.Base}" />
+      <SolidColorBrush x:Key="App.Background.Overlay.Brush" Color="{DynamicResource App.Background.Overlay}" />
+      <SolidColorBrush x:Key="App.Surface.Card.Brush" Color="{DynamicResource App.Surface.Card}" />
+      <SolidColorBrush x:Key="App.Surface.Header.Brush" Color="{DynamicResource App.Surface.Header}" />
+      <SolidColorBrush x:Key="App.Surface.Sidebar.Brush" Color="{DynamicResource App.Surface.Sidebar}" />
+      <SolidColorBrush x:Key="App.Surface.SidebarHover.Brush" Color="{DynamicResource App.Surface.SidebarHover}" />
+      <SolidColorBrush x:Key="App.Surface.SidebarActive.Brush" Color="{DynamicResource App.Surface.SidebarActive}" />
+      <SolidColorBrush x:Key="App.Surface.Control.Brush" Color="{DynamicResource App.Surface.Control}" />
+      <SolidColorBrush x:Key="App.Surface.Banner.Brush" Color="{DynamicResource App.Surface.Banner}" />
+      <SolidColorBrush x:Key="App.Surface.PhotoPlaceholder.Brush" Color="{DynamicResource App.Surface.PhotoPlaceholder}" />
+      <SolidColorBrush x:Key="App.Surface.StatusChip.Brush" Color="{DynamicResource App.Surface.StatusChip}" />
+      <SolidColorBrush x:Key="App.Border.Default.Brush" Color="{DynamicResource App.Border.Default}" />
+      <SolidColorBrush x:Key="App.Border.Control.Brush" Color="{DynamicResource App.Border.Control}" />
+      <SolidColorBrush x:Key="App.Border.Strong.Brush" Color="{DynamicResource App.Border.Strong}" />
+      <SolidColorBrush x:Key="App.Border.Focus.Brush" Color="{DynamicResource App.Border.Focus}" />
+      <SolidColorBrush x:Key="App.Text.Primary.Brush" Color="{DynamicResource App.Text.Primary}" />
+      <SolidColorBrush x:Key="App.Text.Secondary.Brush" Color="{DynamicResource App.Text.Secondary}" />
+      <SolidColorBrush x:Key="App.Text.Muted.Brush" Color="{DynamicResource App.Text.Muted}" />
+      <SolidColorBrush x:Key="App.Text.Placeholder.Brush" Color="{DynamicResource App.Text.Placeholder}" />
+      <SolidColorBrush x:Key="App.Text.OnAccent.Brush" Color="{DynamicResource App.Text.OnAccent}" />
+      <SolidColorBrush x:Key="App.Text.OnSidebar.Brush" Color="{DynamicResource App.Text.OnSidebar}" />
+      <SolidColorBrush x:Key="App.Text.OnSidebarMuted.Brush" Color="{DynamicResource App.Text.OnSidebarMuted}" />
+      <SolidColorBrush x:Key="App.Primary.Default.Brush" Color="{DynamicResource App.Primary.Default}" />
+      <SolidColorBrush x:Key="App.Primary.Hover.Brush" Color="{DynamicResource App.Primary.Hover}" />
+      <SolidColorBrush x:Key="App.Primary.Pressed.Brush" Color="{DynamicResource App.Primary.Pressed}" />
+      <SolidColorBrush x:Key="App.Primary.Subtle.Brush" Color="{DynamicResource App.Primary.Subtle}" />
+      <SolidColorBrush x:Key="App.Accent.Default.Brush" Color="{DynamicResource App.Accent.Default}" />
+      <SolidColorBrush x:Key="App.Accent.Subtle.Brush" Color="{DynamicResource App.Accent.Subtle}" />
+      <SolidColorBrush x:Key="App.Success.Default.Brush" Color="{DynamicResource App.Success.Default}" />
+      <SolidColorBrush x:Key="App.Success.Subtle.Brush" Color="{DynamicResource App.Success.Subtle}" />
+      <SolidColorBrush x:Key="App.Danger.Default.Brush" Color="{DynamicResource App.Danger.Default}" />
+      <SolidColorBrush x:Key="App.Danger.Subtle.Brush" Color="{DynamicResource App.Danger.Subtle}" />
+      <SolidColorBrush x:Key="App.Warning.Default.Brush" Color="{DynamicResource App.Warning.Default}" />
+      <SolidColorBrush x:Key="App.Warning.Subtle.Brush" Color="{DynamicResource App.Warning.Subtle}" />
+      <SolidColorBrush x:Key="App.Info.Default.Brush" Color="{DynamicResource App.Info.Default}" />
+      <SolidColorBrush x:Key="App.Info.Subtle.Brush" Color="{DynamicResource App.Info.Subtle}" />
+
+      <!-- Alias legacy (§5.4): key lama dipertahankan, nilai mengikuti token -->
+      <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource App.Primary.Default}" />
+      <SolidColorBrush x:Key="OkBrush" Color="{DynamicResource App.Success.Default}" />
+      <SolidColorBrush x:Key="ErrorBrush" Color="{DynamicResource App.Danger.Default}" />
+      <SolidColorBrush x:Key="MutedBrush" Color="{DynamicResource App.Text.Muted}" />
+      <SolidColorBrush x:Key="HeaderBrush" Color="{DynamicResource App.Surface.Header}" />
+
+
+      <!-- Elevasi non-kartu (§7.3) -->
+      <BoxShadows x:Key="App.Shadow.Popup">0 4 16 #1E000000</BoxShadows>
+      <BoxShadows x:Key="App.Shadow.Flyout">0 8 24 #29000000</BoxShadows>
+
+      <!-- Spacing skala 4px (§7.1) -->
+      <x:Double x:Key="App.Space.XS">4</x:Double>
+      <x:Double x:Key="App.Space.S">8</x:Double>
+      <x:Double x:Key="App.Space.M">12</x:Double>
+      <x:Double x:Key="App.Space.L">16</x:Double>
+      <x:Double x:Key="App.Space.XL">24</x:Double>
+      <x:Double x:Key="App.Space.XXL">32</x:Double>
+
+      <!-- Radius (§7.2) -->
+      <CornerRadius x:Key="App.Radius.S">4</CornerRadius>
+      <CornerRadius x:Key="App.Radius.M">6</CornerRadius>
+      <CornerRadius x:Key="App.Radius.L">8</CornerRadius>
+      <CornerRadius x:Key="App.Radius.XL">12</CornerRadius>
+
+      <!-- Tipografi (§6) & font -->
+      <FontFamily x:Key="App.Font.Default">Inter, Segoe UI</FontFamily>
+      <FontFamily x:Key="App.Font.Icons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+      <x:Double x:Key="App.Type.Small">11</x:Double>
+      <x:Double x:Key="App.Type.Caption">12</x:Double>
+      <x:Double x:Key="App.Type.Body">13</x:Double>
+      <x:Double x:Key="App.Type.NavLabel">13</x:Double>
+      <x:Double x:Key="App.Type.BodyLarge">15</x:Double>
+      <x:Double x:Key="App.Type.H2">15</x:Double>
+      <x:Double x:Key="App.Type.Title">20</x:Double>
+
+      <!-- Converter -->
+      <conv:Base64ImageConverter x:Key="Base64Image" />
+      <conv:BoolToBrushConverter x:Key="StatusBrush" />
+      <conv:StatusTextToBrushConverter x:Key="StatusDotBrush" />
+      <conv:InverseBoolConverter x:Key="InverseBool" />
+
+    </ResourceDictionary>
   </Application.Resources>
+
 
   <Application.Styles>
     <FluentTheme />
 
+    <!-- ===================== Tipografi (§5.5, §6) ===================== -->
     <Style Selector="TextBlock.h1">
-      <Setter Property="FontSize" Value="20" />
+      <Setter Property="FontSize" Value="{StaticResource App.Type.Title}" />
       <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
     </Style>
     <Style Selector="TextBlock.h2">
-      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontSize" Value="{StaticResource App.Type.H2}" />
       <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
       <Setter Property="Margin" Value="0,0,0,8" />
     </Style>
     <Style Selector="TextBlock.caption">
-      <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
-      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontSize" Value="{StaticResource App.Type.Caption}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Muted.Brush}" />
     </Style>
+    <Style Selector="TextBlock.field-label">
+      <Setter Property="FontSize" Value="{StaticResource App.Type.Caption}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Muted.Brush}" />
+    </Style>
+    <Style Selector="TextBlock.value">
+      <Setter Property="FontSize" Value="{StaticResource App.Type.BodyLarge}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
+    </Style>
+    <Style Selector="TextBlock.glyph">
+      <Setter Property="FontFamily" Value="{StaticResource App.Font.Icons}" />
+      <Setter Property="FontSize" Value="16" />
+    </Style>
+
+    <!-- ===================== Kartu & panel (§5.5, §8.5) ===================== -->
     <Style Selector="Border.card">
-      <Setter Property="Background" Value="White" />
-      <Setter Property="BorderBrush" Value="#E5E7EB" />
+      <Setter Property="Background" Value="{DynamicResource App.Surface.Card.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Default.Brush}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="CornerRadius" Value="{StaticResource App.Radius.L}" />
       <Setter Property="Padding" Value="16" />
+      <!-- DynamicResource: App.Shadow.Card hidup di ThemeDictionaries (Light/Dark) -->
+      <Setter Property="BoxShadow" Value="{DynamicResource App.Shadow.Card}" />
+    </Style>
+    <Style Selector="Border.result-panel">
+      <Setter Property="Background" Value="{DynamicResource App.Success.Subtle.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Success.Default.Brush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource App.Radius.M}" />
+      <Setter Property="Padding" Value="16" />
+    </Style>
+    <Style Selector="Border.photo-slot">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.PhotoPlaceholder.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Default.Brush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource App.Radius.L}" />
+    </Style>
+
+    <!-- ===================== Banner status (§9.5) ===================== -->
+    <Style Selector="Border.banner">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.Banner.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Default.Brush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource App.Radius.M}" />
+      <Setter Property="Padding" Value="12,10" />
+    </Style>
+    <Style Selector="Border.banner.success">
+      <Setter Property="Background" Value="{DynamicResource App.Success.Subtle.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Success.Default.Brush}" />
+    </Style>
+    <Style Selector="Border.banner.danger">
+      <Setter Property="Background" Value="{DynamicResource App.Danger.Subtle.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Danger.Default.Brush}" />
+    </Style>
+    <Style Selector="Border.banner.warning">
+      <Setter Property="Background" Value="{DynamicResource App.Warning.Subtle.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Warning.Default.Brush}" />
+    </Style>
+    <Style Selector="Border.banner.info">
+      <Setter Property="Background" Value="{DynamicResource App.Info.Subtle.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Info.Default.Brush}" />
+    </Style>
+
+
+    <!-- ===================== Tombol (§9.1) ===================== -->
+    <!-- Primary: aksi utama. large = CTA 40px MinWidth 120 -->
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource App.Primary.Default.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnAccent.Brush}" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Height" Value="36" />
+      <Setter Property="MinWidth" Value="80" />
+      <Setter Property="Padding" Value="16,0" />
+      <Setter Property="CornerRadius" Value="{StaticResource App.Radius.M}" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="{StaticResource App.Type.Body}" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Primary.Hover.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnAccent.Brush}" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.primary:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Primary.Pressed.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnAccent.Brush}" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.primary:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Primary.Default.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnAccent.Brush}" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.primary:disabled">
+      <Setter Property="Opacity" Value="0.45" />
+    </Style>
+    <Style Selector="Button.primary.large">
+      <Setter Property="Height" Value="40" />
+      <Setter Property="MinWidth" Value="120" />
+    </Style>
+    <!-- Varian subtle-on-dark untuk Logout di sidebar (§8.2) -->
+    <Style Selector="Button.primary.on-dark">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnSidebar.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Strong.Brush}" />
+    </Style>
+    <Style Selector="Button.primary.on-dark:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.SidebarHover.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnSidebar.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Strong.Brush}" />
+    </Style>
+    <Style Selector="Button.primary.on-dark:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.SidebarActive.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnAccent.Brush}" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.primary.on-dark:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnSidebar.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Strong.Brush}" />
+    </Style>
+
+
+    <!-- Secondary: aksi pendukung -->
+    <Style Selector="Button.secondary">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.Control.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Control.Brush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Height" Value="36" />
+      <Setter Property="MinWidth" Value="80" />
+      <Setter Property="Padding" Value="16,0" />
+      <Setter Property="CornerRadius" Value="{StaticResource App.Radius.M}" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="{StaticResource App.Type.Body}" />
+    </Style>
+    <Style Selector="Button.secondary:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.Header.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Control.Brush}" />
+    </Style>
+    <Style Selector="Button.secondary:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.Header.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Strong.Brush}" />
+    </Style>
+    <Style Selector="Button.secondary:disabled">
+      <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <!-- Ghost: aksi ringan -->
+    <Style Selector="Button.ghost">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Secondary.Brush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Height" Value="36" />
+      <Setter Property="MinWidth" Value="80" />
+      <Setter Property="Padding" Value="16,0" />
+      <Setter Property="CornerRadius" Value="{StaticResource App.Radius.M}" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="{StaticResource App.Type.Body}" />
+    </Style>
+    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.Header.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
+    </Style>
+    <Style Selector="Button.ghost:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Border.Default.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
+    </Style>
+    <Style Selector="Button.ghost:disabled">
+      <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <!-- Icon: tombol ikon 32×32 (gear, dsb.) -->
+    <Style Selector="Button.icon">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Muted.Brush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Width" Value="32" />
+      <Setter Property="Height" Value="32" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="{StaticResource App.Radius.M}" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.icon:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.Header.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
+    </Style>
+
+
+    <!-- ===================== Nav sidebar (§8.2, §9.4) ===================== -->
+    <Style Selector="Button.nav">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnSidebar.Brush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Height" Value="40" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="CornerRadius" Value="{StaticResource App.Radius.M}" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="FontSize" Value="{StaticResource App.Type.NavLabel}" />
+    </Style>
+    <Style Selector="Button.nav:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.SidebarHover.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnSidebar.Brush}" />
+    </Style>
+    <Style Selector="Button.nav.selected">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.SidebarActive.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnAccent.Brush}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.nav.selected:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.SidebarActive.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnAccent.Brush}" />
+    </Style>
+
+    <!-- ===================== Tooltip (§9.8) ===================== -->
+    <Style Selector="ToolTip">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.Card.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Default.Brush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="MaxWidth" Value="360" />
+      <Setter Property="FontSize" Value="{StaticResource App.Type.Caption}" />
+    </Style>
+    <Style Selector="ToolTip /template/ ContentPresenter">
+      <Setter Property="CornerRadius" Value="{StaticResource App.Radius.S}" />
+      <Setter Property="BoxShadow" Value="{StaticResource App.Shadow.Popup}" />
+    </Style>
+
+    <!-- ===================== Progress (§9.9): warna primary ===================== -->
+    <Style Selector="ProgressBar">
+      <Setter Property="Foreground" Value="{DynamicResource App.Primary.Default.Brush}" />
+      <Setter Property="Background" Value="{DynamicResource App.Surface.Header.Brush}" />
+    </Style>
+    <!-- ProgressRing tidak tersedia di Avalonia 12; spinner tombol/busy
+         memakai ProgressBar indeterminate kompak (§9.1 busy state). -->
+    <Style Selector="ProgressBar.busy">
+      <Setter Property="Width" Value="64" />
+      <Setter Property="Height" Value="4" />
+      <Setter Property="IsIndeterminate" Value="True" />
     </Style>
   </Application.Styles>
 </Application>

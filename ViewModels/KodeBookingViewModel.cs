@@ -36,6 +36,12 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
     [ObservableProperty]
     private bool _statusIsError;
 
+    /// <summary>Diisi MainWindowViewModel; tombol "Login Sekarang" pada overlay login (§10.3).</summary>
+    public Action? RequestLogin { get; set; }
+
+    [RelayCommand]
+    private void RequestLoginNow() => RequestLogin?.Invoke();
+
     public void OnSessionChanged(bool loggedIn)
     {
         IsLoggedIn = loggedIn;

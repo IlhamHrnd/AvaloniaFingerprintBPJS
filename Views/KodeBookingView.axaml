@@ -7,39 +7,92 @@
              x:Class="AvaloniaFingerprint.Views.KodeBookingView"
              x:DataType="vm:KodeBookingViewModel">
 
-	<Grid Margin="16">
-		<Border Classes="card" VerticalAlignment="Top" HorizontalAlignment="Left" Width="480">
-			<StackPanel Spacing="14">
-				<TextBlock Classes="h2" Text="Kode Booking" />
+  <Panel>
 
-				<StackPanel Spacing="4">
-					<TextBox Text="{Binding KodeBooking}" PlaceholderText="Masukkan kode booking" Height="38" FontSize="15" />
-					<TextBlock Classes="caption" Text="Contoh: APT/260101-0011 → 0011" />
-				</StackPanel>
+    <!-- ===== Kartu tengah MaxWidth 760 (§8.6) ===== -->
+    <Grid Margin="16">
+      <Border Classes="card" VerticalAlignment="Top" HorizontalAlignment="Center"
+              Width="480" MaxWidth="760">
+        <StackPanel Spacing="{StaticResource App.Space.M}">
 
-				<StackPanel Orientation="Horizontal" Spacing="8">
-					<Button Content="Submit" Command="{Binding SubmitCommand}"
-							IsEnabled="{Binding !IsBusy}"
-							Height="38" MinWidth="100" HorizontalContentAlignment="Center"
-							Background="{StaticResource AccentBrush}" Foreground="White" />
-					<Button Content="Cetak Ulang Barcode" Command="{Binding CetakUlangBarcodeCommand}"
-							IsEnabled="{Binding !IsBusy}"
-							Height="38" HorizontalContentAlignment="Center" />
-					<Button Content="Reset" Command="{Binding ResetCommand}"
-							IsEnabled="{Binding !IsBusy}"
-							Height="38" MinWidth="80" HorizontalContentAlignment="Center" />
-				</StackPanel>
+          <TextBlock Classes="h2" Text="Kode Booking" />
 
-				<StackPanel IsVisible="{Binding IsBusy}" Spacing="6">
-					<TextBlock Text="Memproses kode booking..." FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
-					<ProgressBar IsIndeterminate="True" Height="4" />
-				</StackPanel>
+          <StackPanel Spacing="{StaticResource App.Space.XS}">
+            <TextBlock Classes="field-label" Text="Kode Booking" />
+            <TextBox Text="{Binding KodeBooking}" Height="36"
+                     PlaceholderText="Masukkan kode booking"
+                     IsEnabled="{Binding !IsBusy}" />
+            <TextBlock Classes="caption" Text="Contoh: APT/260101-0011 → 0011" />
+          </StackPanel>
 
-				<Border IsVisible="{Binding HasStatus}" CornerRadius="6" Padding="10" Background="#F3F4F6">
-					<TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12"
-							   Foreground="{Binding !StatusIsError, Converter={StaticResource StatusBrush}}" />
-				</Border>
-			</StackPanel>
-		</Border>
-	</Grid>
+          <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+            <Button Classes="primary" MinWidth="80" Command="{Binding SubmitCommand}"
+                    IsEnabled="{Binding !IsBusy}"
+                    AutomationProperties.Name="Verifikasi kode booking">
+              <Panel MinWidth="80">
+                <TextBlock Text="Verifikasi" HorizontalAlignment="Center" IsVisible="{Binding !IsBusy}" />
+                <ProgressBar Classes="busy" IsVisible="{Binding IsBusy}"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                             Foreground="{DynamicResource App.Text.OnAccent.Brush}"
+                             Background="Transparent" />
+              </Panel>
+            </Button>
+            <Button Classes="secondary" Content="Cetak Ulang Barcode" MinWidth="80"
+                    Command="{Binding CetakUlangBarcodeCommand}"
+                    IsEnabled="{Binding !IsBusy}" />
+            <Button Classes="secondary" Content="Reset" MinWidth="80"
+                    Command="{Binding ResetCommand}"
+                    IsEnabled="{Binding !IsBusy}" />
+          </StackPanel>
+
+          <!-- Busy (§9.1): teks primary + progress indeterminate 4px -->
+          <StackPanel IsVisible="{Binding IsBusy}" Spacing="{StaticResource App.Space.XS}">
+            <TextBlock Text="Memproses kode booking..." FontWeight="SemiBold"
+                       FontSize="{StaticResource App.Type.Body}"
+                       Foreground="{DynamicResource App.Primary.Default.Brush}" />
+            <ProgressBar IsIndeterminate="True" Height="4" HorizontalAlignment="Stretch" />
+          </StackPanel>
+
+          <!-- Banner status (§9.5): Success / Danger -->
+          <StackPanel IsVisible="{Binding HasStatus}" Spacing="{StaticResource App.Space.S}">
+            <Border Classes="banner success" IsVisible="{Binding !StatusIsError}">
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <TextBlock Classes="glyph" Text="&#xE73E;" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" VerticalAlignment="Center" />
+              </StackPanel>
+            </Border>
+            <Border Classes="banner danger" IsVisible="{Binding StatusIsError}">
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <TextBlock Classes="glyph" Text="&#xE783;" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" VerticalAlignment="Center" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- ===== Overlay "Login Required" (§8.5, §10.3) ===== -->
+    <Border IsVisible="{Binding !IsLoggedIn}"
+            Background="{DynamicResource App.Background.Overlay.Brush}">
+      <Border Width="420" HorizontalAlignment="Center" VerticalAlignment="Center"
+              Background="{DynamicResource App.Surface.Card.Brush}"
+              BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="1"
+              CornerRadius="{StaticResource App.Radius.XL}"
+              BoxShadow="{StaticResource App.Shadow.Popup}"
+              Padding="20">
+        <StackPanel Spacing="{StaticResource App.Space.M}" HorizontalAlignment="Center">
+          <TextBlock Classes="glyph" Text="&#xE72E;" FontSize="32"
+                     Foreground="{DynamicResource App.Text.Muted.Brush}"
+                     HorizontalAlignment="Center" />
+          <TextBlock Classes="h1" Text="Login Required" HorizontalAlignment="Center" />
+          <TextBlock Classes="caption" Text="Silakan login untuk mengaktifkan proses kode booking."
+                     TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" />
+          <Button Classes="primary large" Content="Login Sekarang"
+                  Command="{Binding RequestLoginNowCommand}"
+                  HorizontalAlignment="Center" Margin="0,4,0,0" />
+        </StackPanel>
+      </Border>
+    </Border>
+  </Panel>
 </UserControl>

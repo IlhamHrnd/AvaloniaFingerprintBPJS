@@ -6,8 +6,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using Avalonia.Controls;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using Avalonia.Styling;
 using AvaloniaFingerprint.Services;
 
 namespace AvaloniaFingerprint.Converters
@@ -402,16 +404,67 @@ namespace AvaloniaFingerprint.Converters
         }
     }
 
+    /// <summary>
+    /// true → brush success, false → brush danger. Nilai diambil dari token tema
+    /// (App.Success/Danger.Default.Brush) agar otomatis mengikuti Light/Dark;
+    /// TrueBrush/FalseBrush hanya fallback bila resource belum tersedia (DESIGN.md §5.4).
+    /// </summary>
     public sealed class BoolToBrushConverter : IValueConverter
     {
         public IBrush TrueBrush { get; set; } = new SolidColorBrush(Color.Parse("#107C10"));
         public IBrush FalseBrush { get; set; } = new SolidColorBrush(Color.Parse("#C42B1C"));
 
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-            => value is true ? TrueBrush : FalseBrush;
+        {
+            var key = value is true ? "App.Success.Default.Brush" : "App.Danger.Default.Brush";
+            return ThemeBrushResolver.Resolve(key) ?? (value is true ? TrueBrush : FalseBrush);
+        }
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// Memetakan teks status perangkat (hasil FingerprintServices/CameraServices.ResolveStatus)
+    /// ke brush dot status bar: terhubung → Success, mencari/deteksi/belum siap → Warning,
+    /// terputus/tidak tersedia/lainnya → Danger (DESIGN.md §8.4, §10.2).
+    /// </summary>
+    public sealed class StatusTextToBrushConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            var status = value as string ?? string.Empty;
+
+            var key = status switch
+            {
+                FingerprintServices.ConnectedStatus or CameraServices.ConnectedStatus
+                    => "App.Success.Default.Brush",
+                FingerprintServices.SearchingStatus or CameraServices.SearchingStatus
+                    or FingerprintServices.DetectedStatus or FingerprintServices.NotReadyStatus
+                    => "App.Warning.Default.Brush",
+                _ => "App.Danger.Default.Brush",
+            };
+
+            return ThemeBrushResolver.Resolve(key) ?? Brushes.Gray;
+        }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+
+    /// <summary>Ambil brush token dari resource aplikasi pada varian tema aktif.</summary>
+    internal static class ThemeBrushResolver
+    {
+        internal static IBrush? Resolve(string key)
+        {
+            var app = Avalonia.Application.Current;
+            if (app is not null &&
+                app.TryFindResource(key, app.ActualThemeVariant, out var resource) &&
+                resource is IBrush brush)
+                return brush;
+
+            return null;
+        }
     }
 
     public sealed class InverseBoolConverter : IValueConverter

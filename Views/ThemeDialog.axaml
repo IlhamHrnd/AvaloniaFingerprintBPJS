@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="360"
+        x:Class="AvaloniaFingerprint.Views.ThemeDialog"
+        Title="Pengaturan Tema"
+        Width="360" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource App.Font.Default}"
+        Background="{DynamicResource App.Background.Base.Brush}">
+
+  <!-- Dialog Pengaturan Tema (DESIGN.md §9.7): pilihan Light/Dark/System,
+       diterapkan saat Simpan (bukan live-preview). -->
+  <Border Background="{DynamicResource App.Surface.Card.Brush}"
+          BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="1"
+          CornerRadius="{StaticResource App.Radius.L}"
+          BoxShadow="{StaticResource App.Shadow.Popup}"
+          Margin="16" Padding="24">
+    <StackPanel Spacing="16">
+      <TextBlock Classes="h2" Text="Pengaturan Tema" Margin="0" />
+
+      <StackPanel Spacing="8">
+        <RadioButton x:Name="LightOption" GroupName="theme" Content="Light"
+                     FontSize="{StaticResource App.Type.Body}" />
+        <RadioButton x:Name="DarkOption" GroupName="theme" Content="Dark"
+                     FontSize="{StaticResource App.Type.Body}" />
+        <RadioButton x:Name="SystemOption" GroupName="theme" Content="System (mengikuti Windows)"
+                     FontSize="{StaticResource App.Type.Body}" />
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Classes="secondary" Content="Batal" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="primary" Content="Simpan" IsDefault="True" Click="OnSaveClick" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>
