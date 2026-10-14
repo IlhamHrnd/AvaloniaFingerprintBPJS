@@ -19,11 +19,66 @@
 
           <StackPanel Spacing="{StaticResource App.Space.XS}">
             <TextBlock Classes="field-label" Text="Kode Booking" />
-            <TextBox Text="{Binding KodeBooking}" Height="36"
+            <TextBox Text="{Binding KodeBooking}" Height="36" MaxLength="16"
                      PlaceholderText="Masukkan kode booking"
                      IsEnabled="{Binding !IsBusy}" />
             <TextBlock Classes="caption" Text="Contoh: APT/260101-0011 → 0011" />
           </StackPanel>
+
+          <!-- ===== Numpad sentuh (input angka tanpa keyboard fisik) =====
+               Hanya sufix angka yang diketik; awalan "APT/tanggal-" dibentuk aplikasi
+               di KodeBookingViewModel. Tombol menulis ke KodeBooking ( dua arah ),
+               tombol Reset tetap memakai ResetCommand yang sudah ada. -->
+          <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto,Auto,Auto"
+                ColumnSpacing="{StaticResource App.Space.S}"
+                RowSpacing="{StaticResource App.Space.S}"
+                IsEnabled="{Binding !IsBusy}">
+            <Button Grid.Row="0" Grid.Column="0" Classes="numpad" Content="1"
+                    Command="{Binding AppendDigitCommand}" CommandParameter="1"
+                    AutomationProperties.Name="Angka 1" />
+            <Button Grid.Row="0" Grid.Column="1" Classes="numpad" Content="2"
+                    Command="{Binding AppendDigitCommand}" CommandParameter="2"
+                    AutomationProperties.Name="Angka 2" />
+            <Button Grid.Row="0" Grid.Column="2" Classes="numpad" Content="3"
+                    Command="{Binding AppendDigitCommand}" CommandParameter="3"
+                    AutomationProperties.Name="Angka 3" />
+
+            <Button Grid.Row="1" Grid.Column="0" Classes="numpad" Content="4"
+                    Command="{Binding AppendDigitCommand}" CommandParameter="4"
+                    AutomationProperties.Name="Angka 4" />
+            <Button Grid.Row="1" Grid.Column="1" Classes="numpad" Content="5"
+                    Command="{Binding AppendDigitCommand}" CommandParameter="5"
+                    AutomationProperties.Name="Angka 5" />
+            <Button Grid.Row="1" Grid.Column="2" Classes="numpad" Content="6"
+                    Command="{Binding AppendDigitCommand}" CommandParameter="6"
+                    AutomationProperties.Name="Angka 6" />
+
+            <Button Grid.Row="2" Grid.Column="0" Classes="numpad" Content="7"
+                    Command="{Binding AppendDigitCommand}" CommandParameter="7"
+                    AutomationProperties.Name="Angka 7" />
+            <Button Grid.Row="2" Grid.Column="1" Classes="numpad" Content="8"
+                    Command="{Binding AppendDigitCommand}" CommandParameter="8"
+                    AutomationProperties.Name="Angka 8" />
+            <Button Grid.Row="2" Grid.Column="2" Classes="numpad" Content="9"
+                    Command="{Binding AppendDigitCommand}" CommandParameter="9"
+                    AutomationProperties.Name="Angka 9" />
+
+            <Button Grid.Row="3" Grid.Column="0" Classes="numpad" Content="0"
+                    Command="{Binding AppendDigitCommand}" CommandParameter="0"
+                    AutomationProperties.Name="Angka 0" />
+            <Button Grid.Row="3" Grid.Column="1" Classes="numpad action"
+                    Command="{Binding BackspaceCommand}"
+                    AutomationProperties.Name="Hapus satu karakter">
+              <TextBlock Classes="glyph" Text="&#xE750;"
+                         Foreground="{DynamicResource App.Text.Secondary.Brush}" />
+            </Button>
+            <Button Grid.Row="3" Grid.Column="2" Classes="numpad action"
+                    Command="{Binding ResetCommand}"
+                    AutomationProperties.Name="Kosongkan input">
+              <TextBlock Classes="glyph" Text="&#xE74D;"
+                         Foreground="{DynamicResource App.Text.Secondary.Brush}" />
+            </Button>
+          </Grid>
 
           <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
             <Button Classes="primary" MinWidth="80" Command="{Binding SubmitCommand}"

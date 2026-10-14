@@ -166,6 +166,31 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
             IdentityNumber = cleaned;
     }
 
+    /// <summary>
+    /// Numpad sentuh pada view Verifikasi. Menulis ke <see cref="IdentityNumber"/> memakai
+    /// jalur yang sama dengan pengetikan fisik: sanitasi & batas <see cref="NikLength"/>
+    /// tetap ditangani <see cref="OnIdentityNumberChanged"/>, jadi validasi tidak berubah.
+    /// </summary>
+    [RelayCommand]
+    private void AppendDigit(string? digit)
+    {
+        if (string.IsNullOrEmpty(digit) || !char.IsAsciiDigit(digit[0]))
+            return;
+
+        if (IdentityNumber.Length >= NikLength)
+            return;
+
+        IdentityNumber += digit[0];
+    }
+
+    /// <summary>Hapus satu karakter terakhir dari <see cref="IdentityNumber"/>.</summary>
+    [RelayCommand]
+    private void Backspace()
+    {
+        if (IdentityNumber.Length > 0)
+            IdentityNumber = IdentityNumber[..^1];
+    }
+
     private string ResolvedJnsFilter => IdentityNumber.Length switch
     {
         NikLength => "nik",

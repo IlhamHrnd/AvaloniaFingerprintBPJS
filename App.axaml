@@ -413,6 +413,42 @@
       <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
     </Style>
 
+    <!-- ===================== Numpad (§9.1 varian input sentuh) ===================== -->
+    <!-- Tombol angka besar agar nyaman disentuh tanpa keyboard fisik. Memakai token
+         tema existing (Surface/Border/Text/Primary) sehingga tetap terbaca saat tema
+         Light/Dark berganti. -->
+    <Style Selector="Button.numpad">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.Control.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Control.Brush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Height" Value="48" />
+      <Setter Property="MinWidth" Value="48" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="{StaticResource App.Radius.M}" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="{StaticResource App.Type.BodyLarge}" />
+    </Style>
+    <Style Selector="Button.numpad:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Surface.Header.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Primary.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Border.Strong.Brush}" />
+    </Style>
+    <Style Selector="Button.numpad:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource App.Primary.Pressed.Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.OnAccent.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource App.Primary.Default.Brush}" />
+    </Style>
+    <Style Selector="Button.numpad:disabled">
+      <Setter Property="Opacity" Value="0.45" />
+    </Style>
+    <!-- Varian aksi (Backspace/Clear): tinggi sama, ikon glyph, warna lebih tenang -->
+    <Style Selector="Button.numpad.action">
+      <Setter Property="Foreground" Value="{DynamicResource App.Text.Secondary.Brush}" />
+      <Setter Property="FontSize" Value="{StaticResource App.Type.Body}" />
+    </Style>
+
 
     <!-- ===================== Nav sidebar (§8.2, §9.4) ===================== -->
     <Style Selector="Button.nav">

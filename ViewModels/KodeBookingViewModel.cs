@@ -11,6 +11,13 @@ namespace AvaloniaFingerprint.ViewModels;
 
 public sealed partial class KodeBookingViewModel : ViewModelBase
 {
+    /// <summary>
+    /// Batas maksimum panjang Kode Booking. Field ini sebelumnya tanpa batas; numpad
+    /// sentuh butuh batas eksplisit, dan <c>MaxLength</c> pada TextBox memakai nilai
+    /// yang sama agar input ketik dan numpad berperilaku identik.
+    /// </summary>
+    private const int KodeBookingMaxLength = 16;
+
     private readonly AppServices _services;
 
     public KodeBookingViewModel(AppServices services)
@@ -20,6 +27,30 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _kodeBooking = string.Empty;
+
+    /// <summary>
+    /// Numpad sentuh pada view Kode Booking. Yang diketik pengguna hanya sufix angka
+    /// ("0011"); awalan "APT/&lt;tanggal&gt;-" dibentuk aplikasi di <c>CetakUlangBarcode</c>.
+    /// </summary>
+    [RelayCommand]
+    private void AppendDigit(string? digit)
+    {
+        if (string.IsNullOrEmpty(digit) || !char.IsAsciiDigit(digit[0]))
+            return;
+
+        if (KodeBooking.Length >= KodeBookingMaxLength)
+            return;
+
+        KodeBooking += digit[0];
+    }
+
+    /// <summary>Hapus satu karakter terakhir dari <see cref="KodeBooking"/>.</summary>
+    [RelayCommand]
+    private void Backspace()
+    {
+        if (KodeBooking.Length > 0)
+            KodeBooking = KodeBooking[..^1];
+    }
 
     [ObservableProperty]
     private bool _isLoggedIn;
