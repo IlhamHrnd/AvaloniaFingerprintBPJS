@@ -10,6 +10,6 @@ namespace AvaloniaFingerprint.Filters.Printout
         public string printerName { get; set; } = string.Empty;
         public int fromPage { get; set; } = 1;
         public int toPage { get; set; } = 1;
-        public int copies { get; set; } = 1;
+        public int copies { get; set; } = 3;
     }
 }

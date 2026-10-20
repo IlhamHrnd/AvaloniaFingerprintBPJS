@@ -974,9 +974,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
                     {
                         rptSource = rptSource,
                         parameters = parameters,
-                        printerName = printerNormal,
-                        copies = 3
-                    });
+                        printerName = printerNormal
+                    }, true);
                 }
                 catch (Exception e)
                 {
@@ -1047,8 +1046,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
                     {
                         rptSource = rptSource,
                         parameters = parameters,
-                        printerName = printerLaser,
-                        copies = 3
+                        printerName = printerLaser
                     });
                 }
                 catch (Exception e)
@@ -1418,9 +1416,8 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
                     {
                         rptSource = rptSource,
                         parameters = parameters,
-                        printerName = printerNormal,
-                        copies = 3
-                    });
+                        printerName = printerNormal
+                    }, true);
                 }
                 catch (Exception e)
                 {
@@ -1493,8 +1490,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
                     {
                         rptSource = rptSource,
                         parameters = parameters,
-                        printerName = printerLaser,
-                        copies = 3
+                        printerName = printerLaser
                     });
                 }
                 catch (Exception e)
