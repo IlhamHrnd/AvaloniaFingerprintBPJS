@@ -266,7 +266,7 @@ public sealed partial class KodeBookingViewModel : ViewModelBase
                     rptSource = rptSource,
                     parameters = parameters,
                     printerName = printerNormal
-                }, true);
+                });
             }
             catch (Exception e)
             {

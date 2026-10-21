@@ -9,7 +9,7 @@ namespace AvaloniaFingerprint.ViewModels;
 
 public abstract class ViewModelBase : ObservableObject
 {
-    protected void printProcess(Filters.Printout.Print print, bool isMargin = false)
+    protected void printProcess(Filters.Printout.Print print)
     {
         if (string.IsNullOrEmpty(print.printerName)) return;
         else if (print.rptSource.Count == 0) return;
@@ -96,31 +96,6 @@ public abstract class ViewModelBase : ObservableObject
             {
                 PrintController = spc
             };
-
-            if (isMargin)
-            {
-                Unit.DefaultType = UnitType.Mm;
-                Unit u = new(1);
-                var zero = new Unit(1);
-                var width = new Unit(80);
-                var height = new Unit(30);
-                var size = new SizeU
-                {
-                    Width = width,
-                    Height = height
-                };
-
-                foreach (var reportSource in rbs.ReportSources)
-                {
-                    if (reportSource is not InstanceReportSource instance) continue;
-                    if (instance.ReportDocument is not Telerik.Reporting.Report report) continue;
-
-                    report.PageSettings.Margins.Left = u;
-                    report.PageSettings.Margins.Right = zero;
-                    report.PageSettings.Margins.Top = zero;
-                    report.PageSettings.Margins.Bottom = zero;
-                }
-            }
 
             rp.PrintReport(irs, ps);
         }
