@@ -175,6 +175,9 @@
       <x:Double x:Key="App.Space.L">16</x:Double>
       <x:Double x:Key="App.Space.XL">24</x:Double>
       <x:Double x:Key="App.Space.XXL">32</x:Double>
+      <x:Double x:Key="App.Field.Height">36</x:Double>
+      <x:Double x:Key="App.Field.LabelRowHeight">20</x:Double>
+      <x:Double x:Key="App.Control.Height.Large">40</x:Double>
 
       <!-- Radius (§7.2) -->
       <CornerRadius x:Key="App.Radius.S">4</CornerRadius>
@@ -320,6 +323,7 @@
     </Style>
     <Style Selector="Button.primary.large">
       <Setter Property="Height" Value="40" />
+      <Setter Property="Height" Value="{StaticResource App.Control.Height.Large}" />
       <Setter Property="MinWidth" Value="120" />
     </Style>
     <!-- Varian subtle-on-dark untuk Logout di sidebar (§8.2) -->
@@ -370,6 +374,10 @@
     </Style>
     <Style Selector="Button.secondary:disabled">
       <Setter Property="Opacity" Value="0.45" />
+    </Style>
+    <Style Selector="Button.secondary.large">
+      <Setter Property="Height" Value="{StaticResource App.Control.Height.Large}" />
+      <Setter Property="MinWidth" Value="120" />
     </Style>
 
     <!-- Ghost: aksi ringan -->
