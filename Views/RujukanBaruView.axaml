@@ -53,12 +53,21 @@
               <TextBlock Grid.Row="0" Grid.Column="1" Classes="field-label" Text="Nama Pasien"
                          MinHeight="{StaticResource App.Field.LabelRowHeight}" />
               <Grid Grid.Row="1" Grid.Column="0">
-                <TextBox Text="{Binding NomorRekamMedis, Mode=OneWay}"
+                <TextBox Text="{Binding NomorRekamMedis, Mode=TwoWay}"
                          Height="{StaticResource App.Field.Height}"
                          Padding="10,0,44,0" VerticalContentAlignment="Center"
-                         PlaceholderText="Masukkan nomor rekam medis" />
+                         IsEnabled="{Binding !IsBusy}"
+                         PlaceholderText="Masukkan nomor rekam medis"
+                         AutomationProperties.Name="No. Rekam Medis">
+                  <!-- Enter = tombol cari (mempercepat alur pindai/keyboard). -->
+                  <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Enter" Command="{Binding CariPasienCommand}" />
+                  </TextBox.KeyBindings>
+                </TextBox>
                 <Button Classes="icon" Width="28" Height="28" Margin="0,0,4,0"
                         HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Command="{Binding CariPasienCommand}"
+                        IsEnabled="{Binding !IsBusy}"
                         ToolTip.Tip="Cari pasien" AutomationProperties.Name="Cari pasien">
                   <TextBlock Classes="glyph" Text="&#xE721;" FontSize="14"
                              Foreground="{DynamicResource App.Primary.Default.Brush}" />
@@ -69,13 +78,40 @@
                       Height="{StaticResource App.Field.Height}" Padding="10,0"
                       Background="{DynamicResource App.Surface.Header.Brush}"
                       BorderBrush="{DynamicResource App.Border.Control.Brush}"
-                      BorderThickness="1" CornerRadius="{StaticResource App.Radius.S}">
+                      BorderThickness="1" CornerRadius="{StaticResource App.Radius.S}"
+                      ToolTip.Tip="{Binding NamaPasien}"
+                      AutomationProperties.Name="Nama Pasien">
                 <TextBlock Text="{Binding NamaPasien}" VerticalAlignment="Center"
                            FontSize="{StaticResource App.Type.Body}"
                            Foreground="{DynamicResource App.Text.Secondary.Brush}"
                            TextTrimming="CharacterEllipsis" />
               </Border>
             </Grid>
+
+            <!-- Busy (§9.1): teks primary + progress indeterminate 4px -->
+            <StackPanel IsVisible="{Binding IsBusy}" Spacing="{StaticResource App.Space.XS}">
+              <TextBlock Text="Mencari pasien..." FontWeight="SemiBold"
+                         FontSize="{StaticResource App.Type.Body}"
+                         Foreground="{DynamicResource App.Primary.Default.Brush}" />
+              <ProgressBar IsIndeterminate="True" Height="4" HorizontalAlignment="Stretch" />
+            </StackPanel>
+
+            <!-- Banner status (§9.5): Success / Danger -->
+            <StackPanel IsVisible="{Binding HasStatus}" Spacing="{StaticResource App.Space.S}">
+              <Border Classes="banner success" IsVisible="{Binding !StatusIsError}">
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                  <TextBlock Classes="glyph" Text="&#xE73E;" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </StackPanel>
+              </Border>
+              <Border Classes="banner danger" IsVisible="{Binding StatusIsError}">
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                  <TextBlock Classes="glyph" Text="&#xE783;" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
             <Border Background="{DynamicResource App.Primary.Subtle.Brush}"
                     BorderBrush="{DynamicResource App.Border.Control.Brush}" BorderThickness="1"
                     CornerRadius="{StaticResource App.Radius.M}" Padding="16">

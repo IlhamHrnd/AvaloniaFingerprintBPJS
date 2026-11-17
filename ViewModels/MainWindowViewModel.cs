@@ -19,7 +19,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         Verifikasi = new VerifikasiViewModel(services);
         KodeBooking = new KodeBookingViewModel(services);
-        RujukanBaru = new RujukanBaruViewModel();
+        RujukanBaru = new RujukanBaruViewModel(services);
 
         var assembly = typeof(MainWindowViewModel).Assembly;
         ApplicationVersion = assembly.GetName().Version?.ToString(3) ?? "1.0.0";
@@ -168,6 +168,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         Verifikasi.OnSessionChanged(session.IsLoggedIn);
         KodeBooking.OnSessionChanged(session.IsLoggedIn);
+        RujukanBaru.OnSessionChanged(session.IsLoggedIn);
 
         if (session.IsLoggedIn)
             _ = EnsureCameraPreviewAsync();
