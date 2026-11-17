@@ -322,7 +322,6 @@
       <Setter Property="Opacity" Value="0.45" />
     </Style>
     <Style Selector="Button.primary.large">
-      <Setter Property="Height" Value="40" />
       <Setter Property="Height" Value="{StaticResource App.Control.Height.Large}" />
       <Setter Property="MinWidth" Value="120" />
     </Style>
