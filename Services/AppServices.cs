@@ -23,6 +23,10 @@ public sealed class AppServices : IDisposable
         Fingerprint = new FingerprintServices(Settings.Configuration, Session);
         Camera = new CameraServices(Settings.Configuration, Session);
         Appointment = new AppointmentServices(Settings.Configuration, Session);
+        Patient = new PatientServices(Settings.Configuration, Session);
+        Rujukan = new RujukanServices(Settings.Configuration, Session);
+        ServiceUnit = new ServiceUnitServices(Settings.Configuration, Session);
+        Paramedic = new ParamedicServices(Settings.Configuration, Session);
         Printout = new PrintoutServices(Settings.Configuration, Session);
 
         FaceRecognition = new FaceRecognitionService(Settings.Configuration, Session);
@@ -53,6 +57,10 @@ public sealed class AppServices : IDisposable
     public FingerprintServices Fingerprint { get; }
     public CameraServices Camera { get; }
     public AppointmentServices Appointment { get; }
+    public PatientServices Patient { get; }
+    public RujukanServices Rujukan { get; }
+    public ServiceUnitServices ServiceUnit { get; }
+    public ParamedicServices Paramedic { get; }
     public PrintoutServices Printout { get; }
     public FaceRecognitionService FaceRecognition { get; }
 

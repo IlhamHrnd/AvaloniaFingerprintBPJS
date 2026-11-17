@@ -1113,12 +1113,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
         }
     }
 
-    private bool CanVerifyFace() =>
-        IsWajahMode
-        && IsPreviewVisible
-        && !IsVerifyingFace
-        && !IsBusy
-        && !IsConnecting;
+    private bool CanVerifyFace() => IsWajahMode && IsPreviewVisible && !IsVerifyingFace && !IsBusy && !IsConnecting;
 
     private ImageSnapshot? CaptureCurrentImage()
     {
@@ -1209,14 +1204,7 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
         }
     }
 
-    private bool CanVerify() =>
-        IsFingerprintMode
-        && IsLoggedIn
-        && DeviceConnected
-        && !IsBusy
-        && !IsVerifyingFace
-        && !IsConnecting
-        && IsIdentityValid;
+    private bool CanVerify() => IsFingerprintMode && IsLoggedIn && DeviceConnected && !IsBusy && !IsVerifyingFace && !IsConnecting && IsIdentityValid;
 
     [RelayCommand(CanExecute = nameof(CanVerify))]
     private async Task VerifyAsync()
@@ -1306,110 +1294,110 @@ public sealed partial class VerifikasiViewModel : ViewModelBase
                     parameters =
                     [
                         new()
-                    {
-                        name = "sep",
-                        value = data.sep
-                    },
-                    new()
-                    {
-                        name = "tglsep",
-                        value = data.tglsep
-                    },
-                    new()
-                    {
-                        name = "nokartu",
-                        value = data.nokartu
-                    },
-                    new()
-                    {
-                        name = "nama",
-                        value = data.nama
-                    },
-                    new()
-                    {
-                        name = "tgllahir",
-                        value = data.tgllahir
-                    },
-                    new()
-                    {
-                        name = "sex",
-                        value = data.sex
-                    },
-                    new()
-                    {
-                        name = "politujuan",
-                        value = data.politujuan
-                    },
-                    new()
-                    {
-                        name = "polirujukan",
-                        value = data.polirujukan
-                    },
-                    new()
-                    {
-                        name = "dokterpemeriksa",
-                        value = data.dokterpemeriksa
-                    },
-                    new()
-                    {
-                        name = "dpjp",
-                        value = data.dpjp
-                    },
-                    new()
-                    {
-                        name = "asalfaskes",
-                        value = data.asalfaskes
-                    },
-                    new()
-                    {
-                        name = "diagnosa",
-                        value = data.diagnosa
-                    },
-                    new()
-                    {
-                        name = "antrian",
-                        value = Converter.IntToString(data.antrian)
-                    },
-                    new()
-                    {
-                        name = "jenispeserta",
-                        value = data.jenispeserta
-                    },
-                    new()
-                    {
-                        name = "rm",
-                        value = data.rm
-                    },
-                    new()
-                    {
-                        name = "jenisrawat",
-                        value = data.jenisrawat
-                    },
-                    new()
-                    {
-                        name = "kelasrawat",
-                        value = data.kelasrawat
-                    },
-                    new()
-                    {
-                        name = "cetakby",
-                        value = data.cetakby
-                    },
-                    new()
-                    {
-                        name = "notlp",
-                        value = data.notlp
-                    },
-                    new()
-                    {
-                        name = "urlqrcode",
-                        value = data.linkqrcode
-                    },
-                    new()
-                    {
-                        name = "queueqr",
-                        value = data.queueqr
-                    }
+                        {
+                            name = "sep",
+                            value = data.sep
+                        },
+                        new()
+                        {
+                            name = "tglsep",
+                            value = data.tglsep
+                        },
+                        new()
+                        {
+                            name = "nokartu",
+                            value = data.nokartu
+                        },
+                        new()
+                        {
+                            name = "nama",
+                            value = data.nama
+                        },
+                        new()
+                        {
+                            name = "tgllahir",
+                            value = data.tgllahir
+                        },
+                        new()
+                        {
+                            name = "sex",
+                            value = data.sex
+                        },
+                        new()
+                        {
+                            name = "politujuan",
+                            value = data.politujuan
+                        },
+                        new()
+                        {
+                            name = "polirujukan",
+                            value = data.polirujukan
+                        },
+                        new()
+                        {
+                            name = "dokterpemeriksa",
+                            value = data.dokterpemeriksa
+                        },
+                        new()
+                        {
+                            name = "dpjp",
+                            value = data.dpjp
+                        },
+                        new()
+                        {
+                            name = "asalfaskes",
+                            value = data.asalfaskes
+                        },
+                        new()
+                        {
+                            name = "diagnosa",
+                            value = data.diagnosa
+                        },
+                        new()
+                        {
+                            name = "antrian",
+                            value = Converter.IntToString(data.antrian)
+                        },
+                        new()
+                        {
+                            name = "jenispeserta",
+                            value = data.jenispeserta
+                        },
+                        new()
+                        {
+                            name = "rm",
+                            value = data.rm
+                        },
+                        new()
+                        {
+                            name = "jenisrawat",
+                            value = data.jenisrawat
+                        },
+                        new()
+                        {
+                            name = "kelasrawat",
+                            value = data.kelasrawat
+                        },
+                        new()
+                        {
+                            name = "cetakby",
+                            value = data.cetakby
+                        },
+                        new()
+                        {
+                            name = "notlp",
+                            value = data.notlp
+                        },
+                        new()
+                        {
+                            name = "urlqrcode",
+                            value = data.linkqrcode
+                        },
+                        new()
+                        {
+                            name = "queueqr",
+                            value = data.queueqr
+                        }
                     ];
 
                     printProcess(new Filters.Printout.Print
