@@ -8,7 +8,7 @@
         x:Class="AvaloniaFingerprint.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Width="1120" Height="760"
-        MinWidth="880" MinHeight="620" MaxWidth="1280"
+        MinWidth="880" MinHeight="620" MaxWidth="1600"
         CanResize="True"
         WindowStartupLocation="CenterScreen"
         FontFamily="{StaticResource App.Font.Default}"
@@ -21,6 +21,9 @@
     </DataTemplate>
     <DataTemplate x:DataType="vm:KodeBookingViewModel">
       <views:KodeBookingView />
+    </DataTemplate>
+    <DataTemplate x:DataType="vm:RujukanBaruViewModel">
+      <views:RujukanBaruView />
     </DataTemplate>
   </Window.DataTemplates>
 
@@ -63,6 +66,14 @@
                 <TextBlock Text="Kode Booking" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
+            <Button Classes="nav" Classes.selected="{Binding IsRujukanBaruSelected}"
+                    Command="{Binding ShowRujukanBaruPageCommand}" HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="Rujukan Baru">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Classes="glyph" Text="&#xE8A5;" VerticalAlignment="Center" />
+                <TextBlock Text="Rujukan Baru" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
           </StackPanel>
 
           <!-- Kartu petugas (§8.2) -->
@@ -98,7 +109,7 @@
       <Grid Grid.Column="1" RowDefinitions="Auto,*">
         <Border Grid.Row="0" Background="{DynamicResource App.Surface.Card.Brush}"
                 BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="0,0,0,1"
-                Padding="24,14,24,12">
+                Padding="24,14,24,12" IsVisible="{Binding IsPageHeaderVisible}">
           <StackPanel Spacing="2">
             <TextBlock Classes="h1" Text="{Binding PageTitle}" />
             <TextBlock Classes="caption" Text="{Binding PageSubtitle}" />

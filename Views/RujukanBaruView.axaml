@@ -1,0 +1,225 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:AvaloniaFingerprint.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1040" d:DesignHeight="680"
+             x:Class="AvaloniaFingerprint.Views.RujukanBaruView"
+             x:DataType="vm:RujukanBaruViewModel">
+
+  <!-- ===== Halaman "Rujukan Baru" (§8.7) =====
+       Header navy menggantikan header putih shell pada halaman ini (MainWindowViewModel
+       .IsPageHeaderVisible). Header dipin di baris 0, form digulir di baris 1, sehingga
+       judul tetap terlihat saat konten melebihi tinggi window (§10.1). -->
+  <Grid RowDefinitions="Auto,*">
+
+    <!-- ===== Header halaman: navy + aksen biru (§8.3) ===== -->
+    <Border Grid.Row="0" Background="{DynamicResource App.Surface.Sidebar.Brush}"
+            Padding="24,14,24,12">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource App.Space.M}">
+        <Border Width="40" Height="40" VerticalAlignment="Center"
+                Background="{DynamicResource App.Primary.Default.Brush}"
+                CornerRadius="{StaticResource App.Radius.L}">
+          <TextBlock Classes="glyph" Text="&#xE8A5;" FontSize="20"
+                     Foreground="{DynamicResource App.Text.OnAccent.Brush}"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+
+        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+          <TextBlock Classes="h1" Text="Rujukan Baru"
+                     Foreground="{DynamicResource App.Text.OnSidebar.Brush}" />
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="Registrasi pasien rujukan dan cetak label registrasi."
+                     Foreground="{DynamicResource App.Text.OnSidebarMuted.Brush}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ===== Konten form ===== -->
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Margin="16" Spacing="{StaticResource App.Space.L}">
+
+        <Border Classes="card" VerticalAlignment="Top" HorizontalAlignment="Stretch">
+          <StackPanel Spacing="{StaticResource App.Space.L}">
+
+            <TextBlock Classes="h2" Text="Data Registrasi" Margin="0" />
+
+            <!-- ===== Baris 1: No. Rekam Medis (+ cari) &amp; Nama Pasien ===== -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource App.Space.L}">
+
+              <StackPanel Spacing="{StaticResource App.Space.XS}">
+                <!-- Label + penanda wajib (*) memakai token Danger -->
+                <StackPanel Orientation="Horizontal" Spacing="2">
+                  <TextBlock Classes="field-label" Text="No. Rekam Medis" />
+                  <TextBlock Text="*" FontSize="{StaticResource App.Type.Caption}"
+                             FontWeight="SemiBold" VerticalAlignment="Top"
+                             Foreground="{DynamicResource App.Danger.Default.Brush}" />
+                </StackPanel>
+
+                <!-- Tombol cari ditumpuk di dalam bidang input (Padding kanan 44) agar
+                     focus ring Fluent tetap utuh dan tidak ada kontrol di luar card. -->
+                <Grid>
+                  <TextBox Text="{Binding NomorRekamMedis, Mode=OneWay}" Height="36"
+                           Padding="10,0,44,0" VerticalContentAlignment="Center"
+                           PlaceholderText="Masukkan nomor rekam medis" />
+                  <Button Classes="icon" Width="28" Height="28" Margin="0,0,4,0"
+                          HorizontalAlignment="Right" VerticalAlignment="Center"
+                          ToolTip.Tip="Cari pasien" AutomationProperties.Name="Cari pasien">
+                    <TextBlock Classes="glyph" Text="&#xE721;" FontSize="14"
+                               Foreground="{DynamicResource App.Primary.Default.Brush}" />
+                  </Button>
+                </Grid>
+              </StackPanel>
+
+              <StackPanel Grid.Column="1" Spacing="{StaticResource App.Space.XS}">
+                <TextBlock Classes="field-label" Text="Nama Pasien" />
+                <!-- Nilai read-only: tampil seperti bidang input, tidak dapat diedit -->
+                <Border Height="36" Padding="10,0"
+                        Background="{DynamicResource App.Surface.Header.Brush}"
+                        BorderBrush="{DynamicResource App.Border.Control.Brush}"
+                        BorderThickness="1" CornerRadius="{StaticResource App.Radius.S}">
+                  <TextBlock Text="{Binding NamaPasien}" VerticalAlignment="Center"
+                             FontSize="{StaticResource App.Type.Body}"
+                             Foreground="{DynamicResource App.Text.Secondary.Brush}"
+                             TextTrimming="CharacterEllipsis" />
+                </Border>
+              </StackPanel>
+            </Grid>
+
+            <!-- ===== Baris 2: verifikasi sidik jari + status ===== -->
+            <Border Background="{DynamicResource App.Primary.Subtle.Brush}"
+                    BorderBrush="{DynamicResource App.Border.Control.Brush}" BorderThickness="1"
+                    CornerRadius="{StaticResource App.Radius.M}" Padding="16">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{StaticResource App.Space.L}">
+
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.M}"
+                            VerticalAlignment="Center">
+                  <Border Width="36" Height="36" VerticalAlignment="Center" CornerRadius="18"
+                          Background="{DynamicResource App.Surface.Card.Brush}"
+                          BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="1">
+                    <TextBlock Classes="glyph" Text="&#xE928;" FontSize="18"
+                               Foreground="{DynamicResource App.Primary.Default.Brush}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="Verifikasi Sidik Jari"
+                               FontSize="{StaticResource App.Type.Body}" FontWeight="SemiBold"
+                               Foreground="{DynamicResource App.Text.Primary.Brush}" />
+                    <TextBlock Classes="caption" TextWrapping="Wrap"
+                               Text="Pastikan sidik jari peserta BPJS terverifikasi sebelum memilih rujukan." />
+                  </StackPanel>
+                </StackPanel>
+
+                <Button Grid.Column="1" Classes="primary large" MinWidth="180"
+                        VerticalAlignment="Center" AutomationProperties.Name="Verifikasi Finger">
+                  <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
+                              HorizontalAlignment="Center">
+                    <TextBlock Classes="glyph" Text="&#xE928;"
+                               Foreground="{DynamicResource App.Text.OnAccent.Brush}" />
+                    <TextBlock Text="Verifikasi Finger" />
+                  </StackPanel>
+                </Button>
+
+                <Border Grid.Column="2" Classes="banner success" Width="240"
+                        VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                    <TextBlock Classes="glyph" Text="&#xE73E;" VerticalAlignment="Center"
+                               Foreground="{DynamicResource App.Success.Default.Brush}" />
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Verifikasi Berhasil"
+                                 FontSize="{StaticResource App.Type.Body}" FontWeight="SemiBold"
+                                 Foreground="{DynamicResource App.Success.Default.Brush}" />
+                      <TextBlock Text="Sidik jari sesuai dengan data peserta BPJS."
+                                 TextWrapping="Wrap" FontSize="{StaticResource App.Type.Small}"
+                                 Foreground="{DynamicResource App.Text.Secondary.Brush}" />
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+              </Grid>
+            </Border>
+
+            <!-- ===== Baris 3: surat rujukan pasien ===== -->
+            <StackPanel Spacing="{StaticResource App.Space.XS}">
+              <TextBlock Classes="field-label" Text="Rujukan Pasien" />
+              <ComboBox ItemsSource="{Binding RujukanOptions}" SelectedIndex="0" Height="36"
+                        HorizontalAlignment="Stretch" AutomationProperties.Name="Rujukan Pasien" />
+            </StackPanel>
+
+            <!-- ===== Baris 4: poli & dokter ===== -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource App.Space.L}">
+
+              <StackPanel Spacing="{StaticResource App.Space.XS}">
+                <TextBlock Classes="field-label" Text="Poli" />
+                <ComboBox ItemsSource="{Binding PoliOptions}" SelectedIndex="0" Height="36"
+                          HorizontalAlignment="Stretch" AutomationProperties.Name="Poli" />
+              </StackPanel>
+
+              <StackPanel Grid.Column="1" Spacing="{StaticResource App.Space.XS}">
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.XS}">
+                  <TextBlock Classes="field-label" Text="Dokter" />
+                  <!-- Info kuota: tooltip kaya konten, memakai style ToolTip global (§9.8) -->
+                  <Button Classes="icon" Width="20" Height="20" VerticalAlignment="Center"
+                          ToolTip.ShowDelay="200" ToolTip.Placement="Bottom"
+                          AutomationProperties.Name="Informasi Kuota Layanan">
+                    <ToolTip.Tip>
+                      <StackPanel Width="200" Spacing="{StaticResource App.Space.S}">
+                        <TextBlock Text="Informasi Kuota Layanan" FontWeight="SemiBold"
+                                   FontSize="{StaticResource App.Type.Body}"
+                                   Foreground="{DynamicResource App.Text.Primary.Brush}" />
+                        <Border Height="1" Background="{DynamicResource App.Border.Default.Brush}" />
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto"
+                              RowSpacing="{StaticResource App.Space.XS}">
+                          <TextBlock Grid.Row="0" Grid.Column="0" Classes="caption" Text="Total Kuota" />
+                          <TextBlock Grid.Row="0" Grid.Column="1" Text="35" FontWeight="SemiBold"
+                                     FontSize="{StaticResource App.Type.Body}"
+                                     Foreground="{DynamicResource App.Info.Default.Brush}" />
+                          <TextBlock Grid.Row="1" Grid.Column="0" Classes="caption" Text="Kuota Terpakai" />
+                          <TextBlock Grid.Row="1" Grid.Column="1" Text="27" FontWeight="SemiBold"
+                                     FontSize="{StaticResource App.Type.Body}"
+                                     Foreground="{DynamicResource App.Warning.Default.Brush}" />
+                          <TextBlock Grid.Row="2" Grid.Column="0" Classes="caption" Text="Kuota Sisa" />
+                          <TextBlock Grid.Row="2" Grid.Column="1" Text="8" FontWeight="SemiBold"
+                                     FontSize="{StaticResource App.Type.Body}"
+                                     Foreground="{DynamicResource App.Success.Default.Brush}" />
+                        </Grid>
+                      </StackPanel>
+                    </ToolTip.Tip>
+                    <Button.Content>
+                      <TextBlock Classes="glyph" Text="&#xE946;" FontSize="14"
+                                 Foreground="{DynamicResource App.Info.Default.Brush}" />
+                    </Button.Content>
+                  </Button>
+                </StackPanel>
+                <ComboBox ItemsSource="{Binding DokterOptions}" SelectedIndex="0" Height="36"
+                          HorizontalAlignment="Stretch" AutomationProperties.Name="Dokter" />
+              </StackPanel>
+            </Grid>
+
+            <!-- ===== Footer aksi: bersihkan form &amp; cetak label ===== -->
+            <Border Height="1" Background="{DynamicResource App.Border.Default.Brush}" />
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
+                        HorizontalAlignment="Right">
+              <Button Classes="secondary" AutomationProperties.Name="Bersihkan">
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
+                            HorizontalAlignment="Center">
+                  <TextBlock Classes="glyph" Text="&#xE72C;"
+                             Foreground="{DynamicResource App.Text.Secondary.Brush}" />
+                  <TextBlock Text="Bersihkan" />
+                </StackPanel>
+              </Button>
+              <Button Classes="primary large" AutomationProperties.Name="Cetak Label">
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
+                            HorizontalAlignment="Center">
+                  <TextBlock Classes="glyph" Text="&#xE749;"
+                             Foreground="{DynamicResource App.Text.OnAccent.Brush}" />
+                  <TextBlock Text="Cetak Label" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

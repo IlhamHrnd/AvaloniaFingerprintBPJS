@@ -19,6 +19,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         Verifikasi = new VerifikasiViewModel(services);
         KodeBooking = new KodeBookingViewModel(services);
+        RujukanBaru = new RujukanBaruViewModel();
 
         var assembly = typeof(MainWindowViewModel).Assembly;
         ApplicationVersion = assembly.GetName().Version?.ToString(3) ?? "1.0.0";
@@ -46,6 +47,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public VerifikasiViewModel Verifikasi { get; }
     public KodeBookingViewModel KodeBooking { get; }
+    public RujukanBaruViewModel RujukanBaru { get; }
 
     [ObservableProperty] private bool _isLoggedIn;
     [ObservableProperty] private string _loginButtonText = "Login";
@@ -64,23 +66,45 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(PageSubtitle))]
     [NotifyPropertyChangedFor(nameof(IsVerifikasiSelected))]
     [NotifyPropertyChangedFor(nameof(IsKodeBookingSelected))]
+    [NotifyPropertyChangedFor(nameof(IsRujukanBaruSelected))]
+    [NotifyPropertyChangedFor(nameof(IsPageHeaderVisible))]
     private ViewModelBase? _currentPage;
 
-    public string PageTitle => CurrentPage is KodeBookingViewModel ? "Kode Booking" : "Verifikasi Sidik Jari";
+    public string PageTitle => CurrentPage switch
+    {
+        RujukanBaruViewModel => "Rujukan Baru",
+        KodeBookingViewModel => "Kode Booking",
+        _ => "Verifikasi Sidik Jari"
+    };
 
-    public string PageSubtitle => CurrentPage is KodeBookingViewModel
-        ? "Cetak SEP & barcode kode booking"
-        : "Verifikasi peserta melalui sidik jari atau wajah";
+    public string PageSubtitle => CurrentPage switch
+    {
+        RujukanBaruViewModel => "Registrasi pasien rujukan dan cetak label registrasi",
+        KodeBookingViewModel => "Cetak SEP & barcode kode booking",
+        _ => "Verifikasi peserta melalui sidik jari atau wajah"
+    };
 
-    public bool IsVerifikasiSelected => !ReferenceEquals(CurrentPage, KodeBooking);
+    public bool IsVerifikasiSelected => ReferenceEquals(CurrentPage, Verifikasi);
 
     public bool IsKodeBookingSelected => ReferenceEquals(CurrentPage, KodeBooking);
+
+    public bool IsRujukanBaruSelected => ReferenceEquals(CurrentPage, RujukanBaru);
+
+    /// <summary>
+    /// Halaman Rujukan Baru membawa header navy sendiri (§8.7), jadi header putih shell
+    /// disembunyikan hanya untuk halaman itu. Dua halaman lain tetap memakai header shell
+    /// seperti sebelumnya.
+    /// </summary>
+    public bool IsPageHeaderVisible => CurrentPage is not RujukanBaruViewModel;
 
     [RelayCommand]
     private void ShowVerifikasiPage() => CurrentPage = Verifikasi;
 
     [RelayCommand]
     private void ShowKodeBookingPage() => CurrentPage = KodeBooking;
+
+    [RelayCommand]
+    private void ShowRujukanBaruPage() => CurrentPage = RujukanBaru;
 
     // ===== Info versi (footer sidebar & status bar, §8.2/§8.4) =====
     public string ApplicationVersion { get; }
