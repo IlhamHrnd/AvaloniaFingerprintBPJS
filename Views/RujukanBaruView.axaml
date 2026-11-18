@@ -165,10 +165,48 @@
             <Grid RowDefinitions="Auto,Auto" RowSpacing="0">
               <TextBlock Grid.Row="0" Classes="field-label" Text="Rujukan Pasien"
                          MinHeight="{StaticResource App.Field.LabelRowHeight}" />
-              <ComboBox Grid.Row="1" ItemsSource="{Binding RujukanOptions}" SelectedIndex="0"
+              <!-- Item = objek rujukan utuh (ViewModel.RujukanOption); teks tampilan dari Display.
+                   Tidak ada auto-select: petugas memilih sendiri rujukan yang dipakai. -->
+              <ComboBox Grid.Row="1" ItemsSource="{Binding RujukanOptions}"
+                        SelectedItem="{Binding SelectedRujukan, Mode=TwoWay}"
+                        IsEnabled="{Binding IsRujukanEnabled}"
+                        PlaceholderText="Pilih rujukan pasien"
                         Height="{StaticResource App.Field.Height}"
-                        HorizontalAlignment="Stretch" AutomationProperties.Name="Rujukan Pasien" />
+                        HorizontalAlignment="Stretch"
+                        ToolTip.Tip="{Binding RujukanDisplay}"
+                        AutomationProperties.Name="Rujukan Pasien" />
             </Grid>
+
+            <!-- Busy rujukan: pasien sudah ditemukan, daftar rujukan sedang diambil (§6). -->
+            <StackPanel IsVisible="{Binding IsRujukanBusy}"
+                        Spacing="{StaticResource App.Space.XS}">
+              <TextBlock Text="Memuat rujukan pasien..." FontWeight="SemiBold"
+                         FontSize="{StaticResource App.Type.Body}"
+                         Foreground="{DynamicResource App.Primary.Default.Brush}" />
+              <ProgressBar IsIndeterminate="True" Height="4" HorizontalAlignment="Stretch" />
+            </StackPanel>
+
+            <!-- Status rujukan (§9.5): warning = tidak ada rujukan, danger = API/metadata gagal.
+                 Banner pencarian pasien di atas tetap menampilkan identitas pasien. -->
+            <Border Classes="banner warning" IsVisible="{Binding RujukanStatusIsEmpty}">
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <TextBlock Classes="glyph" Text="&#xE783;" VerticalAlignment="Center" />
+                <StackPanel Spacing="{StaticResource App.Space.XS}" VerticalAlignment="Center">
+                  <TextBlock Text="Rujukan tidak ditemukan"
+                             TextWrapping="Wrap" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding RujukanStatusMessage}" TextWrapping="Wrap"
+                             FontSize="{StaticResource App.Type.Small}" Opacity="0.9" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="banner danger" IsVisible="{Binding RujukanStatusIsError}">
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <TextBlock Classes="glyph" Text="&#xE783;" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding RujukanStatusMessage}" TextWrapping="Wrap"
+                           VerticalAlignment="Center" />
+              </StackPanel>
+            </Border>
 
             <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto"
                   ColumnSpacing="{StaticResource App.Space.L}"
@@ -194,15 +232,15 @@
                       <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto"
                             RowSpacing="{StaticResource App.Space.XS}">
                         <TextBlock Grid.Row="0" Grid.Column="0" Classes="caption" Text="Total Kuota" />
-                        <TextBlock Grid.Row="0" Grid.Column="1" Text="35" FontWeight="SemiBold"
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding KuotaTotalText}" FontWeight="SemiBold"
                                    FontSize="{StaticResource App.Type.Body}"
                                    Foreground="{DynamicResource App.Info.Default.Brush}" />
                         <TextBlock Grid.Row="1" Grid.Column="0" Classes="caption" Text="Kuota Terpakai" />
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="27" FontWeight="SemiBold"
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding KuotaTerpakaiText}" FontWeight="SemiBold"
                                    FontSize="{StaticResource App.Type.Body}"
                                    Foreground="{DynamicResource App.Warning.Default.Brush}" />
                         <TextBlock Grid.Row="2" Grid.Column="0" Classes="caption" Text="Kuota Sisa" />
-                        <TextBlock Grid.Row="2" Grid.Column="1" Text="8" FontWeight="SemiBold"
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding KuotaSisaText}" FontWeight="SemiBold"
                                    FontSize="{StaticResource App.Type.Body}"
                                    Foreground="{DynamicResource App.Success.Default.Brush}" />
                       </Grid>
@@ -215,13 +253,88 @@
                 </Button>
               </StackPanel>
 
+              <!-- Item = objek poli utuh (ViewModel.PoliOption); teks tampilan dari Display.
+                   Tidak ada auto-select dan daftar baru dimuat setelah rujukan dipilih. -->
               <ComboBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding PoliOptions}"
-                        SelectedIndex="0" Height="{StaticResource App.Field.Height}"
-                        HorizontalAlignment="Stretch" AutomationProperties.Name="Poli" />
+                        SelectedItem="{Binding SelectedPoli, Mode=TwoWay}"
+                        Height="{StaticResource App.Field.Height}"
+                        IsEnabled="{Binding IsPoliEnabled}"
+                        PlaceholderText="Pilih poli"
+                        HorizontalAlignment="Stretch"
+                        ToolTip.Tip="{Binding PoliDisplay}"
+                        AutomationProperties.Name="Poli" />
+              <!-- Item = jadwal dokter utuh (ViewModel.DokterOption); teks dari paramedicname. -->
               <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding DokterOptions}"
-                        SelectedIndex="0" Height="{StaticResource App.Field.Height}"
-                        HorizontalAlignment="Stretch" AutomationProperties.Name="Dokter" />
+                        SelectedItem="{Binding SelectedDokter, Mode=TwoWay}"
+                        Height="{StaticResource App.Field.Height}"
+                        IsEnabled="{Binding IsDokterEnabled}"
+                        PlaceholderText="Pilih dokter"
+                        HorizontalAlignment="Stretch"
+                        ToolTip.Tip="{Binding DokterDisplay}"
+                        AutomationProperties.Name="Dokter" />
             </Grid>
+
+            <!-- Busy poli: rujukan sudah dipilih, unit layanan sedang diambil (§6). -->
+            <StackPanel IsVisible="{Binding IsPoliBusy}"
+                        Spacing="{StaticResource App.Space.XS}">
+              <TextBlock Text="Memuat daftar poli..." FontWeight="SemiBold"
+                         FontSize="{StaticResource App.Type.Body}"
+                         Foreground="{DynamicResource App.Primary.Default.Brush}" />
+              <ProgressBar IsIndeterminate="True" Height="4" HorizontalAlignment="Stretch" />
+            </StackPanel>
+
+            <!-- Status poli (§9.5): warning = tidak ada unit layanan, danger = API gagal. -->
+            <Border Classes="banner warning" IsVisible="{Binding PoliStatusIsEmpty}">
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <TextBlock Classes="glyph" Text="&#xE783;" VerticalAlignment="Center" />
+                <StackPanel Spacing="{StaticResource App.Space.XS}" VerticalAlignment="Center">
+                  <TextBlock Text="Poli tidak ditemukan"
+                             TextWrapping="Wrap" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding PoliStatusMessage}" TextWrapping="Wrap"
+                             FontSize="{StaticResource App.Type.Small}" Opacity="0.9" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="banner danger" IsVisible="{Binding PoliStatusIsError}">
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <TextBlock Classes="glyph" Text="&#xE783;" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding PoliStatusMessage}" TextWrapping="Wrap"
+                           VerticalAlignment="Center" />
+              </StackPanel>
+            </Border>
+
+            <!-- Busy dokter: poli sudah dipilih, jadwal hari ini sedang diambil (§6). -->
+            <StackPanel IsVisible="{Binding IsDokterBusy}"
+                        Spacing="{StaticResource App.Space.XS}">
+              <TextBlock Text="Memuat jadwal dokter..." FontWeight="SemiBold"
+                         FontSize="{StaticResource App.Type.Body}"
+                         Foreground="{DynamicResource App.Primary.Default.Brush}" />
+              <ProgressBar IsIndeterminate="True" Height="4" HorizontalAlignment="Stretch" />
+            </StackPanel>
+
+            <!-- Status dokter (§9.5): warning = tidak ada jadwal, danger = API gagal. -->
+            <Border Classes="banner warning" IsVisible="{Binding DokterStatusIsEmpty}">
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <TextBlock Classes="glyph" Text="&#xE783;" VerticalAlignment="Center" />
+                <StackPanel Spacing="{StaticResource App.Space.XS}" VerticalAlignment="Center">
+                  <TextBlock Text="Jadwal dokter tidak ditemukan"
+                             TextWrapping="Wrap" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding DokterStatusMessage}" TextWrapping="Wrap"
+                             FontSize="{StaticResource App.Type.Small}" Opacity="0.9" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="banner danger" IsVisible="{Binding DokterStatusIsError}">
+              <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}">
+                <TextBlock Classes="glyph" Text="&#xE783;" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding DokterStatusMessage}" TextWrapping="Wrap"
+                           VerticalAlignment="Center" />
+              </StackPanel>
+            </Border>
+
+
             
             <Border Height="1" Background="{DynamicResource App.Border.Default.Brush}" />
             <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
