@@ -56,7 +56,7 @@
                 <TextBox Text="{Binding NomorRekamMedis, Mode=TwoWay}"
                          Height="{StaticResource App.Field.Height}"
                          Padding="10,0,44,0" VerticalContentAlignment="Center"
-                         IsEnabled="{Binding !IsBusy}"
+                         IsEnabled="{Binding IsInputEnabled}"
                          PlaceholderText="Masukkan nomor rekam medis"
                          AutomationProperties.Name="No. Rekam Medis">
                   <!-- Enter = tombol cari (mempercepat alur pindai/keyboard). -->
@@ -67,7 +67,7 @@
                 <Button Classes="icon" Width="28" Height="28" Margin="0,0,4,0"
                         HorizontalAlignment="Right" VerticalAlignment="Center"
                         Command="{Binding CariPasienCommand}"
-                        IsEnabled="{Binding !IsBusy}"
+                        IsEnabled="{Binding IsInputEnabled}"
                         ToolTip.Tip="Cari pasien" AutomationProperties.Name="Cari pasien">
                   <TextBlock Classes="glyph" Text="&#xE721;" FontSize="14"
                              Foreground="{DynamicResource App.Primary.Default.Brush}" />
@@ -340,6 +340,7 @@
             <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
                         HorizontalAlignment="Right">
               <Button Classes="secondary large" VerticalAlignment="Center"
+                      IsEnabled="{Binding IsInputEnabled}"
                       AutomationProperties.Name="Bersihkan">
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
                             HorizontalAlignment="Center">
@@ -349,6 +350,7 @@
                 </StackPanel>
               </Button>
               <Button Classes="primary large" VerticalAlignment="Center"
+                      IsEnabled="{Binding IsInputEnabled}"
                       AutomationProperties.Name="Cetak Label">
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
                             HorizontalAlignment="Center">
@@ -362,5 +364,31 @@
         </Border>
       </StackPanel>
     </ScrollViewer>
+
+    <!-- ===== Overlay "Login Required" (§8.5, §10.3) =====
+         Sama persis dengan overlay di VerifikasiView/KodeBookingView; hanya teks caption
+         yang berbeda. Scrim menutup header + form (RowSpan 2) sehingga tidak ada kontrol
+         yang bisa diklik selama sesi belum login. -->
+    <Border Grid.Row="0" Grid.RowSpan="2" IsVisible="{Binding !IsLoggedIn}"
+            Background="{DynamicResource App.Background.Overlay.Brush}">
+      <Border MaxWidth="420" Margin="24" HorizontalAlignment="Center" VerticalAlignment="Center"
+              Background="{DynamicResource App.Surface.Card.Brush}"
+              BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="1"
+              CornerRadius="{StaticResource App.Radius.XL}"
+              BoxShadow="{StaticResource App.Shadow.Popup}"
+              Padding="20">
+        <StackPanel Spacing="{StaticResource App.Space.M}" HorizontalAlignment="Center">
+          <TextBlock Classes="glyph" Text="&#xE72E;" FontSize="32"
+                     Foreground="{DynamicResource App.Text.Muted.Brush}"
+                     HorizontalAlignment="Center" />
+          <TextBlock Classes="h1" Text="Login Required" HorizontalAlignment="Center" />
+          <TextBlock Classes="caption" Text="Silakan login untuk mengaktifkan proses registrasi rujukan."
+                     TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" />
+          <Button Classes="primary large" Content="Login Sekarang"
+                  Command="{Binding RequestLoginNowCommand}"
+                  HorizontalAlignment="Center" Margin="0,4,0,0" />
+        </StackPanel>
+      </Border>
+    </Border>
   </Grid>
 </UserControl>

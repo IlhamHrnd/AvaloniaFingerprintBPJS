@@ -34,6 +34,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Verifikasi.CameraUsageChanged += OnVerifikasiCameraUsageChanged;
         Verifikasi.RequestLogin = RequestLoginFromPage;
         KodeBooking.RequestLogin = RequestLoginFromPage;
+        RujukanBaru.RequestLogin = RequestLoginFromPage;
 
         CurrentPage = Verifikasi;
 

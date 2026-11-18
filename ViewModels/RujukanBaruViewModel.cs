@@ -72,7 +72,22 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     public RujukanBaruViewModel(AppServices services)
     {
         _services = services;
+        IsLoggedIn = services.Session.IsLoggedIn;
     }
+
+    /// <summary>Diisi MainWindowViewModel; tombol "Login Sekarang" pada overlay login (§10.3).</summary>
+    public Action? RequestLogin { get; set; }
+
+    [RelayCommand]
+    private void RequestLoginNow() => RequestLogin?.Invoke();
+
+    /// <summary>
+    /// Status sesi. Overlay "Login Required" (§8.5, §10.3) tampil selama false, dan seluruh
+    /// input/aksi halaman ikut terkunci sampai login berhasil.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CariPasienCommand))]
+    private bool _isLoggedIn;
 
     /// <summary>No. Rekam Medis yang diketik/dipindai petugas; dikirim apa adanya sebagai filter.</summary>
     [ObservableProperty]
@@ -91,7 +106,14 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     private string _medicalNo = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CariPasienCommand))]
     private bool _isBusy;
+
+    /// <summary>
+    /// Input yang bisa diedit petugas (No. RM, tombol cari, tombol aksi) hanya aktif saat
+    /// sesi login valid dan tidak ada permintaan yang berjalan (§10.3).
+    /// </summary>
+    public bool IsInputEnabled => IsLoggedIn && !IsBusy;
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
@@ -139,10 +161,10 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     public bool HasRujukanOptions => RujukanOptions.Count > 0;
 
     /// <summary>
-    /// Pemilihan rujukan (dan poli/dokter turunannya) hanya aktif saat rujukan tersedia
-    /// dan tidak ada permintaan yang sedang berjalan (§6, §8).
+    /// Pemilihan rujukan (dan poli/dokter turunannya) hanya aktif saat sesi login valid,
+    /// rujukan tersedia, dan tidak ada permintaan yang sedang berjalan (§6, §8, §10.3).
     /// </summary>
-    public bool IsRujukanEnabled => !IsBusy && !IsRujukanBusy && HasRujukanOptions;
+    public bool IsRujukanEnabled => IsLoggedIn && !IsBusy && !IsRujukanBusy && HasRujukanOptions;
 
     /// <summary>
     /// Poli tujuan untuk rujukan terpilih, hasil
@@ -181,11 +203,11 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     public bool HasPoliOptions => PoliOptions.Count > 0;
 
     /// <summary>
-    /// ComboBox poli hanya aktif setelah rujukan dipilih, saat daftar poli sudah terisi,
-    /// dan saat tidak ada permintaan lain yang berjalan.
+    /// ComboBox poli hanya aktif setelah login dan rujukan dipilih, saat daftar poli sudah
+    /// terisi, dan saat tidak ada permintaan lain yang berjalan.
     /// </summary>
     public bool IsPoliEnabled =>
-        SelectedRujukan is not null && !IsBusy && !IsRujukanBusy && !IsPoliBusy && HasPoliOptions;
+        IsLoggedIn && SelectedRujukan is not null && !IsBusy && !IsRujukanBusy && !IsPoliBusy && HasPoliOptions;
 
     /// <summary>
     /// Jadwal dokter untuk poli terpilih, hasil
@@ -226,11 +248,11 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     public bool HasDokterOptions => DokterOptions.Count > 0;
 
     /// <summary>
-    /// ComboBox dokter hanya aktif setelah poli dipilih, saat jadwal sudah terisi, dan saat
-    /// tidak ada permintaan lain yang berjalan.
+    /// ComboBox dokter hanya aktif setelah login dan poli dipilih, saat jadwal sudah terisi,
+    /// dan saat tidak ada permintaan lain yang berjalan.
     /// </summary>
     public bool IsDokterEnabled =>
-        SelectedPoli is not null && !IsBusy && !IsPoliBusy && !IsDokterBusy && HasDokterOptions;
+        IsLoggedIn && SelectedPoli is not null && !IsBusy && !IsPoliBusy && !IsDokterBusy && HasDokterOptions;
 
     /// <summary>
     /// Total kuota (<c>quota</c>) jadwal dokter terpilih. Null selama dokter belum dipilih
@@ -283,9 +305,26 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsDokterEnabled));
     }
 
-    /// <summary>ComboBox rujukan nonaktif selama pencarian pasien / permintaan rujukan berjalan.</summary>
+    /// <summary>
+    /// ComboBox rujukan nonaktif selama pencarian pasien / permintaan rujukan berjalan, dan
+    /// input No. RM ikut terkunci pada kondisi yang sama.
+    /// </summary>
     partial void OnIsBusyChanged(bool value)
     {
+        OnPropertyChanged(nameof(IsInputEnabled));
+        OnPropertyChanged(nameof(IsRujukanEnabled));
+        OnPropertyChanged(nameof(IsPoliEnabled));
+        OnPropertyChanged(nameof(IsDokterEnabled));
+    }
+
+    /// <summary>
+    /// Login/logout mengubah seluruh derived state: overlay "Login Required" memakai
+    /// <see cref="IsLoggedIn"/> langsung, sedangkan input dan pilihan rujukan/poli/dokter
+    /// memakai flag turunan yang ikut dihitung ulang di sini (§10.3).
+    /// </summary>
+    partial void OnIsLoggedInChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsInputEnabled));
         OnPropertyChanged(nameof(IsRujukanEnabled));
         OnPropertyChanged(nameof(IsPoliEnabled));
         OnPropertyChanged(nameof(IsDokterEnabled));
@@ -367,9 +406,15 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         SetStatus(string.Empty, false);
     }
 
-    /// <summary>Logout membuang state pasien agar tidak terbawa ke sesi berikutnya.</summary>
+    /// <summary>
+    /// Status sesi dipakai overlay "Login Required" (§10.3). Logout membuang state pasien
+    /// agar tidak terbawa ke sesi berikutnya; generation counter yang dinaikkan di sini
+    /// membuat respons API yang masih berjalan tidak pernah menimpa state sesi baru.
+    /// </summary>
     public void OnSessionChanged(bool loggedIn)
     {
+        IsLoggedIn = loggedIn;
+
         if (loggedIn)
             return;
 
@@ -379,15 +424,26 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Pencarian hanya boleh berjalan saat sesi login valid dan tidak ada pencarian lain
+    /// (§10.3). CanExecute menutup tombol cari sekaligus KeyBinding Enter pada TextBox No. RM.
+    /// </summary>
+    private bool CanCariPasien() => IsLoggedIn && !IsBusy;
+
+    /// <summary>
     /// Mencari pasien berdasarkan No. Rekam Medis (searchType = 2). Input kosong
     /// ditolak sebelum memanggil API; hasil lama dibuang lebih dulu agar data
     /// pasien sebelumnya tidak pernah tampil bersama pesan baru.
     /// </summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanCariPasien))]
     private async Task CariPasienAsync()
     {
         // Satu pencarian pada satu waktu; tombol dan input juga nonaktif saat IsBusy.
         if (IsBusy)
+            return;
+
+        // Overlay "Login Required" aktif: pencarian tidak boleh berjalan, termasuk lewat
+        // KeyBinding Enter pada TextBox No. RM (§10.3).
+        if (!IsLoggedIn)
             return;
 
         // Trim saja: No. RM tidak pernah diubah ke angka, jadi nol di depan tetap utuh.
