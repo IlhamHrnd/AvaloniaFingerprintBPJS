@@ -88,9 +88,9 @@
               </Border>
             </Grid>
 
-            <!-- Busy (§9.1): teks primary + progress indeterminate 4px -->
+            <!-- Busy (§9.1): teks primary + progress indeterminate 4px; teks mengikuti tahap proses -->
             <StackPanel IsVisible="{Binding IsBusy}" Spacing="{StaticResource App.Space.XS}">
-              <TextBlock Text="Mencari pasien..." FontWeight="SemiBold"
+              <TextBlock Text="{Binding BusyMessage}" FontWeight="SemiBold"
                          FontSize="{StaticResource App.Type.Body}"
                          Foreground="{DynamicResource App.Primary.Default.Brush}" />
               <ProgressBar IsIndeterminate="True" Height="4" HorizontalAlignment="Stretch" />

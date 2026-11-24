@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -29,7 +30,8 @@ namespace AvaloniaFingerprint.ViewModels;
 /// dokter lewat <c>bpjsserviceunitid</c> →
 /// <see cref="ParamedicServices.ParamedicScheduleBpjsQuota"/>; dokter terpilih mengisi
 /// tooltip kuota. Setiap tahap membatalkan seluruh tahap di bawahnya sehingga data rujukan
-/// sebelumnya tidak pernah tertinggal (§6). Verifikasi sidik jari dan cetak label masih
+/// sebelumnya tidak pernah tertinggal (§6). Tombol "Cetak Label" membuat SEP lalu mendaftarkan
+/// pasien memakai nomor SEP tersebut; verifikasi sidik jari dan pencetakan label fisik masih
 /// UI-only (§11).
 /// </para>
 /// </summary>
@@ -40,6 +42,12 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     /// jenis pencarian tidak pernah ditebak dari isi input (tanpa mode ID/nama pasien).
     /// </summary>
     private const int SearchTypeMedicalNo = 2;
+
+    /// <summary>
+    /// Teks indikator busy bawaan halaman, dipakai saat pencarian pasien berjalan dan sebagai
+    /// nilai pulih setelah proses cetak label selesai.
+    /// </summary>
+    private const string DefaultBusyMessage = "Mencari pasien...";
 
     private readonly AppServices _services;
 
@@ -82,25 +90,165 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     private void RequestLoginNow() => RequestLogin?.Invoke();
 
     /// <summary>
-    /// Tombol "Cetak Label". Cetak label masih UI-only (§11), jadi aksi ini hanya menampilkan
-    /// identifier rujukan yang tersimpan (patientId, noKunjungan, bpjsserviceunitid,
-    /// bpjsparamedicid) lewat banner status halaman: tidak ada panggilan API, tidak membuat
-    /// SEP/registrasi, dan tidak mencetak apa pun. Nilai dibaca dari state ViewModel, bukan
-    /// dari teks ComboBox, sehingga yang tampil persis identifier pilihan petugas.
+    /// Tombol "Cetak Label": membuat SEP dari rujukan baru lalu mendaftarkan pasien memakai
+    /// nomor SEP tersebut.
+    /// <para>
+    /// Create SEP (<see cref="RujukanServices.CreateSepFromRujukanBaru"/>) dijalankan lebih dulu;
+    /// Create Registration (<see cref="RegistrationServices.CreateRegistrationFromNewRujukan"/>)
+    /// hanya dipanggil bila SEP benar-benar berhasil. Kegagalan pada tahap mana pun menghentikan
+    /// seluruh proses lewat <c>return</c> sehingga endpoint berikutnya tidak pernah dipanggil.
+    /// </para>
+    /// <para>
+    /// Identifier dibaca dari state ViewModel (bukan dari teks ComboBox): <see cref="PatientId"/>,
+    /// <see cref="NoKunjungan"/>, <see cref="BpjsServiceUnitId"/>, dan <see cref="BpjsParamedicId"/>.
+    /// <c>userId</c> berasal dari sesi login (<see cref="SessionService.UserId"/>). Pencetakan label
+    /// fisik belum diaktifkan; keberhasilan dilaporkan lewat banner status halaman.
+    /// </para>
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanCetakLabel))]
-    private void CetakLabel()
+    private async Task CetakLabelAsync()
     {
-        var message = string.Join(
-            Environment.NewLine,
-            "DATA IDENTIFIER RUJUKAN BARU",
-            string.Empty,
-            $"Patient ID        : {PatientId}",
-            $"No. Kunjungan     : {NoKunjungan}",
-            $"Poli BPJS         : {BpjsServiceUnitId}",
-            $"Paramedic BPJS    : {BpjsParamedicId}");
+        // Cegah submit ganda. Jalur UI tertahan oleh CanExecute (false saat IsBusy), sedangkan
+        // guard ini menutup pemanggilan langsung ke command (mis. ExecuteAsync dari kode) yang
+        // tidak melewati CanExecute.
+        if (IsBusy)
+            return;
 
-        SetStatus(message, false);
+        // Validasi form sebelum menyentuh API. Pesan menyebut langkah mana yang belum lengkap.
+        if (string.IsNullOrWhiteSpace(PatientId))
+        {
+            SetStatus("Pasien belum dipilih. Cari pasien terlebih dahulu sebelum mencetak label.", true);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(NoKunjungan))
+        {
+            SetStatus("Nomor kunjungan belum tersedia. Pilih rujukan pasien terlebih dahulu.", true);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(BpjsServiceUnitId))
+        {
+            SetStatus("Kode poli BPJS belum tersedia. Pilih poli terlebih dahulu.", true);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(BpjsParamedicId))
+        {
+            SetStatus("Kode dokter BPJS belum tersedia. Pilih dokter terlebih dahulu.", true);
+            return;
+        }
+
+        // parId registrasi bertipe integer sedangkan identifier dokter BPJS disimpan sebagai
+        // string. Konversi dilakukan lebih dulu supaya SEP tidak pernah terlanjur dibuat ketika
+        // registrasi dipastikan gagal. Nilai default 0 tidak pernah dikirim.
+        if (!int.TryParse(
+                BpjsParamedicId,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var parId))
+        {
+            SetStatus(
+                $"Kode dokter BPJS \"{BpjsParamedicId}\" bukan angka, sehingga registrasi tidak dapat diproses.",
+                true);
+            return;
+        }
+
+        // userId tidak pernah di-hardcode: hanya diambil dari sesi login aplikasi.
+        var userId = _services.Session.UserId;
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            SetStatus("Sesi user tidak valid. Login ulang sebelum mencetak label.", true);
+            return;
+        }
+
+        IsBusy = true;
+        BusyMessage = "Memproses SEP...";
+        SetStatus(string.Empty, false);
+
+        try
+        {
+            // Satu timestamp transaksi dipakai untuk Create SEP dan Create Registration agar
+            // kedua request merujuk ke waktu kunjungan yang sama.
+            var visitDate = DateTime.Now;
+
+            var sep = await Task.Run(
+                () => _services.Rujukan.CreateSepFromRujukanBaru(
+                    new Filters.Rujukan.CreateSepFromRujukanBaruRequest
+                    {
+                        patId = PatientId,
+                        suId = BpjsServiceUnitId,
+                        parId = BpjsParamedicId,
+                        visitDate = visitDate,
+                        noKunjungan = NoKunjungan
+                    }));
+
+            // HTTP 200 tidak menjamin SEP berhasil: errors[] dan succeeded tetap diperiksa.
+            if (sep.errors is { Length: > 0 })
+            {
+                SetStatus(DescribeSepFailure(sep.errors, sep.message), true);
+                return;
+            }
+
+            if (!sep.succeeded)
+            {
+                SetStatus(DescribeSepFailure(null, sep.message), true);
+                return;
+            }
+
+            // data berisi nomor SEP dan wajib tidak kosong sebelum registrasi dijalankan.
+            var sepNo = sep.data?.Trim();
+            if (string.IsNullOrWhiteSpace(sepNo))
+            {
+                SetStatus(
+                    "Pembuatan SEP gagal: nomor SEP tidak diterima dari API Service.",
+                    true);
+                return;
+            }
+
+            BusyMessage = "Memproses registrasi...";
+
+            var registration = await Task.Run(
+                () => _services.Registration.CreateRegistrationFromNewRujukan(
+                    new Filters.Registration.CreateRegistrationFromNewRujukanRequest
+                    {
+                        patId = PatientId,
+                        noKunjungan = NoKunjungan,
+                        dateTime = visitDate,
+                        suId = BpjsServiceUnitId,
+                        parId = parId,
+                        userId = userId,
+                        sepNo = sepNo
+                    }));
+
+            if (registration.errors is { Length: > 0 })
+            {
+                SetStatus(DescribeRegistrationFailure(registration.errors, registration.message), true);
+                return;
+            }
+
+            if (!registration.succeeded)
+            {
+                SetStatus(DescribeRegistrationFailure(null, registration.message), true);
+                return;
+            }
+
+            var registrationNo = registration.data?.Trim() ?? string.Empty;
+            SetStatus(
+                registrationNo.Length > 0
+                    ? $"Registrasi berhasil. No. SEP: {sepNo}. No. Registrasi: {registrationNo}."
+                    : $"Registrasi berhasil. No. SEP: {sepNo}.",
+                false);
+        }
+        catch (Exception e)
+        {
+            SetStatus($"Proses cetak label gagal: {e.Message}", true);
+        }
+        finally
+        {
+            BusyMessage = DefaultBusyMessage;
+            IsBusy = false;
+        }
     }
 
     /// <summary>
@@ -163,6 +311,14 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(CariPasienCommand))]
     [NotifyCanExecuteChangedFor(nameof(CetakLabelCommand))]
     private bool _isBusy;
+
+    /// <summary>
+    /// Teks indikator busy (§9.1). Berbeda per tahap (cari pasien, buat SEP, registrasi) supaya
+    /// petugas tahu proses mana yang sedang berjalan; dikembalikan ke
+    /// <see cref="DefaultBusyMessage"/> saat proses selesai.
+    /// </summary>
+    [ObservableProperty]
+    private string _busyMessage = DefaultBusyMessage;
 
     /// <summary>
     /// Input yang bisa diedit petugas (No. RM, tombol cari, tombol aksi) hanya aktif saat
@@ -527,6 +683,7 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         }
 
         var generation = ++_searchGeneration;
+        BusyMessage = DefaultBusyMessage;
         IsBusy = true;
         SetStatus(string.Empty, false);
 
@@ -943,6 +1100,42 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         return !string.IsNullOrWhiteSpace(message)
             ? $"Rujukan pasien gagal dimuat: {message}"
             : "Rujukan pasien gagal dimuat. Silakan coba lagi.";
+    }
+
+    /// <summary>
+    /// Pesan kegagalan pembuatan SEP. Detail dipilih berurutan: <c>errors[]</c> API lalu
+    /// <c>message</c> pembungkus, dengan fallback umum bila keduanya kosong.
+    /// </summary>
+    private static string DescribeSepFailure(string[]? errors, string? message)
+    {
+        var detail = errors is { Length: > 0 }
+            ? string.Join(", ", errors.Where(e => !string.IsNullOrWhiteSpace(e)))
+            : string.Empty;
+
+        if (detail.Length > 0)
+            return $"Pembuatan SEP gagal: {detail}";
+
+        return !string.IsNullOrWhiteSpace(message)
+            ? $"Pembuatan SEP gagal: {message}"
+            : "Pembuatan SEP gagal. Silakan coba lagi.";
+    }
+
+    /// <summary>
+    /// Pesan kegagalan registrasi rujukan baru. Pola sama dengan <see cref="DescribeSepFailure"/>:
+    /// <c>errors[]</c> lebih dulu, lalu <c>message</c> pembungkus.
+    /// </summary>
+    private static string DescribeRegistrationFailure(string[]? errors, string? message)
+    {
+        var detail = errors is { Length: > 0 }
+            ? string.Join(", ", errors.Where(e => !string.IsNullOrWhiteSpace(e)))
+            : string.Empty;
+
+        if (detail.Length > 0)
+            return $"Registrasi gagal: {detail}";
+
+        return !string.IsNullOrWhiteSpace(message)
+            ? $"Registrasi gagal: {message}"
+            : "Registrasi gagal. Silakan coba lagi.";
     }
 
     /// <summary>
