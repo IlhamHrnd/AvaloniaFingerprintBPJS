@@ -83,12 +83,25 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
 
     /// <summary>
     /// Tombol "Cetak Label". Cetak label masih UI-only (§11), jadi aksi ini hanya menampilkan
-    /// pesan pengembangan lewat banner status halaman: tidak ada panggilan API, tidak membuat
-    /// SEP/registrasi, dan tidak mencetak apa pun.
+    /// identifier rujukan yang tersimpan (patientId, noKunjungan, bpjsserviceunitid,
+    /// bpjsparamedicid) lewat banner status halaman: tidak ada panggilan API, tidak membuat
+    /// SEP/registrasi, dan tidak mencetak apa pun. Nilai dibaca dari state ViewModel, bukan
+    /// dari teks ComboBox, sehingga yang tampil persis identifier pilihan petugas.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanCetakLabel))]
-    private void CetakLabel() =>
-        SetStatus("Fitur Cetak Label sedang dalam tahap pengembangan.", true);
+    private void CetakLabel()
+    {
+        var message = string.Join(
+            Environment.NewLine,
+            "DATA IDENTIFIER RUJUKAN BARU",
+            string.Empty,
+            $"Patient ID        : {PatientId}",
+            $"No. Kunjungan     : {NoKunjungan}",
+            $"Poli BPJS         : {BpjsServiceUnitId}",
+            $"Paramedic BPJS    : {BpjsParamedicId}");
+
+        SetStatus(message, false);
+    }
 
     /// <summary>
     /// Cetak Label hanya bisa ditekan saat sesi login valid dan tidak ada permintaan berjalan,
@@ -120,6 +133,31 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     /// <summary>medicalNo yang dikembalikan API untuk pasien terpilih.</summary>
     [ObservableProperty]
     private string _medicalNo = string.Empty;
+
+    /// <summary>
+    /// <c>noKunjungan</c> rujukan terpilih. Diambil dari objek rujukan pada ComboBox
+    /// "Rujukan Pasien" (bukan dari teks tampilan) dan dipakai sebagai identifier cetak label.
+    /// Dikosongkan setiap pasien/rujukan berganti atau pilihannya dibersihkan (§6).
+    /// </summary>
+    [ObservableProperty]
+    private string _noKunjungan = string.Empty;
+
+    /// <summary>
+    /// <c>bpjsserviceunitid</c> poli terpilih (kode unit BPJS). Diambil dari objek
+    /// <see cref="ServiceUnitBridging"/> pada ComboBox "Poli" dan dipakai sebagai identifier
+    /// cetak label. Dikosongkan setiap rujukan/poli berganti atau pilihannya dibersihkan (§6).
+    /// </summary>
+    [ObservableProperty]
+    private string _bpjsServiceUnitId = string.Empty;
+
+    /// <summary>
+    /// <c>bpjsparamedicid</c> dokter terpilih (kode paramedis BPJS). Diambil dari objek
+    /// <see cref="Models.Paramedic.ParamedicScheduleBpjsQuota"/> pada ComboBox "Dokter" dan
+    /// dipakai sebagai identifier cetak label. Dikosongkan setiap poli/dokter berganti atau
+    /// pilihannya dibersihkan (§6).
+    /// </summary>
+    [ObservableProperty]
+    private string _bpjsParamedicId = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CariPasienCommand))]
@@ -375,10 +413,16 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     partial void OnSelectedRujukanChanged(RujukanOption? value)
     {
         RujukanDisplay = value?.Display ?? string.Empty;
+
+        // noKunjungan dibaca dari objek rujukan (bukan teks tampilan ComboBox) sehingga
+        // identifier yang dipakai cetak label selalu nomor kunjungan asli dari API.
+        NoKunjungan = value?.Referral.noKunjungan?.Trim() ?? string.Empty;
+
         OnPropertyChanged(nameof(IsPoliEnabled));
 
         // Seluruh rantai di bawah rujukan dibuang lebih dulu: poli milik rujukan lama tidak
-        // boleh sempat terlihat bersama rujukan baru (§6).
+        // boleh sempat terlihat bersama rujukan baru (§6). ClearPoli juga mengosongkan
+        // BpjsServiceUnitId dan (lewat ClearDokter) BpjsParamedicId.
         ClearPoli();
 
         if (value is not null)
@@ -393,8 +437,14 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     partial void OnSelectedPoliChanged(PoliOption? value)
     {
         PoliDisplay = value?.Display ?? string.Empty;
+
+        // bpjsserviceunitid dibaca dari objek poli (bukan teks tampilan ComboBox) sehingga
+        // identifier cetak label selalu kode unit BPJS asli dari API.
+        BpjsServiceUnitId = value?.Unit.bpjsserviceunitid?.Trim() ?? string.Empty;
+
         OnPropertyChanged(nameof(IsDokterEnabled));
 
+        // ClearDokter juga mengosongkan BpjsParamedicId milik poli sebelumnya.
         ClearDokter();
 
         if (value is not null)
@@ -405,6 +455,10 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     partial void OnSelectedDokterChanged(DokterOption? value)
     {
         DokterDisplay = value?.Display ?? string.Empty;
+
+        // bpjsparamedicid dibaca dari jadwal dokter (bukan teks tampilan ComboBox) sehingga
+        // identifier cetak label selalu kode paramedis BPJS asli dari API.
+        BpjsParamedicId = value?.Schedule.bpjsparamedicid?.Trim() ?? string.Empty;
 
         KuotaTotal = value?.Schedule.quota;
         KuotaTerpakai = value?.Schedule.quotaterpakai;
@@ -778,6 +832,14 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         RujukanOptions = [];
         SelectedRujukan = null;
         RujukanDisplay = string.Empty;
+
+        // Identifier rujukan dan turunannya dikosongkan eksplisit: handler perubahan hanya
+        // menyala bila nilainya benar-benar berubah, sehingga nilai pilihan sebelumnya tidak
+        // pernah tertinggal saat pilihan sudah null (§6).
+        NoKunjungan = string.Empty;
+        BpjsServiceUnitId = string.Empty;
+        BpjsParamedicId = string.Empty;
+
         SetRujukanStatus(string.Empty, error: false);
 
         // Rantai di bawah rujukan selalu ikut dibuang, termasuk saat SelectedRujukan sudah
@@ -797,7 +859,15 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         PoliOptions = [];
         SelectedPoli = null;
         PoliDisplay = string.Empty;
+
+        // Identifier poli dan dokter turunannya dikosongkan eksplisit agar nilai pilihan
+        // sebelumnya tidak tertinggal saat pilihan sudah null (§6).
+        BpjsServiceUnitId = string.Empty;
+        BpjsParamedicId = string.Empty;
+
         SetPoliStatus(string.Empty);
+
+        ClearDokter();
     }
 
     /// <summary>
@@ -811,14 +881,30 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         DokterOptions = [];
         SelectedDokter = null;
         DokterDisplay = string.Empty;
+
+        // Identifier dokter dikosongkan eksplisit agar kode paramedis pilihan sebelumnya tidak
+        // tertinggal saat pilihan sudah null (§6).
+        BpjsParamedicId = string.Empty;
+
         SetDokterStatus(string.Empty);
     }
 
+    /// <summary>
+    /// Membuang identitas pasien beserta seluruh identifier turunannya (noKunjungan,
+    /// bpjsserviceunitid, bpjsparamedicid) lewat <see cref="ClearRujukan"/>, sehingga tidak ada
+    /// identifier pasien sebelumnya yang terbawa ke pasien berikutnya (§6).
+    /// </summary>
     private void ClearPatient()
     {
         NamaPasien = string.Empty;
         PatientId = string.Empty;
         MedicalNo = string.Empty;
+
+        // PatientId ikut dikosongkan di sini; tiga identifier lain dibersihkan berantai.
+        NoKunjungan = string.Empty;
+        BpjsServiceUnitId = string.Empty;
+        BpjsParamedicId = string.Empty;
+
         ClearRujukan();
     }
 
