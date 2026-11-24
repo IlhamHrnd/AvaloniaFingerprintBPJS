@@ -25,6 +25,7 @@ public sealed class AppServices : IDisposable
         Appointment = new AppointmentServices(Settings.Configuration, Session);
         Patient = new PatientServices(Settings.Configuration, Session);
         Rujukan = new RujukanServices(Settings.Configuration, Session);
+        Registration = new RegistrationServices(Settings.Configuration, Session);
         ServiceUnit = new ServiceUnitServices(Settings.Configuration, Session);
         Paramedic = new ParamedicServices(Settings.Configuration, Session);
         Printout = new PrintoutServices(Settings.Configuration, Session);
@@ -59,6 +60,7 @@ public sealed class AppServices : IDisposable
     public AppointmentServices Appointment { get; }
     public PatientServices Patient { get; }
     public RujukanServices Rujukan { get; }
+    public RegistrationServices Registration { get; }
     public ServiceUnitServices ServiceUnit { get; }
     public ParamedicServices Paramedic { get; }
     public PrintoutServices Printout { get; }
