@@ -350,6 +350,7 @@
                 </StackPanel>
               </Button>
               <Button Classes="primary large" VerticalAlignment="Center"
+                      Command="{Binding CetakLabelCommand}"
                       IsEnabled="{Binding IsInputEnabled}"
                       AutomationProperties.Name="Cetak Label">
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"

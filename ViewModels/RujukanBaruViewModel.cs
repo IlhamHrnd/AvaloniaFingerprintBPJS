@@ -82,11 +82,27 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     private void RequestLoginNow() => RequestLogin?.Invoke();
 
     /// <summary>
+    /// Tombol "Cetak Label". Cetak label masih UI-only (§11), jadi aksi ini hanya menampilkan
+    /// pesan pengembangan lewat banner status halaman: tidak ada panggilan API, tidak membuat
+    /// SEP/registrasi, dan tidak mencetak apa pun.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanCetakLabel))]
+    private void CetakLabel() =>
+        SetStatus("Fitur Cetak Label sedang dalam tahap pengembangan.", true);
+
+    /// <summary>
+    /// Cetak Label hanya bisa ditekan saat sesi login valid dan tidak ada permintaan berjalan,
+    /// sama seperti tombol cari (§10.3).
+    /// </summary>
+    private bool CanCetakLabel() => IsLoggedIn && !IsBusy;
+
+    /// <summary>
     /// Status sesi. Overlay "Login Required" (§8.5, §10.3) tampil selama false, dan seluruh
     /// input/aksi halaman ikut terkunci sampai login berhasil.
     /// </summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CariPasienCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CetakLabelCommand))]
     private bool _isLoggedIn;
 
     /// <summary>No. Rekam Medis yang diketik/dipindai petugas; dikirim apa adanya sebagai filter.</summary>
@@ -107,6 +123,7 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CariPasienCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CetakLabelCommand))]
     private bool _isBusy;
 
     /// <summary>
