@@ -1,4 +1,5 @@
 using AvaloniaFingerprint.Converters;
+using AvaloniaFingerprint.Exceptions;
 using AvaloniaFingerprint.Models.Patient;
 using AvaloniaFingerprint.Models.Rujukan;
 using AvaloniaFingerprint.Models.ServiceUnit;
@@ -34,8 +35,17 @@ namespace AvaloniaFingerprint.ViewModels;
 /// tooltip kuota. Setiap tahap membatalkan seluruh tahap di bawahnya sehingga data rujukan
 /// sebelumnya tidak pernah tertinggal (§6). Tombol "Cetak Label" membuat SEP, mendaftarkan
 /// pasien memakai nomor SEP tersebut, lalu mencetak SEP dan label lewat
-/// <see cref="PrintoutServices"/> + <see cref="ReportLibrary.Sep"/>/<see cref="ReportLibrary.Barcode"/>;
-/// verifikasi sidik jari tetap UI-only (§11).
+/// <see cref="PrintoutServices"/> + <see cref="ReportLibrary.Sep"/>/<see cref="ReportLibrary.Barcode"/>.
+/// </para>
+/// <para>
+/// ComboBox "Rujukan Pasien" terkunci sampai sidik jari pasien terverifikasi (§11). Tombol
+/// "Verifikasi Finger" memakai mekanisme yang sama dengan halaman Verifikasi Sidik Jari:
+/// <see cref="FingerprintServices.CaptureAsync"/> lalu
+/// <see cref="FingerprintServices.Verify"/> dengan <c>keyword</c> = <see cref="Ssn"/> pasien
+/// terpilih dan <c>jnsFilter</c> diturunkan dari panjangnya (16 digit → <c>nik</c>,
+/// 13 digit → <c>psnoka</c>). Status verifikasi hanya berlaku untuk pasien yang sedang dipilih:
+/// pencarian baru, pasien gagal/tidak ditemukan, No. RM berubah, "Bersihkan", dan logout
+/// mengembalikannya ke belum terverifikasi lewat <see cref="ResetFingerprintVerification"/>.
 /// </para>
 /// </summary>
 public sealed partial class RujukanBaruViewModel : ViewModelBase
@@ -51,6 +61,28 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     /// nilai pulih setelah proses cetak label selesai.
     /// </summary>
     private const string DefaultBusyMessage = "Mencari pasien...";
+
+    /// <summary>
+    /// Panjang NIK pada <c>ssn</c> pasien. Dipakai memilih <c>jnsFilter</c> verifikasi sidik
+    /// jari, sama dengan aturan halaman Verifikasi Sidik Jari.
+    /// </summary>
+    private const int NikLength = 16;
+
+    /// <summary>Panjang No. Kartu BPJS pada <c>ssn</c> pasien (13 digit → <c>psnoka</c>).</summary>
+    private const int BpjsLength = 13;
+
+    /// <summary>Status netral saat pasien sudah dipilih tetapi sidik jarinya belum diverifikasi.</summary>
+    private const string FingerprintPendingMessage = "Menunggu verifikasi sidik jari.";
+
+    /// <summary>Status netral saat belum ada pasien terpilih; verifikasi belum bisa dimulai.</summary>
+    private const string FingerprintNoPatientMessage = "Belum ada pasien. Cari pasien terlebih dahulu.";
+
+    /// <summary>
+    /// Status netral saat pasien terpilih tidak membawa <c>ssn</c> yang bisa dipakai sebagai
+    /// <c>keyword</c> verifikasi (kosong atau bukan 16/13 digit).
+    /// </summary>
+    private const string FingerprintNoIdentityMessage =
+        "NIK / No. BPJS pasien tidak tersedia. Verifikasi sidik jari tidak dapat dilakukan.";
 
     private readonly AppServices _services;
 
@@ -79,6 +111,14 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     /// berjalan.
     /// </summary>
     private int _dokterGeneration;
+
+    /// <summary>
+    /// Naik setiap status verifikasi sidik jari dibuang (pencarian baru, pasien berganti,
+    /// "Bersihkan", logout) dan setiap verifikasi baru dimulai. Hasil capture/verify yang
+    /// datang terlambat dibuang agar tidak pernah menandai pasien berikutnya sebagai
+    /// terverifikasi (§6).
+    /// </summary>
+    private int _fingerprintGeneration;
 
     public RujukanBaruViewModel(AppServices services)
     {
@@ -541,6 +581,8 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CariPasienCommand))]
     [NotifyCanExecuteChangedFor(nameof(CetakLabelCommand))]
+    [NotifyCanExecuteChangedFor(nameof(VerifikasiFingerCommand))]
+    [NotifyCanExecuteChangedFor(nameof(BersihkanCommand))]
     private bool _isLoggedIn;
 
     /// <summary>No. Rekam Medis yang diketik/dipindai petugas; dikirim apa adanya sebagai filter.</summary>
@@ -553,6 +595,7 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
 
     /// <summary>patientId pasien terpilih; dipakai tahap registrasi rujukan berikutnya.</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifikasiFingerCommand))]
     private string _patientId = string.Empty;
 
     /// <summary>medicalNo yang dikembalikan API untuk pasien terpilih.</summary>
@@ -561,11 +604,13 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
 
     /// <summary>
     /// <c>ssn</c> pasien terpilih, disimpan apa adanya dari DTO hasil pencarian
-    /// (<see cref="PatientServices.GetPatientList"/>). Untuk saat ini hanya disimpan; belum
-    /// dipakai proses apa pun. Dikosongkan bersama identitas pasien supaya nilai pasien
-    /// sebelumnya tidak pernah tertinggal (§6).
+    /// (<see cref="PatientServices.GetPatientList"/>). Dipakai sebagai <c>keyword</c> verifikasi
+    /// sidik jari: <c>jnsFilter</c> diturunkan dari panjangnya (16 digit → <c>nik</c>,
+    /// 13 digit → <c>psnoka</c>), sama seperti halaman Verifikasi Sidik Jari. Dikosongkan
+    /// bersama identitas pasien supaya nilai pasien sebelumnya tidak pernah tertinggal (§6).
     /// </summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifikasiFingerCommand))]
     private string _ssn = string.Empty;
 
     /// <summary>
@@ -596,6 +641,8 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CariPasienCommand))]
     [NotifyCanExecuteChangedFor(nameof(CetakLabelCommand))]
+    [NotifyCanExecuteChangedFor(nameof(VerifikasiFingerCommand))]
+    [NotifyCanExecuteChangedFor(nameof(BersihkanCommand))]
     private bool _isBusy;
 
     /// <summary>
@@ -620,6 +667,41 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _statusIsError;
+
+    /// <summary>
+    /// True selama capture + <c>Finger/Verify</c> berjalan. Tombol verifikasi dan input lain
+    /// ikut terkunci supaya tidak ada dua pemindaian bersamaan pada satu perangkat.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(VerifikasiFingerCommand))]
+    private bool _isFingerprintBusy;
+
+    /// <summary>
+    /// True hanya bila sidik jari pasien yang sedang dipilih sudah lolos verifikasi BPJS.
+    /// Nilai ini yang membuka ComboBox "Rujukan Pasien" (§11) dan selalu kembali false saat
+    /// pasien berganti / state dibersihkan.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isFingerprintVerified;
+
+    /// <summary>
+    /// Pesan status panel verifikasi sidik jari. Berbeda per tahap (menunggu pasien, menunggu
+    /// verifikasi, memindai, memverifikasi ke BPJS, berhasil, gagal) supaya petugas tahu apa
+    /// yang sedang terjadi tanpa membuka halaman Verifikasi Sidik Jari.
+    /// </summary>
+    [ObservableProperty]
+    private string _fingerprintStatusMessage = FingerprintNoPatientMessage;
+
+    /// <summary>True bila pesan status verifikasi sidik jari berasal dari kegagalan.</summary>
+    [ObservableProperty]
+    private bool _fingerprintStatusIsError;
+
+    /// <summary>
+    /// Panel verifikasi menampilkan state netral "menunggu": belum terverifikasi, tidak sedang
+    /// memindai, dan bukan pesan kegagalan. Dipakai view untuk memilih banner netral.
+    /// </summary>
+    public bool IsFingerprintPending =>
+        !IsFingerprintVerified && !IsFingerprintBusy && !FingerprintStatusIsError;
 
     /// <summary>
     /// Rujukan milik pasien terpilih, hasil <c>GET /api/Rujukan/FirstRujukanFromPatientId</c>.
@@ -659,9 +741,11 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
 
     /// <summary>
     /// Pemilihan rujukan (dan poli/dokter turunannya) hanya aktif saat sesi login valid,
-    /// rujukan tersedia, dan tidak ada permintaan yang sedang berjalan (§6, §8, §10.3).
+    /// rujukan tersedia, tidak ada permintaan yang sedang berjalan, dan sidik jari pasien
+    /// terpilih sudah terverifikasi (§6, §8, §10.3, §11).
     /// </summary>
-    public bool IsRujukanEnabled => IsLoggedIn && !IsBusy && !IsRujukanBusy && HasRujukanOptions;
+    public bool IsRujukanEnabled =>
+        IsLoggedIn && !IsBusy && !IsRujukanBusy && HasRujukanOptions && IsFingerprintVerified;
 
     /// <summary>
     /// Poli tujuan untuk rujukan terpilih, hasil
@@ -844,6 +928,27 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     /// <summary>ComboBox dokter nonaktif selama jadwal dokter diambil.</summary>
     partial void OnIsDokterBusyChanged(bool value) => OnPropertyChanged(nameof(IsDokterEnabled));
 
+    /// <summary>
+    /// Verifikasi sidik jari membuka/mengunci ComboBox rujukan dan mengubah state panel,
+    /// jadi kedua derived state ikut diberitakan (§11).
+    /// </summary>
+    partial void OnIsFingerprintVerifiedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsRujukanEnabled));
+        OnPropertyChanged(nameof(IsFingerprintPending));
+    }
+
+    /// <summary>Selama memindai, panel menampilkan progress dan ComboBox tetap terkunci.</summary>
+    partial void OnIsFingerprintBusyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsRujukanEnabled));
+        OnPropertyChanged(nameof(IsFingerprintPending));
+    }
+
+    /// <summary>Pesan gagal menonaktifkan banner netral; sukses/menunggu mengaktifkannya lagi.</summary>
+    partial void OnFingerprintStatusIsErrorChanged(bool value) =>
+        OnPropertyChanged(nameof(IsFingerprintPending));
+
     /// <summary>Kuota hanya bermakna bila dokter terpilih, jadi HasKuota ikut berubah.</summary>
     partial void OnKuotaTotalChanged(int? value) => OnPropertyChanged(nameof(HasKuota));
 
@@ -908,6 +1013,166 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// <c>jnsFilter</c> verifikasi sidik jari, diturunkan dari panjang <see cref="Ssn"/> persis
+    /// seperti halaman Verifikasi Sidik Jari: 16 digit → <c>nik</c>, 13 digit → <c>psnoka</c>.
+    /// Nilai lain (termasuk kosong / bukan angka) menghasilkan string kosong sehingga tombol
+    /// verifikasi tidak bisa dijalankan.
+    /// </summary>
+    private string ResolvedJnsFilter
+    {
+        get
+        {
+            var ssn = Ssn.Trim();
+
+            if (ssn.Length == 0 || !ssn.All(char.IsAsciiDigit))
+                return string.Empty;
+
+            return ssn.Length switch
+            {
+                NikLength => "nik",
+                BpjsLength => "psnoka",
+                _ => string.Empty
+            };
+        }
+    }
+
+    /// <summary>
+    /// Verifikasi hanya bisa dimulai saat sesi login valid, tidak ada proses lain, ada pasien
+    /// terpilih, dan <c>ssn</c> pasien bisa dipakai sebagai <c>keyword</c> (§11). Perangkat yang
+    /// belum siap tidak dicek di sini: kegagalannya muncul sebagai status panel yang jelas
+    /// lewat <see cref="FingerprintExceptions"/>.
+    /// </summary>
+    private bool CanVerifikasiFinger() =>
+        IsLoggedIn && !IsBusy && !IsFingerprintBusy
+        && PatientId.Length > 0 && ResolvedJnsFilter.Length > 0;
+
+    /// <summary>
+    /// Tombol "Verifikasi Finger": capture sidik jari lalu verifikasi ke BPJS memakai
+    /// <c>ssn</c> pasien terpilih sebagai <c>keyword</c>. ComboBox "Rujukan Pasien" hanya
+    /// terbuka bila verifikasi berhasil (§11).
+    /// <para>
+    /// Verifikasi ulang mengunci ComboBox lebih dulu: status lama tidak boleh tetap dianggap
+    /// sah selama hasil baru belum datang. <see cref="_fingerprintGeneration"/> dinaikkan di
+    /// awal proses dan setiap state pasien dibuang, sehingga hasil capture/verify yang datang
+    /// terlambat tidak pernah menandai pasien berikutnya sebagai terverifikasi (§6).
+    /// </para>
+    /// <para>
+    /// <see cref="IsFingerprintBusy"/> hanya dilepas di <c>finally</c> — termasuk saat pasien
+    /// berganti di tengah pemindaian — supaya tidak ada dua capture bersamaan pada perangkat
+    /// yang sama.
+    /// </para>
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanVerifikasiFinger))]
+    private async Task VerifikasiFingerAsync()
+    {
+        if (!CanVerifikasiFinger())
+            return;
+
+        // Keyword/jnsFilter dibaca sekali di awal: nilai yang dikirim ke API selalu milik
+        // pasien yang tombolnya ditekan, bukan pasien yang mungkin sudah menggantikannya.
+        var patientId = PatientId;
+        var keyword = Ssn.Trim();
+        var jnsFilter = ResolvedJnsFilter;
+        var generation = ++_fingerprintGeneration;
+
+        IsFingerprintVerified = false;
+        IsFingerprintBusy = true;
+        SetFingerprintStatus("Letakkan jari pada perangkat...", false);
+
+        try
+        {
+            var capture = await _services.Fingerprint.CaptureAsync(_services.Fingerprint.VerifyTimeoutMs);
+
+            if (generation != _fingerprintGeneration)
+                return;
+
+            SetFingerprintStatus("Memverifikasi ke BPJS...", false);
+
+            var result = await Task.Run(() => _services.Fingerprint.Verify(new Filters.Fingerprint.Verify
+            {
+                finger = capture.VerificationTemplate,
+                keyword = keyword,
+                jnsFilter = jnsFilter
+            }));
+
+            // Guard ganda: generasi menangkap pencarian/clear, patientId menangkap penggantian
+            // pasien yang kebetulan tidak menaikkan generasi.
+            if (generation != _fingerprintGeneration
+                || !string.Equals(patientId, PatientId, StringComparison.Ordinal))
+                return;
+
+            if (!result.succeeded || result.errors is { Length: > 0 } || result.data is null)
+            {
+                IsFingerprintVerified = false;
+                SetFingerprintStatus(DescribeFingerprintFailure(result.errors, result.message), true);
+                return;
+            }
+
+            IsFingerprintVerified = true;
+            SetFingerprintStatus("Berhasil Verifikasi", false);
+        }
+        catch (FingerprintExceptions ex)
+        {
+            if (generation != _fingerprintGeneration)
+                return;
+
+            IsFingerprintVerified = false;
+            SetFingerprintStatus($"Verifikasi sidik jari gagal: {ex.Message}", true);
+            await _services.Fingerprint.RefreshDeviceAsync();
+        }
+        catch (Exception ex)
+        {
+            if (generation != _fingerprintGeneration)
+                return;
+
+            IsFingerprintVerified = false;
+            SetFingerprintStatus($"Verifikasi sidik jari gagal: {ex.Message}", true);
+        }
+        finally
+        {
+            IsFingerprintBusy = false;
+        }
+    }
+
+    /// <summary>Menulis pesan status panel verifikasi sidik jari beserta jenisnya.</summary>
+    private void SetFingerprintStatus(string message, bool isError)
+    {
+        FingerprintStatusMessage = message;
+        FingerprintStatusIsError = isError;
+    }
+
+    /// <summary>
+    /// Membuang status verifikasi milik pasien sebelumnya. Generasi dinaikkan lebih dulu agar
+    /// capture/verify yang masih berjalan tidak dapat menandai pasien baru sebagai terverifikasi
+    /// (§6). <see cref="IsFingerprintBusy"/> tidak disentuh di sini: flag itu milik operasi yang
+    /// sedang berjalan dan hanya boleh dilepas oleh operasi tersebut.
+    /// </summary>
+    private void ResetFingerprintVerification(string pendingMessage)
+    {
+        _fingerprintGeneration++;
+        IsFingerprintVerified = false;
+        SetFingerprintStatus(pendingMessage, false);
+    }
+
+    /// <summary>
+    /// Pesan kegagalan verifikasi sidik jari. Pola sama dengan <see cref="DescribeFailure"/>:
+    /// <c>errors[]</c> lebih dulu, lalu <c>message</c> pembungkus, lalu pesan umum.
+    /// </summary>
+    private static string DescribeFingerprintFailure(string[]? errors, string? message)
+    {
+        var detail = errors is { Length: > 0 }
+            ? string.Join(", ", errors.Where(e => !string.IsNullOrWhiteSpace(e)))
+            : string.Empty;
+
+        if (detail.Length > 0)
+            return $"Verifikasi sidik jari gagal: {detail}";
+
+        return !string.IsNullOrWhiteSpace(message)
+            ? $"Verifikasi sidik jari gagal: {message}"
+            : "Verifikasi sidik jari gagal. Silakan coba lagi.";
+    }
+
+    /// <summary>
     /// Setiap perubahan No. RM membatalkan pasien yang sedang terpilih: nama, patientId,
     /// medicalNo, daftar rujukan, dan pilihannya dibuang sehingga pencarian ulang wajib
     /// dilakukan (§6).
@@ -931,6 +1196,29 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         if (loggedIn)
             return;
 
+        NomorRekamMedis = string.Empty;
+        ClearPatient();
+        SetStatus(string.Empty, false);
+    }
+
+    /// <summary>
+    /// "Bersihkan" hanya butuh sesi login dan tidak ada proses berjalan. Tombolnya sudah ada di
+    /// view; tanpa command, state pasien/rujukan/verifikasi tidak bisa direset dari UI.
+    /// </summary>
+    private bool CanBersihkan() => IsLoggedIn && !IsBusy;
+
+    /// <summary>
+    /// Mengembalikan halaman ke state awal: No. RM, identitas pasien, rujukan, poli, dokter, dan
+    /// status verifikasi sidik jari dibuang (§6, §11). Generasi pencarian dinaikkan lebih dulu
+    /// agar respons API yang masih berjalan tidak mengisi halaman yang sudah dibersihkan.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanBersihkan))]
+    private void Bersihkan()
+    {
+        _searchGeneration++;
+
+        // Bila No. RM berubah, OnNomorRekamMedisChanged sudah membatalkan pasien; ClearPatient
+        // dipanggil tetap agar tombol bekerja juga saat No. RM memang sudah kosong (idempoten).
         NomorRekamMedis = string.Empty;
         ClearPatient();
         SetStatus(string.Empty, false);
@@ -974,6 +1262,10 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         // datang, termasuk saat No. RM yang dicari sama dengan pasien sebelumnya (§6).
         Ssn = string.Empty;
 
+        // Status verifikasi ikut dibuang: pasien yang muncul berikutnya wajib diverifikasi
+        // ulang sebelum ComboBox rujukan terbuka (§6, §11).
+        ResetFingerprintVerification(FingerprintPendingMessage);
+
         BusyMessage = DefaultBusyMessage;
         IsBusy = true;
         SetStatus(string.Empty, false);
@@ -1008,6 +1300,13 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
             Ssn = patient.ssn ?? string.Empty;
             NamaPasien = fullName;
             SetStatus($"Pasien ditemukan: {fullName}.", false);
+
+            // Pasien baru selalu mulai dari belum terverifikasi. Bila ssn tidak bisa dipakai
+            // sebagai keyword (kosong / bukan 16 atau 13 digit), tombol verifikasi memang tidak
+            // aktif sehingga panel menjelaskan alasannya, bukan menampilkan "menunggu".
+            SetFingerprintStatus(
+                ResolvedJnsFilter.Length > 0 ? FingerprintPendingMessage : FingerprintNoIdentityMessage,
+                false);
 
             // Daftar rujukan diambil memakai patientId (bukan No. RM/BPJS/NIK) dan tetap
             // memakai generasi pencarian yang sama supaya responsnya tidak menimpa pasien lain.
@@ -1341,7 +1640,8 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     /// <summary>
     /// Membuang identitas pasien beserta seluruh identifier turunannya (noKunjungan,
     /// bpjsserviceunitid, bpjsparamedicid) lewat <see cref="ClearRujukan"/>, sehingga tidak ada
-    /// identifier pasien sebelumnya yang terbawa ke pasien berikutnya (§6).
+    /// identifier pasien sebelumnya yang terbawa ke pasien berikutnya (§6). Status verifikasi
+    /// sidik jari ikut dibuang karena verifikasi selalu milik satu pasien (§11).
     /// </summary>
     private void ClearPatient()
     {
@@ -1356,6 +1656,10 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         BpjsParamedicId = string.Empty;
 
         ClearRujukan();
+
+        // Terakhir: membatalkan verifikasi yang mungkin masih berjalan sekaligus mengunci
+        // ComboBox rujukan sampai pasien berikutnya diverifikasi.
+        ResetFingerprintVerification(FingerprintNoPatientMessage);
     }
 
     private static string DescribeFailure(string[]? errors, string? message)

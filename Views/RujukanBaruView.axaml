@@ -137,28 +137,86 @@
                   </StackPanel>
                 </Grid>
 
-                <Button Grid.Column="1" Classes="primary large" MinWidth="160"
-                        VerticalAlignment="Center" AutomationProperties.Name="Verifikasi Finger">
-                  <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
-                              HorizontalAlignment="Center">
-                    <TextBlock Classes="glyph" Text="&#xE928;"
-                               Foreground="{DynamicResource App.Text.OnAccent.Brush}" />
-                    <TextBlock Text="Verifikasi Finger" />
-                  </StackPanel>
-                </Button>
-                <Border Grid.Column="2" Classes="banner success" Width="220"
-                        Height="{StaticResource App.Control.Height.Large}"
-                        Padding="12,0" VerticalAlignment="Center">
-                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource App.Space.S}">
-                    <TextBlock Classes="glyph" Text="&#xE73E;" VerticalAlignment="Center"
-                               Foreground="{DynamicResource App.Success.Default.Brush}" />
-                    <TextBlock Grid.Column="1" Text="Berhasil Verifikasi" VerticalAlignment="Center"
-                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
-                               ToolTip.Tip="Berhasil Verifikasi"
-                               FontSize="{StaticResource App.Type.Body}" FontWeight="SemiBold"
-                               Foreground="{DynamicResource App.Success.Default.Brush}" />
-                  </Grid>
-                </Border>
+                <Panel Grid.Column="1" VerticalAlignment="Center">
+                  <Button Classes="primary large" MinWidth="160"
+                          Command="{Binding VerifikasiFingerCommand}"
+                          IsEnabled="{Binding IsInputEnabled}"
+                          AutomationProperties.Name="Verifikasi Finger">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
+                                HorizontalAlignment="Center">
+                      <TextBlock Classes="glyph" Text="&#xE928;"
+                                 Foreground="{DynamicResource App.Text.OnAccent.Brush}" />
+                      <TextBlock Text="Verifikasi Finger" />
+                    </StackPanel>
+                  </Button>
+                  <!-- Overlay busy (§9.1): tombol tetap di tempatnya, progress menutupi isinya
+                       selama capture + verifikasi berjalan. Overlay menangkap klik supaya
+                       pemindaian tidak bisa dipicu dua kali dari tombol yang sama. -->
+                  <Border IsVisible="{Binding IsFingerprintBusy}" IsHitTestVisible="True"
+                          Background="{DynamicResource App.Surface.Header.Brush}"
+                          BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="1"
+                          CornerRadius="{StaticResource App.Radius.M}">
+                    <ProgressBar Classes="busy" Width="96" VerticalAlignment="Center"
+                                 HorizontalAlignment="Center" />
+                  </Border>
+                </Panel>
+                <!-- Status verifikasi sidik jari (§11): 4 state — menunggu, memindai, gagal,
+                     berhasil. Ukuran tetap supaya layout header tidak bergeser saat state
+                     berubah. -->
+                <Panel Grid.Column="2" Width="220"
+                       Height="{StaticResource App.Control.Height.Large}"
+                       VerticalAlignment="Center">
+                  <Border Classes="banner" IsVisible="{Binding IsFingerprintPending}"
+                          Padding="12,0">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource App.Space.S}">
+                      <TextBlock Classes="glyph" Text="&#xE928;" VerticalAlignment="Center"
+                                 Foreground="{DynamicResource App.Text.Secondary.Brush}" />
+                      <TextBlock Grid.Column="1" Text="{Binding FingerprintStatusMessage}"
+                                 VerticalAlignment="Center"
+                                 TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                 ToolTip.Tip="{Binding FingerprintStatusMessage}"
+                                 FontSize="{StaticResource App.Type.Body}"
+                                 Foreground="{DynamicResource App.Text.Secondary.Brush}" />
+                    </Grid>
+                  </Border>
+                  <Border Classes="banner info" IsVisible="{Binding IsFingerprintBusy}"
+                          Padding="12,0">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource App.Space.S}">
+                      <ProgressBar Classes="busy" Width="40" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{Binding FingerprintStatusMessage}"
+                                 VerticalAlignment="Center"
+                                 TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                 ToolTip.Tip="{Binding FingerprintStatusMessage}"
+                                 FontSize="{StaticResource App.Type.Body}"
+                                 Foreground="{DynamicResource App.Info.Default.Brush}" />
+                    </Grid>
+                  </Border>
+                  <Border Classes="banner danger" IsVisible="{Binding FingerprintStatusIsError}"
+                          Padding="12,0">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource App.Space.S}">
+                      <TextBlock Classes="glyph" Text="&#xE783;" VerticalAlignment="Center"
+                                 Foreground="{DynamicResource App.Danger.Default.Brush}" />
+                      <TextBlock Grid.Column="1" Text="{Binding FingerprintStatusMessage}"
+                                 VerticalAlignment="Center"
+                                 TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                 ToolTip.Tip="{Binding FingerprintStatusMessage}"
+                                 FontSize="{StaticResource App.Type.Body}" FontWeight="SemiBold"
+                                 Foreground="{DynamicResource App.Danger.Default.Brush}" />
+                    </Grid>
+                  </Border>
+                  <Border Classes="banner success" IsVisible="{Binding IsFingerprintVerified}"
+                          Padding="12,0">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource App.Space.S}">
+                      <TextBlock Classes="glyph" Text="&#xE73E;" VerticalAlignment="Center"
+                                 Foreground="{DynamicResource App.Success.Default.Brush}" />
+                      <TextBlock Grid.Column="1" Text="Berhasil Verifikasi" VerticalAlignment="Center"
+                                 TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                 ToolTip.Tip="Berhasil Verifikasi"
+                                 FontSize="{StaticResource App.Type.Body}" FontWeight="SemiBold"
+                                 Foreground="{DynamicResource App.Success.Default.Brush}" />
+                    </Grid>
+                  </Border>
+                </Panel>
               </Grid>
             </Border>
 
@@ -340,6 +398,7 @@
             <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
                         HorizontalAlignment="Right">
               <Button Classes="secondary large" VerticalAlignment="Center"
+                      Command="{Binding BersihkanCommand}"
                       IsEnabled="{Binding IsInputEnabled}"
                       AutomationProperties.Name="Bersihkan">
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource App.Space.S}"
