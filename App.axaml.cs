@@ -28,7 +28,10 @@ public partial class App : Application
                 var loginWindow = new LoginWindow
                 {
                     DataContext = loginViewModel,
-                    WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterScreen
+                    WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterScreen,
+                    // Window login startup tampil Full Screen seperti MainWindow; kartu login
+                    // tetap selebar desain (MaxWidth di LoginWindow.axaml) dan terpusat.
+                    WindowState = Avalonia.Controls.WindowState.FullScreen
                 };
 
                 loginViewModel.RequestClose = () =>

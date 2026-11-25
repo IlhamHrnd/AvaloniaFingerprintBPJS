@@ -13,9 +13,12 @@
         Background="{DynamicResource App.Background.Base.Brush}"
         Title="Login Petugas">
 
-  <!-- Kartu login terpusat (§8.7); tanpa override style lokal -->
+  <!-- Kartu login terpusat (§8.7); tanpa override style lokal.
+       MaxWidth = lebar kartu yang berlaku saat window masih 440px (440 - 2×Margin 16).
+       Diperlukan karena window login startup tampil Full Screen: tanpa batas ini kartu
+       akan melar selebar layar, yang berarti mengubah desain (§8.7). -->
   <Grid Margin="16">
-    <Border VerticalAlignment="Center"
+    <Border VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="408"
             Background="{DynamicResource App.Surface.Card.Brush}"
             BorderBrush="{DynamicResource App.Border.Default.Brush}" BorderThickness="1"
             CornerRadius="{StaticResource App.Radius.L}"
