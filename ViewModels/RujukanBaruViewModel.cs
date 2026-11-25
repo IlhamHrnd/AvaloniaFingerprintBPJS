@@ -7,9 +7,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.Generic;
+using System.Drawing.Printing;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using Telerik.Reporting;
 
 namespace AvaloniaFingerprint.ViewModels;
 
@@ -30,9 +32,10 @@ namespace AvaloniaFingerprint.ViewModels;
 /// dokter lewat <c>bpjsserviceunitid</c> →
 /// <see cref="ParamedicServices.ParamedicScheduleBpjsQuota"/>; dokter terpilih mengisi
 /// tooltip kuota. Setiap tahap membatalkan seluruh tahap di bawahnya sehingga data rujukan
-/// sebelumnya tidak pernah tertinggal (§6). Tombol "Cetak Label" membuat SEP lalu mendaftarkan
-/// pasien memakai nomor SEP tersebut; verifikasi sidik jari dan pencetakan label fisik masih
-/// UI-only (§11).
+/// sebelumnya tidak pernah tertinggal (§6). Tombol "Cetak Label" membuat SEP, mendaftarkan
+/// pasien memakai nomor SEP tersebut, lalu mencetak SEP dan label lewat
+/// <see cref="PrintoutServices"/> + <see cref="ReportLibrary.Sep"/>/<see cref="ReportLibrary.Barcode"/>;
+/// verifikasi sidik jari tetap UI-only (§11).
 /// </para>
 /// </summary>
 public sealed partial class RujukanBaruViewModel : ViewModelBase
@@ -90,8 +93,8 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     private void RequestLoginNow() => RequestLogin?.Invoke();
 
     /// <summary>
-    /// Tombol "Cetak Label": membuat SEP dari rujukan baru lalu mendaftarkan pasien memakai
-    /// nomor SEP tersebut.
+    /// Tombol "Cetak Label": membuat SEP dari rujukan baru, mendaftarkan pasien memakai nomor SEP
+    /// tersebut, lalu mencetak SEP dan label.
     /// <para>
     /// Create SEP (<see cref="RujukanServices.CreateSepFromRujukanBaru"/>) dijalankan lebih dulu;
     /// Create Registration (<see cref="RegistrationServices.CreateRegistrationFromNewRujukan"/>)
@@ -99,10 +102,18 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     /// seluruh proses lewat <c>return</c> sehingga endpoint berikutnya tidak pernah dipanggil.
     /// </para>
     /// <para>
+    /// Pencetakan memakai dua tahap seperti Verifikasi: <see cref="PrintoutServices.Sep"/> lalu
+    /// <see cref="PrintoutServices.Label"/>, masing-masing mengisi parameter
+    /// <see cref="ReportLibrary.Sep"/> / <see cref="ReportLibrary.Barcode"/> dan dikirim ke printer
+    /// lewat <c>printProcess</c>. Kunci cetak adalah 4 karakter terakhir nomor registrasi
+    /// (<c>registration.data</c>); label hanya dicetak setelah SEP berhasil dicetak.
+    /// </para>
+    /// <para>
     /// Identifier dibaca dari state ViewModel (bukan dari teks ComboBox): <see cref="PatientId"/>,
     /// <see cref="NoKunjungan"/>, <see cref="BpjsServiceUnitId"/>, dan <see cref="BpjsParamedicId"/>.
-    /// <c>userId</c> berasal dari sesi login (<see cref="SessionService.UserId"/>). Pencetakan label
-    /// fisik belum diaktifkan; keberhasilan dilaporkan lewat banner status halaman.
+    /// <c>userId</c> berasal dari sesi login (<see cref="SessionService.UserId"/>). Satu
+    /// <c>visitDate</c> dipakai untuk Create SEP, Create Registration, dan kedua data cetak supaya
+    /// seluruh transaksi merujuk ke waktu kunjungan yang sama.
     /// </para>
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanCetakLabel))]
@@ -233,11 +244,277 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
                 return;
             }
 
+            // Nomor registrasi dikembalikan pada data (Root<string>) dan menjadi kunci cetak,
+            // sumber yang sama dengan tahap cetak label di Verifikasi.
             var registrationNo = registration.data?.Trim() ?? string.Empty;
+            if (registrationNo.Length == 0)
+            {
+                SetStatus(
+                    $"Registrasi berhasil (No. SEP: {sepNo}), tetapi nomor registrasi tidak diterima dari API Service sehingga SEP dan label tidak dapat dicetak.",
+                    true);
+                return;
+            }
+
+            // Empat karakter terakhir hanya diambil setelah panjangnya diketahui; nomor yang lebih
+            // pendek dilaporkan sebagai kegagalan cetak, bukan sebagai exception.
+            if (registrationNo.Length < 4)
+            {
+                SetStatus(
+                    $"Registrasi berhasil (No. SEP: {sepNo}), tetapi nomor registrasi \"{registrationNo}\" terlalu pendek untuk dicetak (minimal 4 karakter).",
+                    true);
+                return;
+            }
+
+            var printKey = registrationNo.Substring(registrationNo.Length - 4);
+
+            // Nama printer dibaca sekali dari konfigurasi, sama seperti Verifikasi dan Kode Booking.
+            var printerNormal = _services.Settings.Configuration["Apps:PrinterNormal"] ?? string.Empty;
+            var printerLaser = _services.Settings.Configuration["Apps:PrinterLaser"] ?? string.Empty;
+
+            // Urutan cetak mengikuti Verifikasi: SEP lebih dulu, label hanya dicetak bila SEP sudah
+            // dikirim ke printer. Setiap kegagalan menghentikan proses lewat return sehingga label
+            // tidak pernah tercetak tanpa SEP.
+            BusyMessage = "Mencetak SEP...";
+
+            var sepPrintOut = await Task.Run(() => _services.Printout.Sep(printKey, false, visitDate));
+            if (!sepPrintOut.succeeded || sepPrintOut.errors is { Length: > 0 } || sepPrintOut.data is null)
+            {
+                SetStatus(
+                    $"Registrasi berhasil (No. SEP: {sepNo}, No. Registrasi: {registrationNo}), tetapi cetak SEP gagal: {DescribePrintFailure(sepPrintOut.errors, sepPrintOut.message)}. Label belum dicetak.",
+                    true);
+                return;
+            }
+
+            // printProcess berhenti diam-diam saat printer tidak terpasang (tanpa exception), jadi
+            // kelayakan printer diperiksa lebih dulu supaya status tidak salah melaporkan sukses.
+            if (DescribePrinterProblem(printerNormal, "Apps:PrinterNormal") is { } sepPrinterProblem)
+            {
+                SetStatus(
+                    $"Registrasi berhasil (No. SEP: {sepNo}, No. Registrasi: {registrationNo}), tetapi SEP belum tercetak: {sepPrinterProblem}. Label belum dicetak.",
+                    true);
+                return;
+            }
+
+            try
+            {
+                var data = sepPrintOut.data;
+
+                List<InstanceReportSource> rptSource =
+                [
+                    new InstanceReportSource
+                    {
+                        ReportDocument = new ReportLibrary.Sep()
+                    }
+                ];
+
+                List<Models.Master.Parameter> parameters =
+                [
+                    new()
+                    {
+                        name = "sep",
+                        value = data.sep
+                    },
+                    new()
+                    {
+                        name = "tglsep",
+                        value = data.tglsep
+                    },
+                    new()
+                    {
+                        name = "nokartu",
+                        value = data.nokartu
+                    },
+                    new()
+                    {
+                        name = "nama",
+                        value = data.nama
+                    },
+                    new()
+                    {
+                        name = "tgllahir",
+                        value = data.tgllahir
+                    },
+                    new()
+                    {
+                        name = "sex",
+                        value = data.sex
+                    },
+                    new()
+                    {
+                        name = "politujuan",
+                        value = data.politujuan
+                    },
+                    new()
+                    {
+                        name = "polirujukan",
+                        value = data.polirujukan
+                    },
+                    new()
+                    {
+                        name = "dokterpemeriksa",
+                        value = data.dokterpemeriksa
+                    },
+                    new()
+                    {
+                        name = "dpjp",
+                        value = data.dpjp
+                    },
+                    new()
+                    {
+                        name = "asalfaskes",
+                        value = data.asalfaskes
+                    },
+                    new()
+                    {
+                        name = "diagnosa",
+                        value = data.diagnosa
+                    },
+                    new()
+                    {
+                        name = "antrian",
+                        value = Converter.IntToString(data.antrian)
+                    },
+                    new()
+                    {
+                        name = "jenispeserta",
+                        value = data.jenispeserta
+                    },
+                    new()
+                    {
+                        name = "rm",
+                        value = data.rm
+                    },
+                    new()
+                    {
+                        name = "jenisrawat",
+                        value = data.jenisrawat
+                    },
+                    new()
+                    {
+                        name = "kelasrawat",
+                        value = data.kelasrawat
+                    },
+                    new()
+                    {
+                        name = "cetakby",
+                        value = data.cetakby
+                    },
+                    new()
+                    {
+                        name = "notlp",
+                        value = data.notlp
+                    },
+                    new()
+                    {
+                        name = "urlqrcode",
+                        value = data.linkqrcode
+                    },
+                    new()
+                    {
+                        name = "queueqr",
+                        value = data.queueqr
+                    }
+                ];
+
+                printProcess(new Filters.Printout.Print
+                {
+                    rptSource = rptSource,
+                    parameters = parameters,
+                    printerName = printerNormal
+                });
+            }
+            catch (Exception e)
+            {
+                SetStatus(
+                    $"Registrasi berhasil (No. SEP: {sepNo}, No. Registrasi: {registrationNo}), tetapi cetak SEP gagal: {e.Message}. Label belum dicetak.",
+                    true);
+                return;
+            }
+
+            // Label dicetak setelah SEP berhasil. Kunci cetak tetap 4 karakter terakhir nomor
+            // registrasi (printKey), bukan nomor SEP.
+            BusyMessage = "Mencetak label...";
+
+            var labelPrintOut = await Task.Run(() => _services.Printout.Label(printKey, visitDate));
+            if (!labelPrintOut.succeeded || labelPrintOut.errors is { Length: > 0 } || labelPrintOut.data is null)
+            {
+                SetStatus(
+                    $"Registrasi berhasil dan SEP sudah dicetak, tetapi cetak label gagal: {DescribePrintFailure(labelPrintOut.errors, labelPrintOut.message)}.",
+                    true);
+                return;
+            }
+
+            if (DescribePrinterProblem(printerLaser, "Apps:PrinterLaser") is { } labelPrinterProblem)
+            {
+                SetStatus(
+                    $"Registrasi berhasil dan SEP sudah dicetak, tetapi label belum tercetak: {labelPrinterProblem}.",
+                    true);
+                return;
+            }
+
+            try
+            {
+                var labelData = labelPrintOut.data;
+
+                List<InstanceReportSource> labelSource =
+                [
+                    new InstanceReportSource
+                    {
+                        ReportDocument = new ReportLibrary.Barcode()
+                    }
+                ];
+
+                List<Models.Master.Parameter> labelParameters =
+                [
+                    new()
+                    {
+                        name = "nama",
+                        value = labelData.nama
+                    },
+                    new()
+                    {
+                        name = "tgllahir",
+                        value = labelData.tgllhr
+                    },
+                    new()
+                    {
+                        name = "sex",
+                        value = labelData.lahirjk.Equals("m", StringComparison.CurrentCultureIgnoreCase) ? "Laki - Laki" : "Perempuan"
+                    },
+                    new()
+                    {
+                        name = "rm",
+                        value = labelData.mr
+                    },
+                    new()
+                    {
+                        name = "noreg",
+                        value = $"{labelData.mr} / {labelData.noreg}"
+                    },
+                    new()
+                    {
+                        name = "noantrian",
+                        value = Converter.IntToString(labelData.noantrian)
+                    }
+                ];
+
+                printProcess(new Filters.Printout.Print
+                {
+                    rptSource = labelSource,
+                    parameters = labelParameters,
+                    printerName = printerLaser
+                });
+            }
+            catch (Exception e)
+            {
+                SetStatus(
+                    $"Registrasi berhasil dan SEP sudah dicetak, tetapi cetak label gagal: {e.Message}.",
+                    true);
+                return;
+            }
+
             SetStatus(
-                registrationNo.Length > 0
-                    ? $"Registrasi berhasil. No. SEP: {sepNo}. No. Registrasi: {registrationNo}."
-                    : $"Registrasi berhasil. No. SEP: {sepNo}.",
+                $"Registrasi berhasil. No. SEP: {sepNo}. No. Registrasi: {registrationNo}. SEP dan label telah dikirim ke printer.",
                 false);
         }
         catch (Exception e)
@@ -313,8 +590,8 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     private bool _isBusy;
 
     /// <summary>
-    /// Teks indikator busy (§9.1). Berbeda per tahap (cari pasien, buat SEP, registrasi) supaya
-    /// petugas tahu proses mana yang sedang berjalan; dikembalikan ke
+    /// Teks indikator busy (§9.1). Berbeda per tahap (cari pasien, buat SEP, registrasi, cetak SEP,
+    /// cetak label) supaya petugas tahu proses mana yang sedang berjalan; dikembalikan ke
     /// <see cref="DefaultBusyMessage"/> saat proses selesai.
     /// </summary>
     [ObservableProperty]
@@ -1136,6 +1413,54 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         return !string.IsNullOrWhiteSpace(message)
             ? $"Registrasi gagal: {message}"
             : "Registrasi gagal. Silakan coba lagi.";
+    }
+
+    /// <summary>
+    /// Detail kegagalan pengambilan data cetak (SEP atau label). Pola sama dengan
+    /// <see cref="DescribeSepFailure"/>: <c>errors[]</c> lebih dulu, lalu <c>message</c>
+    /// pembungkus. Kalimat lengkapnya disusun pemanggil karena tahap cetaknya berbeda.
+    /// </summary>
+    private static string DescribePrintFailure(string[]? errors, string? message)
+    {
+        var detail = errors is { Length: > 0 }
+            ? string.Join(", ", errors.Where(e => !string.IsNullOrWhiteSpace(e)))
+            : string.Empty;
+
+        if (detail.Length > 0)
+            return detail;
+
+        return !string.IsNullOrWhiteSpace(message)
+            ? message
+            : "API Service tidak mengembalikan data cetak";
+    }
+
+    /// <summary>
+    /// Memeriksa apakah printer pada konfigurasi benar-benar terpasang. <c>null</c> berarti printer
+    /// siap dipakai; nilai lain berisi alasan yang bisa langsung ditampilkan ke petugas.
+    /// <para>
+    /// Pemeriksaan ini perlu karena <c>printProcess</c> berhenti tanpa exception saat
+    /// <see cref="PrinterSettings.IsValid"/> bernilai false, sehingga printer yang tidak terpasang
+    /// tidak akan pernah terlihat dari hasil pemanggilan cetak.
+    /// </para>
+    /// </summary>
+    private static string? DescribePrinterProblem(string printerName, string configKey)
+    {
+        if (string.IsNullOrWhiteSpace(printerName))
+            return $"printer belum diatur pada konfigurasi ({configKey} kosong)";
+
+        try
+        {
+            if (new PrinterSettings { PrinterName = printerName }.IsValid)
+                return null;
+        }
+        catch (Exception e)
+        {
+            // PrinterSettings bisa melempar saat driver/printer rusak; jangan sampai kegagalan
+            // pemeriksaan berubah menjadi exception yang menyamarkan masalah aslinya.
+            return $"printer \"{printerName}\" ({configKey}) tidak dapat diperiksa: {e.Message}";
+        }
+
+        return $"printer \"{printerName}\" ({configKey}) tidak terpasang atau tidak dapat diakses";
     }
 
     /// <summary>

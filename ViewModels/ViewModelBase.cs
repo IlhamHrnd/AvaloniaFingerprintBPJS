@@ -43,51 +43,35 @@ public abstract class ViewModelBase : ObservableObject
 
             if (ps.IsValid)
             {
-                var printerPage = ps.DefaultPageSettings;
-                var printerPaperWidth = printerPage.PaperSize.Width;   // 1/100 inci
-                var printerPaperHeight = printerPage.PaperSize.Height; // 1/100 inci
-                var printerPrintable = printerPage.PrintableArea;      // 1/100 inci, relatif ke kertas
-
-                if (printerPrintable.Width > 0F && printerPrintable.Height > 0F)
+                foreach (var reportSource in rbs.ReportSources)
                 {
-                    // Inset fisik printer (inci) pada tiap sisi.
-                    var printerInsetX = Math.Max(printerPrintable.Left, printerPaperWidth - printerPrintable.Right) / 100.0;
-                    var printerInsetY = Math.Max(printerPrintable.Top, printerPaperHeight - printerPrintable.Bottom) / 100.0;
-                    printerInsetX = Math.Max(printerInsetX, printerPage.HardMarginX / 100.0);
-                    printerInsetY = Math.Max(printerInsetY, printerPage.HardMarginY / 100.0);
+                    if (reportSource is not InstanceReportSource instance) continue;
+                    if (instance.ReportDocument is not Telerik.Reporting.Report report) continue;
 
-                    // Target margin kecil & proporsional (5 mm), tidak kurang dari inset fisik printer.
-                    var targetInset = Math.Min(Math.Max(5.0 / 25.4, Math.Max(printerInsetX, printerInsetY)), 10.0 / 25.4);
-                    foreach (var reportSource in rbs.ReportSources)
+                    var reportPage = report.PageSettings;
+                    var paperWidth = reportPage.PaperSize.Width.ChangeType(UnitType.Inch).Value;
+                    var paperHeight = reportPage.PaperSize.Height.ChangeType(UnitType.Inch).Value;
+                    var contentWidth = report.Width.ChangeType(UnitType.Inch).Value;
+
+                    var contentHeight = 0.0;
+                    foreach (var reportItem in report.Items)
                     {
-                        if (reportSource is not InstanceReportSource instance) continue;
-                        if (instance.ReportDocument is not Telerik.Reporting.Report report) continue;
-
-                        var reportPage = report.PageSettings;
-                        var paperWidth = reportPage.PaperSize.Width.ChangeType(UnitType.Inch).Value;
-                        var paperHeight = reportPage.PaperSize.Height.ChangeType(UnitType.Inch).Value;
-                        var contentWidth = report.Width.ChangeType(UnitType.Inch).Value;
-                        var contentHeight = 0.0;
-                        foreach (var reportItem in report.Items)
-                        {
-                            if (reportItem is Telerik.Reporting.ReportSection section)
-                            {
-                                contentHeight += section.Height.ChangeType(UnitType.Inch).Value;
-                            }
-                        }
-
-                        var currentInsetX = Math.Max(reportPage.Margins.Left.ChangeType(UnitType.Inch).Value, reportPage.Margins.Right.ChangeType(UnitType.Inch).Value);
-                        var currentInsetY = Math.Max(reportPage.Margins.Top.ChangeType(UnitType.Inch).Value, reportPage.Margins.Bottom.ChangeType(UnitType.Inch).Value);
-
-                        // Sisa ruang pada kertas; laporan berhalaman banyak dibiarkan apa adanya.
-                        var maxInsetX = (paperWidth - contentWidth) / 2.0;
-                        var maxInsetY = contentHeight <= 0.0 || contentHeight > paperHeight ? currentInsetY : (paperHeight - contentHeight) / 2.0;
-
-                        var insetX = Math.Max(currentInsetX, Math.Min(targetInset, maxInsetX));
-                        var insetY = Math.Max(currentInsetY, Math.Min(targetInset, maxInsetY));
-
-                        reportPage.Margins = new MarginsU(Unit.Inch(insetX), Unit.Inch(insetX), Unit.Inch(insetY), Unit.Inch(insetY));
+                        if (reportItem is Telerik.Reporting.ReportSection section)
+                            contentHeight += section.Height.ChangeType(UnitType.Inch).Value;
                     }
+
+                    // Laporan berhalaman banyak / lebih lebar dari kertas: biarkan margin desain apa adanya.
+                    if (contentWidth > paperWidth || contentHeight > paperHeight) continue;
+
+                    var marginX = toMargin((paperWidth - contentWidth) / 2.0);
+                    var marginY = toMargin((paperHeight - contentHeight) / 2.0);
+
+                    reportPage.Margins = new MarginsU(
+                        Unit.Inch(marginX), // Left
+                        Unit.Inch(marginX), // Right
+                        Unit.Inch(marginY), // Top
+                        Unit.Inch(marginY)  // Bottom
+                    );
                 }
             }
 
@@ -105,5 +89,12 @@ public abstract class ViewModelBase : ObservableObject
         }
 
         return;
+    }
+
+    private double toMargin(double available)
+    {
+        const double targetMarginInch = 20 / 100.0;
+        var value = Math.Min(targetMarginInch, available);
+        return value <= 0.0 ? 0.0 : Math.Floor(value * 1000.0) / 1000.0;
     }
 }
