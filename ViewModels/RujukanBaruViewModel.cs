@@ -560,6 +560,15 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     private string _medicalNo = string.Empty;
 
     /// <summary>
+    /// <c>ssn</c> pasien terpilih, disimpan apa adanya dari DTO hasil pencarian
+    /// (<see cref="PatientServices.GetPatientList"/>). Untuk saat ini hanya disimpan; belum
+    /// dipakai proses apa pun. Dikosongkan bersama identitas pasien supaya nilai pasien
+    /// sebelumnya tidak pernah tertinggal (§6).
+    /// </summary>
+    [ObservableProperty]
+    private string _ssn = string.Empty;
+
+    /// <summary>
     /// <c>noKunjungan</c> rujukan terpilih. Diambil dari objek rujukan pada ComboBox
     /// "Rujukan Pasien" (bukan dari teks tampilan) dan dipakai sebagai identifier cetak label.
     /// Dikosongkan setiap pasien/rujukan berganti atau pilihannya dibersihkan (§6).
@@ -960,6 +969,11 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         }
 
         var generation = ++_searchGeneration;
+
+        // Pencarian baru dimulai: ssn pasien sebelumnya tidak boleh bertahan sampai hasil
+        // datang, termasuk saat No. RM yang dicari sama dengan pasien sebelumnya (§6).
+        Ssn = string.Empty;
+
         BusyMessage = DefaultBusyMessage;
         IsBusy = true;
         SetStatus(string.Empty, false);
@@ -991,6 +1005,7 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
 
             PatientId = patient.patientId;
             MedicalNo = string.IsNullOrWhiteSpace(patient.medicalNo) ? filter : patient.medicalNo;
+            Ssn = patient.ssn ?? string.Empty;
             NamaPasien = fullName;
             SetStatus($"Pasien ditemukan: {fullName}.", false);
 
@@ -1333,6 +1348,7 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
         NamaPasien = string.Empty;
         PatientId = string.Empty;
         MedicalNo = string.Empty;
+        Ssn = string.Empty;
 
         // PatientId ikut dikosongkan di sini; tiga identifier lain dibersihkan berantai.
         NoKunjungan = string.Empty;
