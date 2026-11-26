@@ -1185,6 +1185,31 @@ public sealed partial class RujukanBaruViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Numpad sentuh No. Rekam Medis. Menulis ke <see cref="NomorRekamMedis"/> memakai jalur
+    /// yang sama dengan pengetikan fisik: nilai tetap string (nol di depan tidak hilang) dan
+    /// <see cref="OnNomorRekamMedisChanged"/> tetap membatalkan pasien sebelumnya, sehingga
+    /// menekan angka tidak pernah memicu pencarian otomatis.
+    /// </summary>
+    [RelayCommand]
+    private void AppendDigit(string? digit)
+    {
+        if (!IsInputEnabled || string.IsNullOrEmpty(digit) || !char.IsAsciiDigit(digit[0]))
+            return;
+
+        NomorRekamMedis += digit[0];
+    }
+
+    /// <summary>Hapus satu karakter terakhir dari <see cref="NomorRekamMedis"/>.</summary>
+    [RelayCommand]
+    private void Backspace()
+    {
+        if (!IsInputEnabled || NomorRekamMedis.Length == 0)
+            return;
+
+        NomorRekamMedis = NomorRekamMedis[..^1];
+    }
+
+    /// <summary>
     /// Status sesi dipakai overlay "Login Required" (§10.3). Logout membuang state pasien
     /// agar tidak terbawa ke sesi berikutnya; generation counter yang dinaikkan di sini
     /// membuat respons API yang masih berjalan tidak pernah menimpa state sesi baru.
